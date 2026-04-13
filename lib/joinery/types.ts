@@ -1,7 +1,11 @@
 import type { Dimension3 } from "@/lib/project-types";
 
 /** Identifiers for built-in joinery rules (extend as new rules ship). */
-export type JointRuleId = "groove_quarter_back";
+export type JointRuleId =
+  | "groove_quarter_back"
+  | "dado_shelf_width"
+  | "mortise_tenon_rail"
+  | "mortise_tenon_stile";
 
 /** Serializable rule selection + numeric parameters. */
 export type JointSpec = {

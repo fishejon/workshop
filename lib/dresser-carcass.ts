@@ -16,7 +16,8 @@
  * - **Toe kick facing**: One front strip between sides when kick > 0: thickness × inner width × kick
  *   height (grain runs horizontal along width). Classified as Base.
  * - **Horizontal rails between drawer rows** are not emitted here — only the shell. `rowCount` and
- *   `railBetweenDrawers` appear in grain notes for context.
+ *   `railBetweenDrawers` appear in grain notes for context. **Shelf dados** are not modeled—add shelf parts or a
+ *   future joinery rule when needed.
  */
 
 import type { AssemblyId, Dimension3, PartStatus } from "./project-types";
@@ -114,7 +115,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
 
   const parts: DresserCarcassPartSpec[] = [];
 
-  const sideNote = `Full-height side · ${stackNote}`;
+  const sideNote = `Grain vertical (along L / case height) · Full-height side · ${stackNote}`;
   parts.push(
     {
       name: "Case side (left)",
@@ -139,7 +140,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     assembly: "Case",
     quantity: 1,
     finished: { t, w: W, l: D },
-    grainNote: `Full outer top · ${stackNote} (top assembly height ${input.topAssemblyHeight.toFixed(3)}" is total band above drawers)`,
+    grainNote: `Grain typically along W (front edge); confirm rift/flat preference · Full outer top · ${stackNote} (top assembly height ${input.topAssemblyHeight.toFixed(3)}" is total band above drawers)`,
     status: "solid",
   });
 
@@ -148,7 +149,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     assembly: "Case",
     quantity: 1,
     finished: { t: input.bottomPanelThickness, w: innerW, l: bottomDepth },
-    grainNote: `Between sides; depth allows inset back (${input.backThickness.toFixed(3)}") and one side thickness at rear · ${stackNote}`,
+    grainNote: `Grain along W to match top/sides shop practice · Between sides; depth allows inset back (${input.backThickness.toFixed(3)}") and one side thickness at rear · ${stackNote}`,
     status: "solid",
   });
 
@@ -158,7 +159,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       assembly: "Case",
       quantity: 1,
       finished: { t, w: D, l: H },
-      grainNote: `Full-depth vertical partition · ${stackNote}`,
+      grainNote: `Grain vertical (along L) · Full-depth vertical partition · ${stackNote}`,
       status: "solid",
     });
   }
@@ -169,7 +170,8 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       assembly: "Base",
       quantity: 1,
       finished: { t, w: innerW, l: input.kickHeight },
-      grainNote: "Front facing strip between sides; confirm recess and side notches on site",
+      grainNote:
+        "Grain horizontal along strip length (W) · Front facing strip between sides; confirm recess and side notches on site",
       status: "solid",
     });
   }
@@ -180,7 +182,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       assembly: "Back",
       quantity: 1,
       finished: { t: input.backThickness, w: innerW, l: backH },
-      grainNote: `Drawer-stack back only (height = drawer zone ${dz.toFixed(3)}") · ${stackNote}`,
+      grainNote: `Panel—grain vertical or horizontal per design · Drawer-stack back only (height = drawer zone ${dz.toFixed(3)}") · ${stackNote}`,
       status: "panel",
     });
   }

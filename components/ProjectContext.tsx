@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Part, Project } from "@/lib/project-types";
+import type { Part, Project, ProjectJoint } from "@/lib/project-types";
 import {
   STORAGE_KEY,
   createEmptyProject,
@@ -32,6 +32,7 @@ type ProjectContextValue = {
   removePart: (id: string) => void;
   clearParts: () => void;
   resetProject: () => void;
+  addJointRecord: (joint: Omit<ProjectJoint, "id"> & { id?: string }) => void;
 };
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -123,15 +124,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removePart = useCallback((id: string) => {
-    setProject((p) => ({ ...p, parts: p.parts.filter((x) => x.id !== id) }));
+    setProject((p) => ({
+      ...p,
+      parts: p.parts.filter((x) => x.id !== id),
+      joints: p.joints.filter((j) => j.primaryPartId !== id && j.matePartId !== id),
+    }));
   }, []);
 
   const clearParts = useCallback(() => {
-    setProject((p) => ({ ...p, parts: [] }));
+    setProject((p) => ({ ...p, parts: [], joints: [] }));
   }, []);
 
   const resetProject = useCallback(() => {
     setProject(createEmptyProject());
+  }, []);
+
+  const addJointRecord = useCallback((joint: Omit<ProjectJoint, "id"> & { id?: string }) => {
+    setProject((p) => ({
+      ...p,
+      joints: [...p.joints, { ...joint, id: joint.id ?? newPartId() }],
+    }));
   }, []);
 
   const value = useMemo(
@@ -147,6 +159,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       removePart,
       clearParts,
       resetProject,
+      addJointRecord,
     }),
     [
       project,
@@ -160,6 +173,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       removePart,
       clearParts,
       resetProject,
+      addJointRecord,
     ]
   );
 

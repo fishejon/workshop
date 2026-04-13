@@ -51,8 +51,8 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 |------|--------|
 | [x] P2.1 | `lib/board-feet.ts` — BF from rough (or finished + rule) using **nominal/rough thickness** for grouping; document assumption in UI. |
 | [x] P2.2 | **Group parts** by `material + thicknessCategory` (user-selectable category: 4/4, 5/4, ½ ply, etc.). |
-| [x] P2.3 | **Buy list panel**: total BF per group, waste factor % (project default), **suggested stick lengths** ≤ `maxTransportLength` (reuse cut planner stock length concept). |
-| [ ] P2.4 | Optional: “**Suggest boards**” = greedy pack of *rough lengths* (not just 1D demo parts) — can start with **sum of cut lengths + kerf heuristic** before full multi-part 3D packing. |
+| [x] P2.3 | **Buy list panel**: total BF per group, **lineal feet** (Σ qty × rough L / 12) with same waste %, **suggested stick lengths** ≤ `maxTransportLength`. |
+| [x] P2.4 | “**Rough stick layout**” = greedy pack of *rough L × qty* from parts list (kerf + stock ≤ transport). |
 
 **Exit criteria:** For a populated project, user sees BF subtotals and a readable buy list with transport cap respected.
 
@@ -64,10 +64,10 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 | Task | Detail |
 |------|--------|
-| P3.1 | Data model: `Joint` on two part references or assembly edge + **rule id** + numeric params (e.g. tenon length, groove depth). |
-| P3.2 | First rule: **groove + ¼″ back panel** — adjusts back part thickness default, groove offset, affects rough width/length of mates if needed. |
-| P3.3 | Second rule: **mortise & tenon (simplified)** — add tenon length to rail **rough length**; optional shoulder deduction on stile **opening** (document reference face). |
-| P3.4 | UI: **Joinery** section listing connections; clicking shows **before/after** dimensions on affected parts. |
+| [x] P3.1 | Data model: `ProjectJoint` on project + **rule id** + params + **before/after** finished dims (persisted). |
+| [x] P3.2 | First rule: **groove + ¼″ back panel** — floating panel W/L deltas. |
+| [x] P3.3 | Second rule: **mortise & tenon (simplified)** — rail +ΔL / stile −ΔL per tenon length (finished L; rough follows unless manual). |
+| [x] P3.4 | UI: **Joinery** lists applied connections; expand for explanation + before/after T×W×L. |
 
 **Exit criteria:** At least two rule types change part numbers with explicit explanation text.
 
@@ -79,10 +79,10 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 | Task | Detail |
 |------|--------|
-| P4.1 | `lib/dresser-carcass.ts` — sides, top, bottom, dividers, kick (rectangular prisms) from outer dims + thicknesses + column count. |
-| P4.2 | Push generated parts into parts table with assemblies `Case`, `Base`, etc. |
-| P4.3 | **Grain hints** on long parts (e.g. vertical grain on sides). |
-| P4.4 | Reconcile with joinery phase ( dados for shelves later — stub or skip). |
+| [x] P4.1 | `lib/dresser-carcass.ts` — sides, top, bottom, dividers, kick (rectangular prisms) from outer dims + thicknesses + column count. |
+| [x] P4.2 | Push generated parts into parts table with assemblies `Case`, `Base`, etc. |
+| [x] P4.3 | **Grain hints** on case parts (vertical sides/dividers, top/bottom W grain, kick, back panel note). |
+| [x] P4.4 | Shelf dados not auto — documented in carcass header + grain notes. |
 
 **Exit criteria:** One preset produces a **full parts list** (case + drawers) ready for BF grouping.
 
@@ -94,9 +94,9 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 | Task | Detail |
 |------|--------|
-| [ ] P5.1 | **Print stylesheet** or dedicated `/print` route: finished list, rough list, buy list, assumptions block. |
+| [x] P5.1 | **`/print` route** + print styles: finished + rough table, buy list (BF + lineal feet), assumptions. |
 | [x] P5.2 | **CSV export** of parts table. |
-| [ ] P5.3 | Optional PDF via print-to-PDF (avoid heavy server deps in MVP). |
+| [x] P5.3 | **PDF:** user messaging — browser Print → Save as PDF (no server PDF dependency). |
 
 **Exit criteria:** User can leave the shop with a single printed sheet.
 
@@ -108,8 +108,8 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 | Task | Detail |
 |------|--------|
-| P6.1 | Routes or tabs: **Setup | Assemblies | Joinery | Parts | Material | Buy | Output** (can be tabs before full routing). |
-| P6.2 | Enable **TV console** / **cabinet** placeholders with **template stubs** (dims → parts list minimal). |
+| [~] P6.1 | Tabs: **Setup | Build | Shop | About** (full PRD IA can split further later). |
+| [x] P6.2 | **TV console** stub preset; standing cabinet placeholder. |
 
 ---
 
