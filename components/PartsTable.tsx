@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
-import { ASSEMBLY_IDS, type AssemblyId, type Part, type PartStatus } from "@/lib/project-types";
+import { ASSEMBLY_IDS, type AssemblyId, type Part, type PartStatus, type ProjectJoint } from "@/lib/project-types";
+import { formatJointRuleLabel, summarizePartProvenance } from "@/lib/part-provenance";
 import { deriveRough } from "@/lib/project-utils";
 import { boardFeetForPart, linearFeetForPart } from "@/lib/board-feet";
 import { formatImperial } from "@/lib/imperial";
@@ -148,6 +149,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                 <th className="px-2 py-2 font-medium">Thick cat</th>
                 <th className="px-2 py-2 font-medium">Grain</th>
                 <th className="px-2 py-2 font-medium">Status</th>
+                <th className="px-2 py-2 font-medium">Prov</th>
                 <th className="px-2 py-2 font-medium" />
               </tr>
             </thead>
@@ -159,6 +161,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                   millingAllowanceInches={project.millingAllowanceInches}
                   openExplain={openExplain === p.id}
                   onToggleExplain={() => setOpenExplain((x) => (x === p.id ? null : p.id))}
+                  joints={project.joints}
                   onUpdate={updatePart}
                   onRemove={() => removePart(p.id)}
                 />
@@ -176,6 +179,7 @@ function PartRow({
   millingAllowanceInches,
   openExplain,
   onToggleExplain,
+  joints,
   onUpdate,
   onRemove,
 }: {
@@ -183,16 +187,30 @@ function PartRow({
   millingAllowanceInches: number;
   openExplain: boolean;
   onToggleExplain: () => void;
+  joints: ProjectJoint[];
   onUpdate: (id: string, patch: Partial<Part>) => void;
   onRemove: () => void;
 }) {
+  const provenance = useMemo(() => summarizePartProvenance(part, joints), [part, joints]);
   const summary = useMemo(
-    () =>
-      `Default rough = finished + ${formatImperial(millingAllowanceInches)} on each of T, W, L (MVP rule). ` +
-      `Displayed: ${formatImperial(part.finished.t)}→${formatImperial(part.rough.t)}, ` +
-      `${formatImperial(part.finished.w)}→${formatImperial(part.rough.w)}, ` +
-      `${formatImperial(part.finished.l)}→${formatImperial(part.rough.l)}.`,
-    [part, millingAllowanceInches]
+    () => {
+      const roughSummary =
+        provenance.roughSource === "manual"
+          ? "Rough dims are manually overridden for this part."
+          : `Rough dims are derived from finished + ${formatImperial(millingAllowanceInches)} allowance on T, W, and L.`;
+      const joinerySummary =
+        provenance.joineryChangeCount > 0
+          ? `Joinery changed this part ${provenance.joineryChangeCount} time${provenance.joineryChangeCount === 1 ? "" : "s"}${provenance.lastJoineryRuleId ? ` (latest: ${formatJointRuleLabel(provenance.lastJoineryRuleId)}).` : "."}`
+          : "No joinery rule has changed this part's finished dimensions.";
+      return (
+        `${roughSummary} ` +
+        `Displayed: ${formatImperial(part.finished.t)}→${formatImperial(part.rough.t)}, ` +
+        `${formatImperial(part.finished.w)}→${formatImperial(part.rough.w)}, ` +
+        `${formatImperial(part.finished.l)}→${formatImperial(part.rough.l)}. ` +
+        joinerySummary
+      );
+    },
+    [part, millingAllowanceInches, provenance]
   );
 
   return (
@@ -301,6 +319,33 @@ function PartRow({
           </select>
         </td>
         <td className="px-2 py-2">
+          <div className="flex max-w-[130px] flex-wrap gap-1">
+            <ProvenancePill
+              title={
+                provenance.roughSource === "manual"
+                  ? "Rough dimensions are manually controlled."
+                  : "Rough dimensions auto-track finished size and milling allowance."
+              }
+            >
+              {provenance.roughSource === "manual" ? "Rough: manual" : "Rough: derived"}
+            </ProvenancePill>
+            <ProvenancePill
+              title={
+                provenance.joineryChangeCount > 0
+                  ? `Joinery adjusted this part ${provenance.joineryChangeCount} time(s).`
+                  : "No joinery dimension changes recorded for this part."
+              }
+            >
+              {provenance.joineryChangeCount > 0 ? `Joinery: ${provenance.joineryChangeCount}` : "Joinery: none"}
+            </ProvenancePill>
+            {provenance.joineryReferenceCount > 0 ? (
+              <ProvenancePill title="This part was selected as a mate in joinery history.">
+                Mate refs: {provenance.joineryReferenceCount}
+              </ProvenancePill>
+            ) : null}
+          </div>
+        </td>
+        <td className="px-2 py-2">
           <div className="flex flex-col gap-1">
             <button
               type="button"
@@ -321,12 +366,23 @@ function PartRow({
       </tr>
       {openExplain ? (
         <tr className="bg-black/25">
-          <td colSpan={11} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
+          <td colSpan={12} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
             {summary}
           </td>
         </tr>
       ) : null}
     </>
+  );
+}
+
+function ProvenancePill({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <span
+      className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-[10px] text-[var(--gl-cream-soft)]"
+      title={title}
+    >
+      {children}
+    </span>
   );
 }
 

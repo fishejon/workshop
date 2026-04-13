@@ -20,8 +20,8 @@ Your data is **one shared project** across tabs: switching tabs does not start a
 ## Project settings (Setup)
 
 - **Milling allowance** — Added to each **finished** T, W, and L to suggest **rough** sizes, until you mark a part’s rough as **manual**.
-- **Max transport length** — Used as a planning cap for stick length (buy list copy and rough-stick default stock length).
-- **Waste %** — Multiplies **board-foot** and **lineal-foot** subtotals on the buy list (and print).
+- **Max transport length** — A **planning assumption** for carry length and default stock length; not a guarantee your yard stocks that length.
+- **Waste %** — A **planning multiplier** applied to BF/LF subtotals for purchasing cushion (estimate, not exact material volume).
 - **Reset project** — Clears parts, joinery history, and restores default numbers. Use when you want a clean slate.
 
 ---
@@ -34,6 +34,7 @@ Enter overall case dimensions, columns, drawer rows, kick, top/bottom stack, rai
 
 - **Add drawer boxes to parts list** — Pushes drawer parts into the table.
 - **Add case parts to parts list** — Adds rectilinear **Case / Base / Back** parts from the carcass math (see grain notes on each part).
+- **Parts list handoff** — Use the combined handoff controls to either append a full dresser set or replace only dresser assemblies (`Case`, `Base`, `Back`, `Drawers`) while preserving non-dresser parts.
 
 **Slides:** Clearances are rules of thumb. Always verify against your **hardware manufacturer’s** specs.
 
@@ -51,8 +52,9 @@ Minimal shell parts from W×H×D. Joinery is not fully modeled—treat as a star
 
 - **Finished** vs **rough** T×W×L in inches (decimal storage; UI shows friendly fractions where relevant).
 - **Rough manual** — When on, rough no longer auto-follows finished + allowance until you edit again.
+- **Prov column** — Quick provenance signals: rough source (derived/manual), joinery change count, and mate references.
 - **Assembly** — Case, Drawers, Base, Back, Doors, Other (used for filtering in some joinery flows).
-- **Material** — Free-text label + **thickness category** (e.g. 4/4, 5/4)—used to **group** the buy list.
+- **Material** — Free-text label + **thickness category** (e.g. 4/4, 5/4)—used to **group** the buy list. Treat thickness category as yard-facing naming, not measured rough thickness.
 - **Clear all** — Removes every part **and** joinery history for this project.
 - **Export CSV** — Includes dimensions, material, and per-row **board feet** / **lineal feet** (from rough dims).
 
@@ -60,9 +62,9 @@ Minimal shell parts from W×H×D. Joinery is not fully modeled—treat as a star
 
 ## Buy list
 
-- **Board feet (BF)** — From **rough T×W×L** (144 cu in = 1 BF). Grouped by material + thickness category.
-- **Lineal feet (LF)** — For each line: **quantity × rough L ÷ 12**. Summed per group. Same **waste %** as BF.
-- Yard pricing may use different nominal thickness; the UI reminds you to confirm with your supplier.
+- **Exact BF/LF inputs** — From **rough T×W×L + quantity** (BF: 144 cu in = 1 BF; LF: quantity × rough L ÷ 12), grouped by material + thickness category.
+- **Estimate layer** — Waste % inflates BF/LF for purchasing cushion; transport cap helps filter practical stick lengths.
+- **Yard checkout** — Confirm nominal thickness, available stock lengths, and final board count with your supplier.
 
 ---
 
@@ -93,6 +95,7 @@ Packs **rough L × quantity** from the parts list into boards of a given stock l
 
 - **Print shop sheet** (Setup) or **Shop print** link (Shop tab) opens **`/print`** in a new tab.
 - The print page reads the same **`localStorage`** project as the main app.
+- Treat the printout as a lumber-yard handoff: material + thickness category + adjusted BF/LF, then finalize board counts from what is in stock.
 - For a **PDF**, use the browser’s print dialog and choose **Save as PDF** (or “Microsoft Print to PDF”). No server-side PDF is required.
 
 ---

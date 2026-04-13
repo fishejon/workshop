@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Part, Project, ProjectJoint } from "@/lib/project-types";
+import type { AssemblyId, Part, Project, ProjectJoint } from "@/lib/project-types";
 import {
   STORAGE_KEY,
   createEmptyProject,
@@ -28,6 +28,10 @@ type ProjectContextValue = {
   setWasteFactorPercent: (n: number) => void;
   addPart: (part: Omit<Part, "id"> & { id?: string }) => void;
   addParts: (parts: Array<Omit<Part, "id"> & { id?: string }>) => void;
+  replacePartsInAssemblies: (
+    assemblies: AssemblyId[],
+    parts: Array<Omit<Part, "id"> & { id?: string }>
+  ) => void;
   updatePart: (id: string, patch: Partial<Part>) => void;
   removePart: (id: string) => void;
   clearParts: () => void;
@@ -109,6 +113,32 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const replacePartsInAssemblies = useCallback(
+    (assemblies: AssemblyId[], parts: Array<Omit<Part, "id"> & { id?: string }>) => {
+      setProject((p) => {
+        const assemblySet = new Set(assemblies);
+        const removedIds = new Set(
+          p.parts.filter((part) => assemblySet.has(part.assembly)).map((part) => part.id)
+        );
+        const nextParts = p.parts.filter((part) => !assemblySet.has(part.assembly));
+        for (const part of parts) {
+          const id = part.id ?? newPartId();
+          const rough = part.rough.manual
+            ? part.rough
+            : { ...deriveRough(part.finished, p.millingAllowanceInches), manual: false };
+          nextParts.push({ ...part, id, rough });
+        }
+        const joints = p.joints.filter(
+          (joint) =>
+            !removedIds.has(joint.primaryPartId) &&
+            (!joint.matePartId || !removedIds.has(joint.matePartId))
+        );
+        return { ...p, parts: nextParts, joints };
+      });
+    },
+    []
+  );
+
   const updatePart = useCallback((id: string, patch: Partial<Part>) => {
     setProject((p) => {
       const parts = p.parts.map((row) => {
@@ -155,6 +185,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setWasteFactorPercent,
       addPart,
       addParts,
+      replacePartsInAssemblies,
       updatePart,
       removePart,
       clearParts,
@@ -169,6 +200,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setWasteFactorPercent,
       addPart,
       addParts,
+      replacePartsInAssemblies,
       updatePart,
       removePart,
       clearParts,

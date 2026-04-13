@@ -6,6 +6,7 @@ import { applyDadoShelfWidth } from "@/lib/joinery/dado-shelf";
 import { applyGrooveForQuarterBackPanel } from "@/lib/joinery/groove-back";
 import { applyMortiseTenonRail, applyMortiseTenonStile } from "@/lib/joinery/mortise-tenon";
 import type { JointRuleId } from "@/lib/joinery/types";
+import { formatJointRuleLabel } from "@/lib/part-provenance";
 import { formatImperial, parseInches } from "@/lib/imperial";
 
 const RULE_OPTIONS: { id: JointRuleId; label: string }[] = [
@@ -14,13 +15,6 @@ const RULE_OPTIONS: { id: JointRuleId; label: string }[] = [
   { id: "mortise_tenon_rail", label: "M&T — rail (extend L)" },
   { id: "mortise_tenon_stile", label: "M&T — stile (shorten L)" },
 ];
-
-const RULE_LABELS: Record<JointRuleId, string> = {
-  groove_quarter_back: "Groove / ¼ back",
-  dado_shelf_width: "Dado shelf",
-  mortise_tenon_rail: "M&T rail",
-  mortise_tenon_stile: "M&T stile",
-};
 
 function formatTxWxL(t: number, w: number, l: number): string {
   return `${formatImperial(t)} × ${formatImperial(w)} × ${formatImperial(l)}`;
@@ -179,7 +173,7 @@ export function JoineryPanel() {
                 {[...project.joints].reverse().map((j) => {
                   const part = project.parts.find((p) => p.id === j.primaryPartId);
                   const mate = j.matePartId ? project.parts.find((p) => p.id === j.matePartId) : undefined;
-                  const label = RULE_LABELS[j.ruleId as JointRuleId] ?? j.ruleId;
+                  const label = formatJointRuleLabel(j.ruleId);
                   const name = part?.name?.trim() || "Part";
                   const mateName = mate?.name?.trim();
                   const isOpen = expandedJointId === j.id;

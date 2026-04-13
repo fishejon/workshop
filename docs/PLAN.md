@@ -49,7 +49,7 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 | Task | Detail |
 |------|--------|
-| [x] P2.1 | `lib/board-feet.ts` — BF from rough (or finished + rule) using **nominal/rough thickness** for grouping; document assumption in UI. |
+| [x] P2.1 | `lib/board-feet.ts` — BF/LF from exact rough dims + qty, while keeping **waste, transport cap, and nominal thickness wording** explicitly labeled as planning assumptions in UI/print copy. |
 | [x] P2.2 | **Group parts** by `material + thicknessCategory` (user-selectable category: 4/4, 5/4, ½ ply, etc.). |
 | [x] P2.3 | **Buy list panel**: total BF per group, **lineal feet** (Σ qty × rough L / 12) with same waste %, **suggested stick lengths** ≤ `maxTransportLength`. |
 | [x] P2.4 | “**Rough stick layout**” = greedy pack of *rough L × qty* from parts list (kerf + stock ≤ transport). |

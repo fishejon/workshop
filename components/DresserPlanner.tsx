@@ -11,7 +11,7 @@ import {
   outerHeightFromRowOpenings,
   type DresserColumnCount,
 } from "@/lib/dresser-engine";
-import type { Part } from "@/lib/project-types";
+import type { AssemblyId, Part } from "@/lib/project-types";
 import { formatImperial, parseInches } from "@/lib/imperial";
 
 const SLIDE_PRESETS = {
@@ -29,8 +29,16 @@ function parsePositive(s: string): number | null {
   return n;
 }
 
+const DRESSER_ASSEMBLIES: AssemblyId[] = ["Case", "Base", "Back", "Drawers"];
+
+type GenerationSummary = {
+  mode: "append_all" | "replace_all" | "append_case" | "append_drawers";
+  addedCount: number;
+  replacedCount: number;
+};
+
 export function DresserPlanner() {
-  const { addParts } = useProject();
+  const { project, addParts, replacePartsInAssemblies } = useProject();
 
   const [outerW, setOuterW] = useState("48");
   const [outerH, setOuterH] = useState("34");
@@ -50,6 +58,7 @@ export function DresserPlanner() {
   const [slidePreset, setSlidePreset] = useState<SlideKey>("sideMount");
   const [slideWClr, setSlideWClr] = useState(String(SLIDE_PRESETS.sideMount.w));
   const [slideHClr, setSlideHClr] = useState(String(SLIDE_PRESETS.sideMount.h));
+  const [generationSummary, setGenerationSummary] = useState<GenerationSummary | null>(null);
 
   const [backsolve, setBacksolve] = useState<string[]>(["", "", ""]);
 
@@ -266,9 +275,9 @@ export function DresserPlanner() {
     });
   }, [rowOpeningHeights, rowCount]);
 
-  function handleAddCaseParts() {
-    if (carcassResult.ok !== true) return;
-    const toAdd: Omit<Part, "id">[] = carcassResult.parts.map((p) => ({
+  const casePartsToAdd = useMemo<Omit<Part, "id">[]>(() => {
+    if (carcassResult.ok !== true) return [];
+    return carcassResult.parts.map((p) => ({
       name: p.name,
       assembly: p.assembly,
       quantity: p.quantity,
@@ -278,12 +287,11 @@ export function DresserPlanner() {
       grainNote: p.grainNote ?? "",
       status: p.status,
     }));
-    addParts(toAdd);
-  }
+  }, [carcassResult]);
 
-  function handleAddDrawerParts() {
-    if (result.ok !== true) return;
-    const toAdd: Omit<Part, "id">[] = result.cells.map((c) => ({
+  const drawerPartsToAdd = useMemo<Omit<Part, "id">[]>(() => {
+    if (result.ok !== true) return [];
+    return result.cells.map((c) => ({
       name: `Drawer box (${c.label})`,
       assembly: "Drawers",
       quantity: 1,
@@ -293,7 +301,55 @@ export function DresserPlanner() {
       grainNote: `Depth (slide run) ${formatImperial(c.boxDepth)} · opening ${formatImperial(c.openingWidth)} × ${formatImperial(c.openingHeight)}`,
       status: "needs_milling",
     }));
-    addParts(toAdd);
+  }, [result]);
+
+  const existingDresserPartCount = useMemo(
+    () => project.parts.filter((part) => DRESSER_ASSEMBLIES.includes(part.assembly)).length,
+    [project.parts]
+  );
+
+  const generationSummaryText = useMemo(() => {
+    if (!generationSummary) return null;
+    if (generationSummary.mode === "replace_all") {
+      return `Replaced ${generationSummary.replacedCount} dresser row(s) with ${generationSummary.addedCount} newly generated row(s).`;
+    }
+    if (generationSummary.mode === "append_all") {
+      return `Added ${generationSummary.addedCount} dresser row(s) without removing existing rows.`;
+    }
+    if (generationSummary.mode === "append_case") {
+      return `Added ${generationSummary.addedCount} case/base/back row(s) without removing existing rows.`;
+    }
+    return `Added ${generationSummary.addedCount} drawer row(s) without removing existing rows.`;
+  }, [generationSummary]);
+
+  function handleAddCaseParts() {
+    if (casePartsToAdd.length < 1) return;
+    addParts(casePartsToAdd);
+    setGenerationSummary({ mode: "append_case", addedCount: casePartsToAdd.length, replacedCount: 0 });
+  }
+
+  function handleAddDrawerParts() {
+    if (drawerPartsToAdd.length < 1) return;
+    addParts(drawerPartsToAdd);
+    setGenerationSummary({ mode: "append_drawers", addedCount: drawerPartsToAdd.length, replacedCount: 0 });
+  }
+
+  function handleAppendAllDresserParts() {
+    if (casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1) return;
+    const combined = [...casePartsToAdd, ...drawerPartsToAdd];
+    addParts(combined);
+    setGenerationSummary({ mode: "append_all", addedCount: combined.length, replacedCount: 0 });
+  }
+
+  function handleReplaceDresserParts() {
+    if (casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1) return;
+    const combined = [...casePartsToAdd, ...drawerPartsToAdd];
+    replacePartsInAssemblies(DRESSER_ASSEMBLIES, combined);
+    setGenerationSummary({
+      mode: "replace_all",
+      addedCount: combined.length,
+      replacedCount: existingDresserPartCount,
+    });
   }
 
   return (
@@ -463,8 +519,11 @@ export function DresserPlanner() {
             disabled={carcassResult.ok !== true}
             onClick={handleAddCaseParts}
           >
-            Add case parts to parts list
+            1) Add case parts (append)
           </button>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Appends only case/base/back rows and keeps any existing drawer rows untouched.
+          </p>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
@@ -611,11 +670,49 @@ export function DresserPlanner() {
                 className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)]"
                 onClick={handleAddDrawerParts}
               >
-                Add drawer boxes to parts list
+                2) Add drawer boxes (append)
               </button>
+              <p className="text-xs text-[var(--gl-muted)]">
+                Appends only drawer rows so you can stage generation if you prefer.
+              </p>
             </div>
           )}
         </div>
+
+        <section className="rounded-2xl border border-[var(--gl-copper)]/30 bg-[var(--gl-copper)]/8 p-5">
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Parts list handoff
+          </p>
+          <p className="mt-2 text-sm text-[var(--gl-muted)]">
+            For a clean dresser pass, generate both together. This uses the current case + slide settings and makes the
+            add vs replace behavior explicit.
+          </p>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Ready now: {casePartsToAdd.length} case/base/back part(s) + {drawerPartsToAdd.length} drawer box part(s).
+            Existing dresser-tagged rows in parts list: {existingDresserPartCount}.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
+              onClick={handleAppendAllDresserParts}
+            >
+              Add full dresser set (append)
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-[var(--gl-cream)] transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
+              onClick={handleReplaceDresserParts}
+            >
+              Replace dresser rows (case/base/back/drawers)
+            </button>
+          </div>
+          {generationSummaryText ? (
+            <p className="mt-3 text-xs text-[var(--gl-cream-soft)]">{generationSummaryText}</p>
+          ) : null}
+        </section>
       </div>
     </div>
   );

@@ -123,9 +123,11 @@ export function ShopPrintView() {
             Buy list summary
           </h2>
           <p className="mb-4 text-xs shop-print-muted">
-            Board feet from rough T×W×L (144 cu in = 1 BF). Lineal feet (LF) = Σ (quantity × rough L) ÷ 12 per material
-            group, with the same waste % as BF. Sticks ≤ {formatImperial(project.maxTransportLengthInches)} for
-            planning—verify cuts and kerf at the bench.
+            Exact inputs: rough T×W×L + quantity, grouped by material and thickness category. BF/LF totals are exact to
+            those inputs (144 cu in = 1 BF; LF = Σ qty × rough L ÷ 12). Planning estimates: waste %
+            ({project.wasteFactorPercent}%), nominal thickness naming, and sticks ≤{" "}
+            {formatImperial(project.maxTransportLengthInches)} for transport. Confirm nominal stock and available lengths
+            at your lumber yard before purchase.
           </p>
           {groups.length === 0 ? (
             <p className="text-sm shop-print-muted">Add parts with materials to see board-foot groups.</p>
@@ -157,9 +159,9 @@ export function ShopPrintView() {
                       <span className="text-xs shop-print-muted">{g.thicknessCategory}</span>
                     </div>
                     <p className="mt-1 text-xs shop-print-muted">
-                      {g.subtotalBoardFeet.toFixed(2)} BF →{" "}
-                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF with waste ·{" "}
-                      {g.subtotalLinearFeet.toFixed(2)} LF →{" "}
+                      Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from
+                      rough sizes/qty. Yard estimate with waste:{" "}
+                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
                       <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
                     </p>
                     <ul className="mt-2 space-y-0.5 text-xs shop-print-muted">
@@ -178,6 +180,9 @@ export function ShopPrintView() {
         </section>
 
         <p className="no-print mt-10 text-center text-xs shop-print-muted">
+          Bring this print to the lumber yard: material label + thickness category + adjusted BF/LF, then finalize board
+          counts from available stock lengths.
+          <br />
           Use your browser&apos;s print dialog for a paper copy. For a <strong>PDF</strong>, choose{" "}
           <strong>Print → Save as PDF</strong> (or &quot;Microsoft Print to PDF&quot;) as the destination—no server-side
           PDF engine required.

@@ -33,6 +33,7 @@ lib/
   project-types.ts   # Project, Part, ProjectJoint, assemblies
   project-utils.ts   # createEmptyProject, parse/serialize, deriveRough, ids
   board-feet.ts      # BF + LF grouping for buy list
+  part-provenance.ts # Part provenance summary + joinery rule label formatting
   dresser-engine.ts  # Dresser openings / drawer grid math
   dresser-carcass.ts # Case part specs from outer dims
   optimize-cuts.ts   # 1D bin packing (board cuts + rough sticks)
@@ -65,6 +66,16 @@ Mutators of note:
 
 - **`clearParts`** — Clears `parts` and **`joints`**.
 - **`removePart`** — Drops joints whose `primaryPartId` or `matePartId` matches the removed part.
+- **`replacePartsInAssemblies`** — Replaces parts only within selected assemblies (used by dresser handoff), preserving other project parts and cleaning affected joints.
+
+---
+
+## Dresser handoff behavior
+
+- `DresserPlanner` supports staged append actions (case or drawer parts) and a combined handoff path:
+  - append full dresser set
+  - replace dresser assemblies (`Case`, `Base`, `Back`, `Drawers`)
+- The replace path uses `replacePartsInAssemblies` to avoid destructive full-table replacement.
 
 ---
 
@@ -89,6 +100,11 @@ Mutators of note:
 
 - Tests live next to code: `*.test.ts` under `lib/`.
 - Vitest resolves `@/` to the repo root (see `vitest.config.ts`).
+- Current regression coverage includes:
+  - joinery rule unit tests (`lib/joinery/*.test.ts`)
+  - board-foot / lineal-foot totals (`lib/board-feet.test.ts`)
+  - part provenance helpers (`lib/part-provenance.test.ts`)
+  - canonical dresser fixture regression (`lib/dresser-regression.test.ts`, `lib/fixtures/dresser-regression.fixture.ts`)
 
 ---
 
