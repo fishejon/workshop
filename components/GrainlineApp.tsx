@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { BuyListPanel } from "@/components/BuyListPanel";
+import { JoineryPanel } from "@/components/JoineryPanel";
+import { RoughStickLayout } from "@/components/RoughStickLayout";
+import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
 import { CutPlanner } from "@/components/CutPlanner";
 import { DresserPlanner } from "@/components/DresserPlanner";
 import { PartsTable } from "@/components/PartsTable";
 import { ProjectSetupBar } from "@/components/ProjectSetupBar";
+import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
 import { formatImperial } from "@/lib/imperial";
 
@@ -23,11 +27,10 @@ const PRESETS = [
     blurb: "Hardwood stick layout with kerf and the length you actually haul home.",
   },
   {
-    id: "soon-tv" as const,
+    id: "tv-console" as const,
     title: "TV console",
-    tag: "Soon",
-    blurb: "Openings, shelves, and wire management templates.",
-    disabled: true,
+    tag: "Stub shell",
+    blurb: "Open shelf shell: top, sides, and a fixed shelf from overall W × H × D (joinery not modeled yet).",
   },
   {
     id: "soon-cab" as const,
@@ -42,10 +45,45 @@ type PresetId = (typeof PRESETS)[number]["id"];
 
 export function GrainlineApp() {
   const [preset, setPreset] = useState<PresetId>("dresser");
+  const [appTab, setAppTab] = useState<AppShellTabId>("build");
   const { project } = useProject();
   const active = PRESETS.find((p) => p.id === preset);
 
   const explainAllowance = `Project milling allowance: ${formatImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
+
+  const shopAside = (
+    <>
+      <PartsTable explainAllowanceText={explainAllowance} />
+      <BuyListPanel />
+      <JoineryPanel />
+      <RoughStickLayout />
+    </>
+  );
+
+  const buildLeft = (
+    <>
+      {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
+      {preset === "dresser" ? <DresserPlanner /> : null}
+      {preset === "board" ? <CutPlanner /> : null}
+      {preset === "tv-console" ? <TvConsoleStub /> : null}
+      {preset === "soon-cab" ? (
+        <p className="text-[var(--gl-muted)]">This preset is queued—use Dresser, TV console stub, or Board cuts for now.</p>
+      ) : null}
+    </>
+  );
+
+  const aboutPanel = (
+    <div className="max-w-2xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-sm leading-relaxed text-[var(--gl-muted)]">
+      <h2 className="font-display text-xl text-[var(--gl-cream)]">About Grainline</h2>
+      <p>
+        Furniture-oriented presets and shop math in imperial: dresser case and drawer sizing, board cut lists, and a
+        growing set of case stubs. Use <strong className="font-medium text-[var(--gl-cream-soft)]">Build</strong> for
+        planners and <strong className="font-medium text-[var(--gl-cream-soft)]">Shop</strong> for parts, buy list, and
+        layout.
+      </p>
+      <p className="text-xs text-[var(--gl-muted)]">Phase 6 IA preview — details TBD.</p>
+    </div>
+  );
 
   return (
     <div className="relative min-h-full overflow-hidden">
@@ -95,21 +133,13 @@ export function GrainlineApp() {
 
         <ProjectSetupBar />
 
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
-          <div className="min-w-0 space-y-6">
-            {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
-            {preset === "dresser" ? <DresserPlanner /> : null}
-            {preset === "board" ? <CutPlanner /> : null}
-            {preset === "soon-tv" || preset === "soon-cab" ? (
-              <p className="text-[var(--gl-muted)]">This preset is queued—use Dresser or Board cuts for now.</p>
-            ) : null}
-          </div>
-
-          <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
-            <PartsTable explainAllowanceText={explainAllowance} />
-            <BuyListPanel />
-          </aside>
-        </div>
+        <AppShellTabs
+          active={appTab}
+          onChange={setAppTab}
+          buildLeft={buildLeft}
+          shopAside={shopAside}
+          aboutPanel={aboutPanel}
+        />
       </div>
     </div>
   );
