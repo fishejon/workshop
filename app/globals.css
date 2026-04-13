@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --gl-bg: #141210;
+  --gl-ink: #1e1b18;
+  --gl-cream: #f4ede3;
+  --gl-cream-soft: #e8dfd2;
+  --gl-muted: #9c9185;
+  --gl-copper: #b87333;
+  --gl-copper-bright: #d4914d;
+  --gl-teal: #3d6b6b;
+  --background: var(--gl-bg);
+  --foreground: var(--gl-cream);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--gl-bg);
+  color: var(--gl-cream);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
+}
+
+.input-wood {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.625rem 0.75rem;
+  color: var(--gl-cream);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-wood::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.input-wood:focus {
+  border-color: color-mix(in srgb, var(--gl-copper-bright) 50%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gl-copper) 25%, transparent);
+}
