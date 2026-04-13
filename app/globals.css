@@ -49,3 +49,91 @@ body {
   border-color: color-mix(in srgb, var(--gl-copper-bright) 50%, transparent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--gl-copper) 25%, transparent);
 }
+
+.shop-print-muted {
+  color: var(--gl-muted);
+}
+
+/* Shop print sheet: paper-friendly output from /print */
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .shop-print-page {
+    background: #fff !important;
+    color: #000 !important;
+    min-height: auto !important;
+  }
+
+  .shop-print-page h1,
+  .shop-print-page h2,
+  .shop-print-page th,
+  .shop-print-page td,
+  .shop-print-page strong,
+  .shop-print-page dd {
+    color: #000 !important;
+  }
+
+  .shop-print-muted {
+    color: #333 !important;
+  }
+
+  .shop-print-page .rounded-lg,
+  .shop-print-page .shop-print-table th,
+  .shop-print-page .shop-print-table td {
+    background: #fff !important;
+  }
+
+  .shop-print-page .rounded-lg {
+    border-color: #000 !important;
+  }
+
+  .shop-print-table {
+    break-inside: auto;
+  }
+
+  .shop-print-table thead {
+    display: table-header-group;
+  }
+
+  .shop-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .shop-print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .shop-print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .shop-print-section:has(.shop-print-table) {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .shop-print-table th,
+  .shop-print-table td {
+    border-color: #000 !important;
+  }
+
+  .shop-print-page a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+}

@@ -4,6 +4,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
+import { buildDresserCarcassParts } from "@/lib/dresser-carcass";
 import {
   budgetForRowOpeningHeights,
   computeDresser,
@@ -99,6 +100,57 @@ export function DresserPlanner() {
     const s = each.toFixed(3).replace(/\.?0+$/, "");
     setRowOpeningHeights(Array.from({ length: rowCount }, () => s));
   }
+
+  const carcassResult = useMemo(() => {
+    if (!Number.isFinite(rowCount) || rowCount < 1) {
+      return { ok: false as const, message: "Row count must be at least 1." };
+    }
+    const w = parsePositive(outerW);
+    const h = parsePositive(outerH);
+    const d = parsePositive(outerD);
+    const t = parsePositive(materialT);
+    const k = parseInches(kick.trim() === "" ? "0" : kick);
+    const top = parseInches(topAsm);
+    const bot = parseInches(bottomPanel);
+    const r = parseInches(rail);
+    const b = parseInches(backT);
+
+    if (w === null || h === null || d === null || t === null) {
+      return { ok: false as const, message: "Enter valid overall W × H × D and material thickness." };
+    }
+    if (k === null || k < 0 || top === null || top < 0 || bot === null || bot < 0) {
+      return { ok: false as const, message: "Top/bottom must be valid; kick can be 0." };
+    }
+    if (r === null || r < 0 || b === null || b < 0) {
+      return { ok: false as const, message: "Rails and back thickness must be valid (≥ 0)." };
+    }
+
+    return buildDresserCarcassParts({
+      outerWidth: w,
+      outerHeight: h,
+      outerDepth: d,
+      materialThickness: t,
+      columnCount: columns,
+      kickHeight: k,
+      topAssemblyHeight: top,
+      bottomPanelThickness: bot,
+      rowCount,
+      railBetweenDrawers: r,
+      backThickness: b,
+    });
+  }, [
+    outerW,
+    outerH,
+    outerD,
+    materialT,
+    columns,
+    rowCount,
+    kick,
+    topAsm,
+    bottomPanel,
+    rail,
+    backT,
+  ]);
 
   const result = useMemo(() => {
     if (!Number.isFinite(rowCount) || rowCount < 1) {
@@ -213,6 +265,21 @@ export function DresserPlanner() {
       return v !== null && v > 0 ? v : 4;
     });
   }, [rowOpeningHeights, rowCount]);
+
+  function handleAddCaseParts() {
+    if (carcassResult.ok !== true) return;
+    const toAdd: Omit<Part, "id">[] = carcassResult.parts.map((p) => ({
+      name: p.name,
+      assembly: p.assembly,
+      quantity: p.quantity,
+      finished: p.finished,
+      rough: { t: 0, w: 0, l: 0, manual: false },
+      material: { label: "Primary hardwood", thicknessCategory: "4/4" },
+      grainNote: p.grainNote ?? "",
+      status: p.status,
+    }));
+    addParts(toAdd);
+  }
 
   function handleAddDrawerParts() {
     if (result.ok !== true) return;
@@ -387,6 +454,17 @@ export function DresserPlanner() {
               <In value={rearClear} onChange={setRearClear} />
             </Field>
           </div>
+          {carcassResult.ok === false ? (
+            <p className="mt-4 text-sm text-red-300/90">{carcassResult.message}</p>
+          ) : null}
+          <button
+            type="button"
+            className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={carcassResult.ok !== true}
+            onClick={handleAddCaseParts}
+          >
+            Add case parts to parts list
+          </button>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">

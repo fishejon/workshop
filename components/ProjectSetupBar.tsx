@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useProject } from "@/components/ProjectContext";
 import { formatImperial } from "@/lib/imperial";
 
@@ -69,15 +70,25 @@ export function ProjectSetupBar() {
             />
           </label>
         </div>
-        <button
-          type="button"
-          className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
-          onClick={() => {
-            if (confirm("Reset project to defaults? Parts will be cleared.")) resetProject();
-          }}
-        >
-          Reset project
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/print"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg border border-[var(--gl-copper-bright)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/60 hover:text-[var(--gl-cream)]"
+          >
+            Print shop sheet
+          </Link>
+          <button
+            type="button"
+            className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            onClick={() => {
+              if (confirm("Reset project to defaults? Parts will be cleared.")) resetProject();
+            }}
+          >
+            Reset project
+          </button>
+        </div>
       </div>
     </section>
   );
