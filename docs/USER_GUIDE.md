@@ -56,7 +56,8 @@ Minimal shell parts from W×H×D. Joinery is not fully modeled—treat as a star
 - **Assembly** — Case, Drawers, Base, Back, Doors, Other (used for filtering in some joinery flows).
 - **Material** — Free-text label + **thickness category** (e.g. 4/4, 5/4)—used to **group** the buy list. Treat thickness category as yard-facing naming, not measured rough thickness.
 - **Clear all** — Removes every part **and** joinery history for this project.
-- **Export CSV** — Includes dimensions, material, and per-row **board feet** / **lineal feet** (from rough dims).
+- **Assumptions** — Each row now shows explicit joinery sizing provenance and a glue-up assumption line.
+- **Export CSV** — Includes dimensions, material, per-row **board feet** / **lineal feet** (from rough dims), plus joinery/glue-up assumption columns for printout parity.
 
 ---
 
@@ -95,8 +96,11 @@ Packs **rough L × quantity** from the parts list into boards of a given stock l
 
 - **Print shop sheet** (Setup) or **Shop print** link (Shop tab) opens **`/print`** in a new tab.
 - The print page reads the same **`localStorage`** project as the main app.
+- Finished parts include an **Assumptions** column so joinery sizing and panel glue-up assumptions survive to paper/PDF handoff.
 - Treat the printout as a lumber-yard handoff: material + thickness category + adjusted BF/LF, then finalize board counts from what is in stock.
 - For a **PDF**, use the browser’s print dialog and choose **Save as PDF** (or “Microsoft Print to PDF”). No server-side PDF is required.
+
+Current glue-up notes use the panel glue-up planner with a fixed max single-board width assumption; update that setting in code if your shop/yard limits differ.
 
 ---
 

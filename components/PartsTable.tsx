@@ -4,13 +4,14 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { ASSEMBLY_IDS, type AssemblyId, type Part, type PartStatus, type ProjectJoint } from "@/lib/project-types";
 import { formatJointRuleLabel, summarizePartProvenance } from "@/lib/part-provenance";
+import { derivePartAssumptions } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
 import { boardFeetForPart, linearFeetForPart } from "@/lib/board-feet";
 import { formatImperial } from "@/lib/imperial";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
 
-function partsToCsv(parts: Part[]): string {
+function partsToCsv(parts: Part[], joints: ProjectJoint[]): string {
   const headers = [
     "name",
     "assembly",
@@ -29,12 +30,15 @@ function partsToCsv(parts: Part[]): string {
     "material",
     "thickness_category",
     "grain_note",
+    "joinery_assumption",
+    "glue_up_assumption",
     "status",
   ];
   const rows = parts.map((p) => {
     const qty = Math.max(1, p.quantity);
     const bfEach = boardFeetForPart(p);
     const lfEach = linearFeetForPart(p);
+    const assumptions = derivePartAssumptions(p, joints);
     return [
       csvEscape(p.name),
       p.assembly,
@@ -53,6 +57,8 @@ function partsToCsv(parts: Part[]): string {
       csvEscape(p.material.label),
       csvEscape(p.material.thicknessCategory),
       csvEscape(p.grainNote),
+      csvEscape(assumptions.joinery),
+      csvEscape(assumptions.glueUp),
       p.status,
     ].join(",");
   });
@@ -69,7 +75,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
   const [openExplain, setOpenExplain] = useState<string | null>(null);
 
   function downloadCsv() {
-    const blob = new Blob([partsToCsv(project.parts)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([partsToCsv(project.parts, project.joints)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -149,6 +155,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                 <th className="px-2 py-2 font-medium">Thick cat</th>
                 <th className="px-2 py-2 font-medium">Grain</th>
                 <th className="px-2 py-2 font-medium">Status</th>
+                <th className="px-2 py-2 font-medium">Assumptions</th>
                 <th className="px-2 py-2 font-medium">Prov</th>
                 <th className="px-2 py-2 font-medium" />
               </tr>
@@ -192,6 +199,7 @@ function PartRow({
   onRemove: () => void;
 }) {
   const provenance = useMemo(() => summarizePartProvenance(part, joints), [part, joints]);
+  const assumptions = useMemo(() => derivePartAssumptions(part, joints), [part, joints]);
   const summary = useMemo(
     () => {
       const roughSummary =
@@ -319,6 +327,12 @@ function PartRow({
           </select>
         </td>
         <td className="px-2 py-2">
+          <div className="max-w-[220px] space-y-1 text-[10px] leading-snug text-[var(--gl-muted)]">
+            <p>{assumptions.joinery}</p>
+            <p>{assumptions.glueUp}</p>
+          </div>
+        </td>
+        <td className="px-2 py-2">
           <div className="flex max-w-[130px] flex-wrap gap-1">
             <ProvenancePill
               title={
@@ -366,7 +380,7 @@ function PartRow({
       </tr>
       {openExplain ? (
         <tr className="bg-black/25">
-          <td colSpan={12} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
+          <td colSpan={13} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
             {summary}
           </td>
         </tr>

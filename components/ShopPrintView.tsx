@@ -16,6 +16,7 @@ import {
   createEmptyProject,
   parseProject,
 } from "@/lib/project-utils";
+import { derivePartAssumptions, PANEL_GLUE_UP_MAX_BOARD_WIDTH_IN } from "@/lib/part-assumptions";
 
 function formatTxWxL(d: Dimension3): string {
   return `${formatImperial(d.t)} × ${formatImperial(d.w)} × ${formatImperial(d.l)}`;
@@ -88,6 +89,10 @@ export function ShopPrintView() {
           <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
             Finished parts
           </h2>
+          <p className="mb-2 text-xs shop-print-muted">
+            Assumptions column calls out joinery sizing provenance and panel glue-up checks (max single-board panel
+            width assumption: {formatImperial(PANEL_GLUE_UP_MAX_BOARD_WIDTH_IN)}).
+          </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
           ) : (
@@ -100,18 +105,27 @@ export function ShopPrintView() {
                     <th className="py-2 pr-3 font-semibold">Qty</th>
                     <th className="py-2 font-semibold">Finished T×W×L</th>
                     <th className="py-2 font-semibold">Rough T×W×L</th>
+                    <th className="py-2 pl-3 font-semibold">Assumptions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {project.parts.map((p) => (
-                    <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
-                      <td className="py-2 pr-3 align-top">{p.name}</td>
-                      <td className="py-2 pr-3 align-top">{p.assembly}</td>
-                      <td className="py-2 pr-3 align-top tabular-nums">{p.quantity}</td>
-                      <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.finished)}</td>
-                      <td className="py-2 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.rough)}</td>
-                    </tr>
-                  ))}
+                  {project.parts.map((p) => {
+                    const assumptions = derivePartAssumptions(p, project.joints);
+                    return (
+                      <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
+                        <td className="py-2 pr-3 align-top">{p.name}</td>
+                        <td className="py-2 pr-3 align-top">{p.assembly}</td>
+                        <td className="py-2 pr-3 align-top tabular-nums">{p.quantity}</td>
+                        <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.finished)}</td>
+                        <td className="py-2 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.rough)}</td>
+                        <td className="py-2 pl-3 align-top text-xs shop-print-muted">
+                          {assumptions.joinery}
+                          <br />
+                          {assumptions.glueUp}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

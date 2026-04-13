@@ -34,6 +34,7 @@ lib/
   project-utils.ts   # createEmptyProject, parse/serialize, deriveRough, ids
   board-feet.ts      # BF + LF grouping for buy list
   part-provenance.ts # Part provenance summary + joinery rule label formatting
+  part-assumptions.ts # Joinery + glue-up assumption summaries for UI/CSV/print
   dresser-engine.ts  # Dresser openings / drawer grid math
   dresser-carcass.ts # Case part specs from outer dims
   optimize-cuts.ts   # 1D bin packing (board cuts + rough sticks)
@@ -93,6 +94,8 @@ Mutators of note:
 
 - **`groupPartsByMaterial`** (`lib/board-feet.ts`) produces groups with BF and LF subtotals and waste-adjusted totals.
 - **CSV** (`components/PartsTable.tsx`) includes `board_feet_*` and `linear_feet_*` columns using `boardFeetForPart` / `linearFeetForPart`.
+- **Assumptions propagation** (`lib/part-assumptions.ts`) feeds joinery/glue-up text into parts table, CSV, and print output.
+- Glue-up assumption is powered by `planPanelGlueUp` with a shared max-board-width constant so UI/print/export agree on strip-count expectations.
 
 ---
 
@@ -105,6 +108,7 @@ Mutators of note:
   - board-foot / lineal-foot totals (`lib/board-feet.test.ts`)
   - part provenance helpers (`lib/part-provenance.test.ts`)
   - canonical dresser fixture regression (`lib/dresser-regression.test.ts`, `lib/fixtures/dresser-regression.fixture.ts`)
+  - assumptions helper coverage (`lib/part-assumptions.test.ts`)
 
 ---
 

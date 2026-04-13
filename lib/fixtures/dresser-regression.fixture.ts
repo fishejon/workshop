@@ -1,4 +1,6 @@
 import type { DresserCarcassInput } from "../dresser-carcass";
+import type { DresserEngineInput } from "../dresser-engine";
+import { computeDrawerJoineryAllowances } from "../joinery/drawer-allowances";
 import type { Part, Project } from "../project-types";
 
 export const DRESSER_REGRESSION_CARCASS_INPUT: DresserCarcassInput = {
@@ -60,3 +62,56 @@ export const DRESSER_REGRESSION_PROJECT: Project = {
   parts: DRESSER_REGRESSION_PARTS,
   joints: [],
 };
+
+export const DRESSER_REGRESSION_ENGINE_BASE: DresserEngineInput = {
+  outerWidth: 72,
+  outerHeight: 34,
+  outerDepth: 20,
+  materialThickness: 0.75,
+  columnCount: 2,
+  rowCount: 3,
+  rowOpeningHeightsInches: [8.5, 8.5, 8.75],
+  kickHeight: 4,
+  topAssemblyHeight: 1.5,
+  bottomPanelThickness: 0.75,
+  railBetweenDrawers: 1,
+  backThickness: 0.25,
+  rearClearanceForBox: 0.5,
+  slideLengthNominal: 22,
+  slideWidthClearance: 0.5,
+  slideHeightClearance: 0.25,
+  drawerJoineryWidthAllowance: 0,
+  drawerJoineryHeightAllowance: 0,
+};
+
+export const DRESSER_REGRESSION_ENGINE_VARIANTS = {
+  fullOverlapDovetail: {
+    ...DRESSER_REGRESSION_ENGINE_BASE,
+    drawerJoineryWidthAllowance: computeDrawerJoineryAllowances({
+      preset: "dovetail_full_overlap",
+      materialThickness: 0.5,
+    }).widthAllowance,
+    drawerJoineryHeightAllowance: computeDrawerJoineryAllowances({
+      preset: "dovetail_full_overlap",
+      materialThickness: 0.5,
+    }).heightAllowance,
+  } satisfies DresserEngineInput,
+  halfLapDovetail: {
+    ...DRESSER_REGRESSION_ENGINE_BASE,
+    drawerJoineryWidthAllowance: computeDrawerJoineryAllowances({
+      preset: "dovetail_half_lap",
+      materialThickness: 0.5,
+      halfLapDepth: 0.25,
+    }).widthAllowance,
+    drawerJoineryHeightAllowance: computeDrawerJoineryAllowances({
+      preset: "dovetail_half_lap",
+      materialThickness: 0.5,
+      halfLapDepth: 0.25,
+    }).heightAllowance,
+  } satisfies DresserEngineInput,
+  multiColumnSupportThickness: {
+    ...DRESSER_REGRESSION_ENGINE_BASE,
+    materialThickness: 0.875,
+    columnCount: 3,
+  } satisfies DresserEngineInput,
+} as const;

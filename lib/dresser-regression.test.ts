@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { groupPartsByMaterial } from "./board-feet";
 import { buildDresserCarcassParts } from "./dresser-carcass";
+import { computeDresser } from "./dresser-engine";
 import {
   DRESSER_REGRESSION_CARCASS_INPUT,
+  DRESSER_REGRESSION_ENGINE_VARIANTS,
   DRESSER_REGRESSION_PROJECT,
 } from "./fixtures/dresser-regression.fixture";
 import { applyDadoShelfWidth } from "./joinery/dado-shelf";
 import { applyGrooveForQuarterBackPanel } from "./joinery/groove-back";
+import { derivePartAssumptions } from "./part-assumptions";
 
 describe("dresser regression fixture", () => {
   it("keeps dresser carcass core outputs stable", () => {
@@ -81,5 +84,40 @@ describe("dresser regression fixture", () => {
       expect(birch.subtotalLinearFeet).toBeCloseTo(2.3125, 5);
       expect(birch.adjustedLinearFeet).toBeCloseTo(2.659375, 5);
     }
+  });
+
+  it("keeps drawer allowance variants stable for full-overlap and half-lap dovetails", () => {
+    const fullOverlap = computeDresser(DRESSER_REGRESSION_ENGINE_VARIANTS.fullOverlapDovetail);
+    const halfLap = computeDresser(DRESSER_REGRESSION_ENGINE_VARIANTS.halfLapDovetail);
+    expect(fullOverlap.ok).toBe(true);
+    expect(halfLap.ok).toBe(true);
+    if (!fullOverlap.ok || !halfLap.ok) return;
+
+    expect(fullOverlap.cells[0]?.boxWidth).toBeCloseTo(33.375, 5);
+    expect(halfLap.cells[0]?.boxWidth).toBeCloseTo(33.875, 5);
+    expect(halfLap.cells[0]?.boxWidth).toBeCloseTo((fullOverlap.cells[0]?.boxWidth ?? 0) + 0.5, 5);
+    expect(fullOverlap.cells[0]?.boxHeight).toBeCloseTo(8.25, 5);
+    expect(halfLap.cells[0]?.boxHeight).toBeCloseTo(8.25, 5);
+  });
+
+  it("keeps multi-column support thickness behavior stable", () => {
+    const multiColumn = computeDresser(DRESSER_REGRESSION_ENGINE_VARIANTS.multiColumnSupportThickness);
+    expect(multiColumn.ok).toBe(true);
+    if (!multiColumn.ok) return;
+
+    expect(multiColumn.columnInnerWidth).toBeCloseTo(22.833333, 5);
+    expect(multiColumn.cells).toHaveLength(9);
+    expect(multiColumn.cells[0]?.openingWidth).toBeCloseTo(22.833333, 5);
+  });
+
+  it("marks glue-up-required assumption for wide panel fixture parts", () => {
+    const back = DRESSER_REGRESSION_PROJECT.parts.find((part) => part.id === "case-back");
+    expect(back).toBeDefined();
+    if (!back) return;
+
+    const assumptions = derivePartAssumptions(back, DRESSER_REGRESSION_PROJECT.joints);
+    expect(assumptions.glueUp).toMatch(/Glue-up required assumption/);
+    expect(assumptions.glueUp).toMatch(/70\.500"/);
+    expect(assumptions.glueUp).toMatch(/max board width/);
   });
 });
