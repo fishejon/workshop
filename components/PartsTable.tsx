@@ -71,8 +71,11 @@ function csvEscape(s: string): string {
 }
 
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
-  const { project, addPart, updatePart, removePart, clearParts } = useProject();
+  const { project, addPart, updatePart, removePart, clearParts, duplicateAssemblyGroup } = useProject();
   const [openExplain, setOpenExplain] = useState<string | null>(null);
+  const [selectedAssemblyToDuplicate, setSelectedAssemblyToDuplicate] = useState<AssemblyId>(ASSEMBLY_IDS[0]);
+  const canExport =
+    project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
 
   function downloadCsv() {
     const blob = new Blob([partsToCsv(project.parts, project.joints)], { type: "text/csv;charset=utf-8" });
@@ -94,6 +97,27 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-2 py-1">
+            <select
+              className="input-wood py-1.5 text-xs"
+              value={selectedAssemblyToDuplicate}
+              onChange={(e) => setSelectedAssemblyToDuplicate(e.target.value as AssemblyId)}
+            >
+              {ASSEMBLY_IDS.map((assembly) => (
+                <option key={assembly} value={assembly}>
+                  {assembly}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="rounded-lg border border-white/20 px-2 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-white/10 disabled:opacity-40"
+              disabled={!project.parts.some((part) => part.assembly === selectedAssemblyToDuplicate)}
+              onClick={() => duplicateAssemblyGroup(selectedAssemblyToDuplicate)}
+            >
+              Duplicate assembly group
+            </button>
+          </div>
           <button
             type="button"
             className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
@@ -129,14 +153,21 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             type="button"
             className="rounded-lg border border-[var(--gl-copper)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/25"
             onClick={downloadCsv}
-            disabled={project.parts.length === 0}
+            disabled={project.parts.length === 0 || !canExport}
+            aria-disabled={project.parts.length === 0 || !canExport}
+            title={!canExport ? "Acknowledge both Review checkpoints to unlock export." : undefined}
           >
-            Export CSV
+            {canExport ? "Export CSV" : "Export CSV (locked)"}
           </button>
         </div>
       </div>
 
       <p className="mt-2 text-xs text-[var(--gl-muted)]">{explainAllowanceText}</p>
+      {!canExport ? (
+        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+          Export is locked until you acknowledge material assumptions and joinery review in the Review step.
+        </p>
+      ) : null}
 
       {project.parts.length === 0 ? (
         <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Dresser results or manually.</p>

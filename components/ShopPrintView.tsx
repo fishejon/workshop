@@ -46,11 +46,49 @@ export function ShopPrintView() {
   const adjustedBf = useMemo(() => totalAdjustedBoardFeet(groups), [groups]);
   const subtotalLf = useMemo(() => totalLinearFeet(groups), [groups]);
   const adjustedLf = useMemo(() => totalAdjustedLinearFeet(groups), [groups]);
+  const canPrint = Boolean(
+    project?.checkpoints.materialAssumptionsReviewed && project?.checkpoints.joineryReviewed
+  );
 
   if (!project) {
     return (
       <div className="shop-print-page px-6 py-10 shop-print-muted">
         Loading project…
+      </div>
+    );
+  }
+
+  if (!canPrint) {
+    return (
+      <div className="shop-print-page min-h-full bg-[var(--gl-cream)] text-[var(--gl-ink)]">
+        <div className="mx-auto max-w-3xl px-6 py-8">
+          <p className="mb-6 text-sm">
+            <Link
+              href="/"
+              className="text-[var(--gl-copper)] underline decoration-[var(--gl-copper)]/40 underline-offset-2 hover:decoration-[var(--gl-copper)]"
+            >
+              Back to planner
+            </Link>
+          </p>
+          <section className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5">
+            <h1 className="font-display text-2xl text-[var(--gl-ink)]">Print locked pending review checkpoints</h1>
+            <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
+              Go to the Review step and acknowledge both checkpoints before printing/exporting.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>
+                Material assumptions:{" "}
+                <strong>
+                  {project.checkpoints.materialAssumptionsReviewed ? "Acknowledged" : "Not acknowledged"}
+                </strong>
+              </li>
+              <li>
+                Joinery review:{" "}
+                <strong>{project.checkpoints.joineryReviewed ? "Acknowledged" : "Not acknowledged"}</strong>
+              </li>
+            </ul>
+          </section>
+        </div>
       </div>
     );
   }
@@ -137,11 +175,13 @@ export function ShopPrintView() {
             Buy list summary
           </h2>
           <p className="mb-4 text-xs shop-print-muted">
-            Exact inputs: rough T×W×L + quantity, grouped by material and thickness category. BF/LF totals are exact to
-            those inputs (144 cu in = 1 BF; LF = Σ qty × rough L ÷ 12). Planning estimates: waste %
-            ({project.wasteFactorPercent}%), nominal thickness naming, and sticks ≤{" "}
-            {formatImperial(project.maxTransportLengthInches)} for transport. Confirm nominal stock and available lengths
-            at your lumber yard before purchase.
+            BF/LF are computed from <strong className="text-[var(--gl-ink)]">rough T×W×L × qty</strong> (144 cu in = 1 BF;
+            LF = Σ rough L ÷ 12 per piece), not finished net dimensions. <strong className="text-[var(--gl-ink)]">
+              Thickness category
+            </strong>{" "}
+            is nominal yard language—pricing often still uses nominal thickness after surfacing. Waste ({project.wasteFactorPercent}%)
+            applies to those rough subtotals; transport cap {formatImperial(project.maxTransportLengthInches)} is for
+            planning only. Verify surfaced vs rough and available lengths before you buy.
           </p>
           {groups.length === 0 ? (
             <p className="text-sm shop-print-muted">Add parts with materials to see board-foot groups.</p>

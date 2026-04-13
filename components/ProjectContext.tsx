@@ -9,15 +9,32 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AssemblyId, Part, Project, ProjectJoint } from "@/lib/project-types";
+import type {
+  AssemblyId,
+  MaterialGroupCostRate,
+  Part,
+  Project,
+  ProjectJoinConnection,
+  ProjectJoint,
+  ProjectTemplate,
+} from "@/lib/project-types";
 import {
+  MAX_PROJECT_LIBRARY_RECORDS,
+  PROJECT_LIBRARY_STORAGE_KEY,
   STORAGE_KEY,
+  applyTemplate as applyProjectTemplate,
+  cloneProject,
   createEmptyProject,
   deriveRough,
+  duplicateAssemblyGroup as duplicateAssemblyGroupInProject,
   newPartId,
+  normalizeProjectJsonInput,
   parseProject,
+  parseProjectLibrary,
   recomputeAllRoughParts,
+  serializeTemplate as serializeProjectTemplate,
   serializeProject,
+  type StoredProjectRecord,
 } from "@/lib/project-utils";
 
 type ProjectContextValue = {
@@ -26,6 +43,9 @@ type ProjectContextValue = {
   setMillingAllowanceInches: (n: number) => void;
   setMaxTransportLengthInches: (n: number) => void;
   setWasteFactorPercent: (n: number) => void;
+  setMaterialGroupCostRate: (groupKey: string, rate: MaterialGroupCostRate) => void;
+  setWorkshopLumberProfile: (profile: Project["workshop"]["lumberProfile"]) => void;
+  setWorkshopOffcutMode: (mode: Project["workshop"]["offcutMode"]) => void;
   addPart: (part: Omit<Part, "id"> & { id?: string }) => void;
   addParts: (parts: Array<Omit<Part, "id"> & { id?: string }>) => void;
   replacePartsInAssemblies: (
@@ -36,7 +56,22 @@ type ProjectContextValue = {
   removePart: (id: string) => void;
   clearParts: () => void;
   resetProject: () => void;
+  duplicateProject: (name: string) => void;
+  createTemplate: (templateName: string) => ProjectTemplate;
+  applyTemplate: (template: ProjectTemplate, projectName: string) => void;
+  duplicateAssemblyGroup: (assembly: AssemblyId) => void;
+  exportProjectJson: () => string;
+  importProjectJson: (json: string) => { ok: true } | { ok: false; reason: string };
+  projectLibrary: StoredProjectRecord[];
+  backupCurrentProject: (name?: string) => void;
+  restoreFromLibrary: (id: string) => void;
+  setLibraryArchived: (id: string, archived: boolean) => void;
   addJointRecord: (joint: Omit<ProjectJoint, "id"> & { id?: string }) => void;
+  addConnectionRecord: (c: Omit<ProjectJoinConnection, "id"> & { id?: string }) => void;
+  setCheckpointReviewed: (
+    checkpoint: "materialAssumptionsReviewed" | "joineryReviewed",
+    reviewed: boolean
+  ) => void;
 };
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -50,12 +85,37 @@ function loadInitial(): Project {
 }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
+  const resetMaterialCheckpoint = useCallback((p: Project): Project => {
+    if (!p.checkpoints.materialAssumptionsReviewed) return p;
+    return {
+      ...p,
+      checkpoints: {
+        ...p.checkpoints,
+        materialAssumptionsReviewed: false,
+      },
+    };
+  }, []);
+
+  const resetJoineryCheckpoint = useCallback((p: Project): Project => {
+    if (!p.checkpoints.joineryReviewed) return p;
+    return {
+      ...p,
+      checkpoints: {
+        ...p.checkpoints,
+        joineryReviewed: false,
+      },
+    };
+  }, []);
+
   const [project, setProject] = useState<Project>(createEmptyProject);
+  const [projectLibrary, setProjectLibrary] = useState<StoredProjectRecord[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- localStorage hydration after mount (avoid SSR/client mismatch) */
     setProject(loadInitial());
+    const rawLibrary = window.localStorage.getItem(PROJECT_LIBRARY_STORAGE_KEY);
+    setProjectLibrary(rawLibrary ? parseProjectLibrary(rawLibrary) : []);
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -69,6 +129,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [project, hydrated]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(PROJECT_LIBRARY_STORAGE_KEY, JSON.stringify(projectLibrary));
+    } catch {
+      /* ignore quota */
+    }
+  }, [projectLibrary, hydrated]);
+
   const setProjectName = useCallback((name: string) => {
     setProject((p) => ({ ...p, name }));
   }, []);
@@ -76,16 +145,46 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const setMillingAllowanceInches = useCallback((n: number) => {
     setProject((p) => {
       const next = { ...p, millingAllowanceInches: n };
-      return recomputeAllRoughParts(next);
+      return resetMaterialCheckpoint(recomputeAllRoughParts(next));
     });
-  }, []);
+  }, [resetMaterialCheckpoint]);
 
   const setMaxTransportLengthInches = useCallback((n: number) => {
-    setProject((p) => ({ ...p, maxTransportLengthInches: n }));
-  }, []);
+    setProject((p) => resetMaterialCheckpoint({ ...p, maxTransportLengthInches: n }));
+  }, [resetMaterialCheckpoint]);
 
   const setWasteFactorPercent = useCallback((n: number) => {
-    setProject((p) => ({ ...p, wasteFactorPercent: n }));
+    setProject((p) => resetMaterialCheckpoint({ ...p, wasteFactorPercent: n }));
+  }, [resetMaterialCheckpoint]);
+
+  const setMaterialGroupCostRate = useCallback(
+    (groupKey: string, rate: MaterialGroupCostRate) => {
+      setProject((p) => {
+        const nextRates = { ...p.costRatesByGroup };
+        const normalized: MaterialGroupCostRate = {};
+        if (typeof rate.perBoardFoot === "number" && Number.isFinite(rate.perBoardFoot) && rate.perBoardFoot >= 0) {
+          normalized.perBoardFoot = rate.perBoardFoot;
+        }
+        if (typeof rate.perLinearFoot === "number" && Number.isFinite(rate.perLinearFoot) && rate.perLinearFoot >= 0) {
+          normalized.perLinearFoot = rate.perLinearFoot;
+        }
+        if (normalized.perBoardFoot === undefined && normalized.perLinearFoot === undefined) {
+          delete nextRates[groupKey];
+        } else {
+          nextRates[groupKey] = normalized;
+        }
+        return resetMaterialCheckpoint({ ...p, costRatesByGroup: nextRates });
+      });
+    },
+    [resetMaterialCheckpoint]
+  );
+
+  const setWorkshopLumberProfile = useCallback((profile: Project["workshop"]["lumberProfile"]) => {
+    setProject((p) => ({ ...p, workshop: { ...p.workshop, lumberProfile: profile } }));
+  }, []);
+
+  const setWorkshopOffcutMode = useCallback((mode: Project["workshop"]["offcutMode"]) => {
+    setProject((p) => ({ ...p, workshop: { ...p.workshop, offcutMode: mode } }));
   }, []);
 
   const addPart = useCallback((part: Omit<Part, "id"> & { id?: string }) => {
@@ -95,9 +194,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         ? part.rough
         : { ...deriveRough(part.finished, p.millingAllowanceInches), manual: false };
       const full: Part = { ...part, id, rough };
-      return { ...p, parts: [...p.parts, full] };
+      return resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: [...p.parts, full] }));
     });
-  }, []);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const addParts = useCallback((parts: Array<Omit<Part, "id"> & { id?: string }>) => {
     setProject((p) => {
@@ -109,9 +208,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           : { ...deriveRough(part.finished, p.millingAllowanceInches), manual: false };
         next.push({ ...part, id, rough });
       }
-      return { ...p, parts: next };
+      return resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: next }));
     });
-  }, []);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const replacePartsInAssemblies = useCallback(
     (assemblies: AssemblyId[], parts: Array<Omit<Part, "id"> & { id?: string }>) => {
@@ -133,10 +232,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             !removedIds.has(joint.primaryPartId) &&
             (!joint.matePartId || !removedIds.has(joint.matePartId))
         );
-        return { ...p, parts: nextParts, joints };
+        const connections = p.connections.filter(
+          (c) => !removedIds.has(c.partAId) && !removedIds.has(c.partBId)
+        );
+        return resetJoineryCheckpoint(
+          resetMaterialCheckpoint({ ...p, parts: nextParts, joints, connections })
+        );
       });
     },
-    []
+    [resetJoineryCheckpoint, resetMaterialCheckpoint]
   );
 
   const updatePart = useCallback((id: string, patch: Partial<Part>) => {
@@ -149,32 +253,129 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
         return merged;
       });
-      return { ...p, parts };
+      return resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts }));
     });
-  }, []);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const removePart = useCallback((id: string) => {
-    setProject((p) => ({
-      ...p,
-      parts: p.parts.filter((x) => x.id !== id),
-      joints: p.joints.filter((j) => j.primaryPartId !== id && j.matePartId !== id),
-    }));
-  }, []);
+    setProject((p) =>
+      resetJoineryCheckpoint(
+        resetMaterialCheckpoint({
+          ...p,
+          parts: p.parts.filter((x) => x.id !== id),
+          joints: p.joints.filter((j) => j.primaryPartId !== id && j.matePartId !== id),
+          connections: p.connections.filter((c) => c.partAId !== id && c.partBId !== id),
+        })
+      )
+    );
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const clearParts = useCallback(() => {
-    setProject((p) => ({ ...p, parts: [], joints: [] }));
-  }, []);
+    setProject((p) =>
+      resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: [], joints: [], connections: [] }))
+    );
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const resetProject = useCallback(() => {
     setProject(createEmptyProject());
   }, []);
 
-  const addJointRecord = useCallback((joint: Omit<ProjectJoint, "id"> & { id?: string }) => {
-    setProject((p) => ({
-      ...p,
-      joints: [...p.joints, { ...joint, id: joint.id ?? newPartId() }],
-    }));
+  const duplicateProject = useCallback((name: string) => {
+    setProject((p) => cloneProject(p, name));
   }, []);
+
+  const createTemplate = useCallback(
+    (templateName: string) => serializeProjectTemplate(project, templateName),
+    [project]
+  );
+
+  const applyTemplate = useCallback((template: ProjectTemplate, projectName: string) => {
+    setProject(applyProjectTemplate(template, projectName));
+  }, []);
+
+  const duplicateAssemblyGroup = useCallback((assembly: AssemblyId) => {
+    setProject((p) => duplicateAssemblyGroupInProject(p, assembly));
+  }, []);
+
+  const exportProjectJson = useCallback(() => serializeProject(project), [project]);
+
+  const importProjectJson = useCallback((json: string) => {
+    const normalized = normalizeProjectJsonInput(json);
+    if (!normalized) return { ok: false as const, reason: "Import file was empty." };
+    const parsed = parseProject(normalized);
+    if (!parsed) return { ok: false as const, reason: "Could not parse a valid Grainline project JSON file." };
+    setProject(parsed);
+    return { ok: true as const };
+  }, []);
+
+  const backupCurrentProject = useCallback(
+    (name?: string) => {
+      const nowIso = new Date().toISOString();
+      const record: StoredProjectRecord = {
+        id: newPartId(),
+        name: name?.trim() || project.name || "Untitled project",
+        updatedAt: nowIso,
+        archived: false,
+        project,
+      };
+      setProjectLibrary((prev) => {
+        const next = [record, ...prev];
+        return next.length > MAX_PROJECT_LIBRARY_RECORDS ? next.slice(0, MAX_PROJECT_LIBRARY_RECORDS) : next;
+      });
+    },
+    [project]
+  );
+
+  const restoreFromLibrary = useCallback(
+    (id: string) => {
+      const record = projectLibrary.find((row) => row.id === id);
+      if (record) setProject(record.project);
+    },
+    [projectLibrary]
+  );
+
+  const setLibraryArchived = useCallback((id: string, archived: boolean) => {
+    setProjectLibrary((prev) => prev.map((row) => (row.id === id ? { ...row, archived } : row)));
+  }, []);
+
+  const addJointRecord = useCallback((joint: Omit<ProjectJoint, "id"> & { id?: string }) => {
+    setProject((p) =>
+      resetJoineryCheckpoint({
+        ...p,
+        joints: [...p.joints, { ...joint, id: joint.id ?? newPartId() }],
+      })
+    );
+  }, [resetJoineryCheckpoint]);
+
+  const addConnectionRecord = useCallback((c: Omit<ProjectJoinConnection, "id"> & { id?: string }) => {
+    setProject((p) => {
+      const duplicate = p.connections.some(
+        (existing) =>
+          existing.jointId === c.jointId &&
+          existing.partAId === c.partAId &&
+          existing.partBId === c.partBId &&
+          existing.ruleId === c.ruleId
+      );
+      if (duplicate) return p;
+      return resetJoineryCheckpoint({
+        ...p,
+        connections: [...p.connections, { ...c, id: c.id ?? newPartId() }],
+      });
+    });
+  }, [resetJoineryCheckpoint]);
+
+  const setCheckpointReviewed = useCallback(
+    (checkpoint: "materialAssumptionsReviewed" | "joineryReviewed", reviewed: boolean) => {
+      setProject((p) => ({
+        ...p,
+        checkpoints: {
+          ...p.checkpoints,
+          [checkpoint]: reviewed,
+        },
+      }));
+    },
+    []
+  );
 
   const value = useMemo(
     () => ({
@@ -183,6 +384,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setMillingAllowanceInches,
       setMaxTransportLengthInches,
       setWasteFactorPercent,
+      setMaterialGroupCostRate,
+      setWorkshopLumberProfile,
+      setWorkshopOffcutMode,
       addPart,
       addParts,
       replacePartsInAssemblies,
@@ -190,7 +394,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       removePart,
       clearParts,
       resetProject,
+      duplicateProject,
+      createTemplate,
+      applyTemplate,
+      duplicateAssemblyGroup,
+      exportProjectJson,
+      importProjectJson,
+      projectLibrary,
+      backupCurrentProject,
+      restoreFromLibrary,
+      setLibraryArchived,
       addJointRecord,
+      addConnectionRecord,
+      setCheckpointReviewed,
     }),
     [
       project,
@@ -198,6 +414,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setMillingAllowanceInches,
       setMaxTransportLengthInches,
       setWasteFactorPercent,
+      setMaterialGroupCostRate,
+      setWorkshopLumberProfile,
+      setWorkshopOffcutMode,
       addPart,
       addParts,
       replacePartsInAssemblies,
@@ -205,7 +424,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       removePart,
       clearParts,
       resetProject,
+      duplicateProject,
+      createTemplate,
+      applyTemplate,
+      duplicateAssemblyGroup,
+      exportProjectJson,
+      importProjectJson,
+      projectLibrary,
+      backupCurrentProject,
+      restoreFromLibrary,
+      setLibraryArchived,
       addJointRecord,
+      addConnectionRecord,
+      setCheckpointReviewed,
     ]
   );
 

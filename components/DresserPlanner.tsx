@@ -4,42 +4,37 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
-import { buildDresserCarcassParts } from "@/lib/dresser-carcass";
+import {
+  DRESSER_ASSEMBLIES,
+  DRESSER_DEFAULT_ROW_COUNT,
+  DRESSER_DEFAULT_ROW_OPENING_HEIGHTS,
+  DRESSER_DRAWER_JOINERY_PRESETS,
+  DRESSER_PRIMARY_HARDWOOD_4_4,
+  DRESSER_SLIDE_PRESETS,
+  type DresserDrawerJoineryPresetKey,
+  type DresserSlidePresetKey,
+} from "@/lib/archetypes/assemblies";
+import {
+  buildDresserCaseworkCarcass,
+  computeDresserCaseworkEngine,
+} from "@/lib/archetypes/casework";
 import {
   budgetForRowOpeningHeights,
-  computeDresser,
   outerHeightFromRowOpenings,
   type DresserColumnCount,
 } from "@/lib/dresser-engine";
-import type { AssemblyId, Part } from "@/lib/project-types";
+import type { Part } from "@/lib/project-types";
 import { formatImperial, parseInches } from "@/lib/imperial";
 
-const SLIDE_PRESETS = {
-  sideMount: { label: "Side-mount slides (rule of thumb)", w: 0.5, h: 0.25 },
-  tight: { label: "Tighter side-mount", w: 0.375, h: 0.1875 },
-  undermount: { label: "Undermount (placeholder — verify mfg.)", w: 0.125, h: 0.75 },
-  custom: { label: "Custom clearances", w: 0.5, h: 0.25 },
-} as const;
-
-type SlideKey = keyof typeof SLIDE_PRESETS;
+type SlideKey = DresserSlidePresetKey;
 type CaseJoineryStyle = "screw_glue" | "dados" | "confirmat" | "other";
-
-const DRAWER_JOINERY_PRESETS = {
-  none: { label: "No extra joinery allowance", w: 0, h: 0 },
-  lockingRabbet: { label: "Locking rabbet / butt + tuning", w: 0.0625, h: 0 },
-  dovetailHandfit: { label: "Dovetail (hand-fit slack)", w: 0.125, h: 0.03125 },
-  custom: { label: "Custom joinery allowance", w: 0, h: 0 },
-} as const;
-
-type DrawerJoineryKey = keyof typeof DRAWER_JOINERY_PRESETS;
+type DrawerJoineryKey = DresserDrawerJoineryPresetKey;
 
 function parsePositive(s: string): number | null {
   const n = parseInches(s);
   if (n === null || n <= 0) return null;
   return n;
 }
-
-const DRESSER_ASSEMBLIES: AssemblyId[] = ["Case", "Base", "Back", "Drawers"];
 
 type GenerationSummary = {
   mode: "append_all" | "replace_all" | "append_case" | "append_drawers";
@@ -58,9 +53,11 @@ export function DresserPlanner() {
   const [topPanelT, setTopPanelT] = useState("0.75");
   const [maxBoardW, setMaxBoardW] = useState("8");
   const [columns, setColumns] = useState<DresserColumnCount>(2);
-  const [rows, setRows] = useState("3");
+  const [rows, setRows] = useState(String(DRESSER_DEFAULT_ROW_COUNT));
   /** Each drawer row opening height in inches (must sum to case budget — see hint below). */
-  const [rowOpeningHeights, setRowOpeningHeights] = useState<string[]>(["10", "10", "10.25"]);
+  const [rowOpeningHeights, setRowOpeningHeights] = useState<string[]>(() => [
+    ...DRESSER_DEFAULT_ROW_OPENING_HEIGHTS,
+  ]);
   const [kick, setKick] = useState("0");
   const [topAsm, setTopAsm] = useState("1.5");
   const [bottomPanel, setBottomPanel] = useState("0.75");
@@ -69,8 +66,8 @@ export function DresserPlanner() {
   const [rearClear, setRearClear] = useState("0.5");
   const [slideLen, setSlideLen] = useState("22");
   const [slidePreset, setSlidePreset] = useState<SlideKey>("sideMount");
-  const [slideWClr, setSlideWClr] = useState(String(SLIDE_PRESETS.sideMount.w));
-  const [slideHClr, setSlideHClr] = useState(String(SLIDE_PRESETS.sideMount.h));
+  const [slideWClr, setSlideWClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.w));
+  const [slideHClr, setSlideHClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.h));
   const [caseJoineryStyle, setCaseJoineryStyle] = useState<CaseJoineryStyle>("dados");
   const [drawerJoineryPreset, setDrawerJoineryPreset] = useState<DrawerJoineryKey>("none");
   const [drawerJoineryW, setDrawerJoineryW] = useState("0");
@@ -82,7 +79,7 @@ export function DresserPlanner() {
   function applySlidePreset(key: SlideKey) {
     setSlidePreset(key);
     if (key !== "custom") {
-      const p = SLIDE_PRESETS[key];
+      const p = DRESSER_SLIDE_PRESETS[key];
       setSlideWClr(String(p.w));
       setSlideHClr(String(p.h));
     }
@@ -91,7 +88,7 @@ export function DresserPlanner() {
   function applyDrawerJoineryPreset(key: DrawerJoineryKey) {
     setDrawerJoineryPreset(key);
     if (key !== "custom") {
-      const p = DRAWER_JOINERY_PRESETS[key];
+      const p = DRESSER_DRAWER_JOINERY_PRESETS[key];
       setDrawerJoineryW(String(p.w));
       setDrawerJoineryH(String(p.h));
     }
@@ -169,7 +166,7 @@ export function DresserPlanner() {
       return { ok: false as const, message: "Rails and back thickness must be valid (≥ 0)." };
     }
 
-    return buildDresserCarcassParts({
+    return buildDresserCaseworkCarcass({
       outerWidth: w,
       outerHeight: h,
       outerDepth: d,
@@ -248,7 +245,7 @@ export function DresserPlanner() {
       return { ok: false as const, message: "Each row needs a positive opening height in inches (e.g. 8 or 7 1/2)." };
     }
 
-    return computeDresser({
+    return computeDresserCaseworkEngine({
       outerWidth: w,
       outerHeight: h,
       outerDepth: d,
@@ -344,7 +341,7 @@ export function DresserPlanner() {
       quantity: p.quantity,
       finished: p.finished,
       rough: { t: 0, w: 0, l: 0, manual: false },
-      material: { label: "Primary hardwood", thicknessCategory: "4/4" },
+      material: DRESSER_PRIMARY_HARDWOOD_4_4,
       grainNote: [p.grainNote ?? "", caseJoineryNote].filter(Boolean).join(" · "),
       status: p.status,
     }));
@@ -362,7 +359,7 @@ export function DresserPlanner() {
       quantity: 1,
       finished: { t: 0.5, w: c.boxWidth, l: c.boxHeight },
       rough: { t: 0, w: 0, l: 0, manual: false },
-      material: { label: "Primary hardwood", thicknessCategory: "4/4" },
+      material: DRESSER_PRIMARY_HARDWOOD_4_4,
       grainNote:
         `Depth (slide run) ${formatImperial(c.boxDepth)} · opening ${formatImperial(c.openingWidth)} × ${formatImperial(c.openingHeight)} · ` +
         `box formula: W−${formatImperial(sw)}−${formatImperial(jw)}, H−${formatImperial(sh)}−${formatImperial(jh)}`,
@@ -639,9 +636,9 @@ export function DresserPlanner() {
                 value={slidePreset}
                 onChange={(e) => applySlidePreset(e.target.value as SlideKey)}
               >
-                {(Object.keys(SLIDE_PRESETS) as SlideKey[]).map((k) => (
+                {(Object.keys(DRESSER_SLIDE_PRESETS) as SlideKey[]).map((k) => (
                   <option key={k} value={k}>
-                    {SLIDE_PRESETS[k].label}
+                    {DRESSER_SLIDE_PRESETS[k].label}
                   </option>
                 ))}
               </select>
@@ -669,9 +666,9 @@ export function DresserPlanner() {
                 value={drawerJoineryPreset}
                 onChange={(e) => applyDrawerJoineryPreset(e.target.value as DrawerJoineryKey)}
               >
-                {(Object.keys(DRAWER_JOINERY_PRESETS) as DrawerJoineryKey[]).map((k) => (
+                {(Object.keys(DRESSER_DRAWER_JOINERY_PRESETS) as DrawerJoineryKey[]).map((k) => (
                   <option key={k} value={k}>
-                    {DRAWER_JOINERY_PRESETS[k].label}
+                    {DRESSER_DRAWER_JOINERY_PRESETS[k].label}
                   </option>
                 ))}
               </select>

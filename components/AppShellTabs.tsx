@@ -7,9 +7,9 @@ export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
 
 const TAB_LABELS: Record<AppShellTabId, string> = {
   setup: "Setup",
-  build: "Build",
-  shop: "Shop",
-  about: "About",
+  build: "Construction",
+  shop: "Materials",
+  about: "Review",
 };
 
 /**
@@ -23,6 +23,7 @@ export function AppShellTabs({
   buildLeft,
   shopAside,
   aboutPanel,
+  canExportOrPrint,
 }: {
   active: AppShellTabId;
   onChange: (id: AppShellTabId) => void;
@@ -30,9 +31,43 @@ export function AppShellTabs({
   buildLeft: ReactNode;
   shopAside: ReactNode;
   aboutPanel: ReactNode;
+  canExportOrPrint: boolean;
 }) {
+  const activeStepIndex = APP_SHELL_TAB_IDS.indexOf(active);
+  const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_LABELS[id]);
+
   return (
     <div className="space-y-6">
+      <div
+        className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+        aria-label="Guided sequence progress"
+      >
+        <ol className="flex flex-wrap gap-2" aria-label="Guided sequence steps">
+          {APP_SHELL_TAB_IDS.map((id, idx) => {
+            const isCurrent = id === active;
+            const isComplete = idx < activeStepIndex;
+            return (
+              <li
+                key={id}
+                className={`rounded-full border px-3 py-1 text-xs ${
+                  isCurrent
+                    ? "border-[var(--gl-copper-bright)] bg-[var(--gl-copper)]/20 text-[var(--gl-cream)]"
+                    : isComplete
+                      ? "border-white/20 bg-white/[0.06] text-[var(--gl-cream-soft)]"
+                      : "border-white/10 text-[var(--gl-muted)]"
+                }`}
+                aria-current={isCurrent ? "step" : undefined}
+              >
+                {idx + 1}. {TAB_LABELS[id]}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+          {remaining.length > 0 ? `Remaining: ${remaining.join(" -> ")}` : "Final step reached."}
+        </p>
+      </div>
+
       <div
         role="tablist"
         aria-label="Main sections"
@@ -79,12 +114,21 @@ export function AppShellTabs({
                 Parts list, buy list, joinery, and rough-stick layout. Project name, milling allowance, transport cap,
                 and waste % live under <strong className="text-[var(--gl-cream-soft)]">Setup</strong>. Export CSV from
                 the parts header, or open{" "}
-                <a
-                  href="/print"
-                  className="font-medium text-[var(--gl-copper-bright)] underline-offset-2 hover:underline"
-                >
-                  shop print
-                </a>{" "}
+                {canExportOrPrint ? (
+                  <a
+                    href="/print"
+                    className="font-medium text-[var(--gl-copper-bright)] underline-offset-2 hover:underline"
+                  >
+                    shop print
+                  </a>
+                ) : (
+                  <span
+                    className="font-medium text-[var(--gl-muted)]"
+                    aria-label="Shop print locked until review checkpoints are acknowledged"
+                  >
+                    shop print (locked until Review)
+                  </span>
+                )}{" "}
                 for a paper-friendly sheet.
               </p>
             </div>
