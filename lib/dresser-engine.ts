@@ -33,6 +33,10 @@ export type DresserEngineInput = {
   slideWidthClearance: number;
   /** Total height subtracted from opening → drawer box height. */
   slideHeightClearance: number;
+  /** Extra total width allowance for joinery/build method (e.g. dovetail tuning). */
+  drawerJoineryWidthAllowance?: number;
+  /** Extra total height allowance for joinery/build method. */
+  drawerJoineryHeightAllowance?: number;
 };
 
 export type DrawerCellResult = {
@@ -152,8 +156,10 @@ export function computeDresser(input: DresserEngineInput): DresserEngineResult |
     for (let r = 0; r < input.rowCount; r++) {
       const ow = columnInner;
       const oh = openingHeights[r] ?? 0;
-      const bw = Math.max(0, ow - input.slideWidthClearance);
-      const bh = Math.max(0, oh - input.slideHeightClearance);
+      const joineryW = Math.max(0, input.drawerJoineryWidthAllowance ?? 0);
+      const joineryH = Math.max(0, input.drawerJoineryHeightAllowance ?? 0);
+      const bw = Math.max(0, ow - input.slideWidthClearance - joineryW);
+      const bh = Math.max(0, oh - input.slideHeightClearance - joineryH);
       cells.push({
         columnIndex: c,
         rowIndex: r,
