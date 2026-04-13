@@ -22,6 +22,13 @@ export type MaterialSpec = {
   thicknessCategory: string;
 };
 
+export type MaterialGroupCostRate = {
+  /** Optional rate per adjusted board foot for this material group. */
+  perBoardFoot?: number;
+  /** Optional rate per adjusted linear foot for this material group. */
+  perLinearFoot?: number;
+};
+
 export type PartStatus = "solid" | "panel" | "needs_milling";
 
 export type RoughSpec = {
@@ -54,6 +61,12 @@ export type Part = {
 export type ProjectJoint = {
   id: string;
   ruleId: string;
+  /** Multi-step application group id (e.g. preset run) for traceability UI. */
+  applicationId?: string;
+  /** Optional preset id if this joint was created from a construction preset. */
+  presetId?: string;
+  /** Optional friendly preset label for history grouping. */
+  presetLabel?: string;
   /** Part that received the dimensional change. */
   primaryPartId: string;
   /** Optional mate (e.g. stile for a rail, side for a shelf). */
@@ -68,7 +81,40 @@ export type ProjectJoint = {
   finishedAfter: Dimension3;
 };
 
+/**
+ * Explicit part-to-part joinery edge (graph). `partAId` is the primary (dimensionally edited) part;
+ * `partBId` is the mate when both ends of the connection are known.
+ */
+export type ProjectJoinConnection = {
+  id: string;
+  /** Multi-step application group id (e.g. preset run) for traceability UI. */
+  applicationId?: string;
+  partAId: string;
+  partBId: string;
+  ruleId: string;
+  params: Record<string, number>;
+  primaryEdgeLabel?: string;
+  mateEdgeLabel?: string;
+  explanation?: string;
+  /** Optional link to the `ProjectJoint` audit row created in the same apply action. */
+  jointId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const LUMBER_PROFILE_IDS = ["s4s_hardwood", "rough_hardwood", "sheet_goods", "mixed_stock"] as const;
+export type LumberProfileId = (typeof LUMBER_PROFILE_IDS)[number];
+
+export const OFFCUT_MODE_IDS = ["none", "keep_serviceable"] as const;
+export type OffcutModeId = (typeof OFFCUT_MODE_IDS)[number];
+
+export type WorkshopPreferences = {
+  lumberProfile: LumberProfileId;
+  offcutMode: OffcutModeId;
+};
+
 export type Project = {
+  id: string;
   version: 1;
   name: string;
   /** Added to each finished T, W, L to suggest rough size (simple shop default). */
@@ -77,7 +123,34 @@ export type Project = {
   maxTransportLengthInches: number;
   /** Applied to board-foot subtotals in buy list. */
   wasteFactorPercent: number;
+  /** Optional material-group rates keyed by `materialGroupKey(label, thicknessCategory)`. */
+  costRatesByGroup: Record<string, MaterialGroupCostRate>;
   parts: Part[];
   /** Applied joinery rules (Phase 3). */
   joints: ProjectJoint[];
+  /** Part-to-part joinery graph; omitted in legacy saves. */
+  connections: ProjectJoinConnection[];
+  /** Explicit review gates before export/print actions. */
+  checkpoints: {
+    materialAssumptionsReviewed: boolean;
+    joineryReviewed: boolean;
+  };
+  /** Workshop memory defaults stored locally (Epic 7 starter). */
+  workshop: WorkshopPreferences;
+};
+
+export type ProjectTemplate = {
+  id: string;
+  version: 1;
+  name: string;
+  sourceProjectName: string;
+  createdAt: string;
+  millingAllowanceInches: number;
+  maxTransportLengthInches: number;
+  wasteFactorPercent: number;
+  costRatesByGroup: Record<string, MaterialGroupCostRate>;
+  parts: Part[];
+  joints: ProjectJoint[];
+  connections: ProjectJoinConnection[];
+  workshop: WorkshopPreferences;
 };

@@ -54,13 +54,24 @@ export const DRESSER_REGRESSION_PARTS: Part[] = [
 ];
 
 export const DRESSER_REGRESSION_PROJECT: Project = {
+  id: "fixture-dresser-regression",
   version: 1,
   name: "Canonical dresser regression fixture",
   millingAllowanceInches: 0.5,
   maxTransportLengthInches: 96,
   wasteFactorPercent: 15,
+  costRatesByGroup: {},
   parts: DRESSER_REGRESSION_PARTS,
   joints: [],
+  connections: [],
+  checkpoints: {
+    materialAssumptionsReviewed: false,
+    joineryReviewed: false,
+  },
+  workshop: {
+    lumberProfile: "s4s_hardwood",
+    offcutMode: "none",
+  },
 };
 
 export const DRESSER_REGRESSION_ENGINE_BASE: DresserEngineInput = {
