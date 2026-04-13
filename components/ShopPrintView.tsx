@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   groupPartsByMaterial,
   totalAdjustedBoardFeet,
+  totalAdjustedLinearFeet,
   totalBoardFeet,
+  totalLinearFeet,
 } from "@/lib/board-feet";
 import { formatImperial } from "@/lib/imperial";
 import type { Dimension3, Project } from "@/lib/project-types";
@@ -41,6 +43,8 @@ export function ShopPrintView() {
 
   const subtotalBf = useMemo(() => totalBoardFeet(groups), [groups]);
   const adjustedBf = useMemo(() => totalAdjustedBoardFeet(groups), [groups]);
+  const subtotalLf = useMemo(() => totalLinearFeet(groups), [groups]);
+  const adjustedLf = useMemo(() => totalAdjustedLinearFeet(groups), [groups]);
 
   if (!project) {
     return (
@@ -119,8 +123,9 @@ export function ShopPrintView() {
             Buy list summary
           </h2>
           <p className="mb-4 text-xs shop-print-muted">
-            Board feet from rough T×W×L (144 cu in = 1 BF). Sticks ≤ {formatImperial(project.maxTransportLengthInches)}{" "}
-            for planning—verify cuts and kerf at the bench.
+            Board feet from rough T×W×L (144 cu in = 1 BF). Lineal feet (LF) = Σ (quantity × rough L) ÷ 12 per material
+            group, with the same waste % as BF. Sticks ≤ {formatImperial(project.maxTransportLengthInches)} for
+            planning—verify cuts and kerf at the bench.
           </p>
           {groups.length === 0 ? (
             <p className="text-sm shop-print-muted">Add parts with materials to see board-foot groups.</p>
@@ -130,9 +135,15 @@ export function ShopPrintView() {
                 <span className="mr-4">
                   Subtotal BF: <strong className="tabular-nums">{subtotalBf.toFixed(2)}</strong>
                 </span>
-                <span>
+                <span className="mr-4">
                   With {project.wasteFactorPercent}% waste:{" "}
-                  <strong className="tabular-nums">{adjustedBf.toFixed(2)}</strong>
+                  <strong className="tabular-nums">{adjustedBf.toFixed(2)}</strong> BF
+                </span>
+                <span className="mr-4">
+                  Subtotal LF: <strong className="tabular-nums">{subtotalLf.toFixed(2)}</strong>
+                </span>
+                <span>
+                  With waste: <strong className="tabular-nums">{adjustedLf.toFixed(2)}</strong> LF
                 </span>
               </p>
               <ul className="space-y-4">
@@ -146,13 +157,16 @@ export function ShopPrintView() {
                       <span className="text-xs shop-print-muted">{g.thicknessCategory}</span>
                     </div>
                     <p className="mt-1 text-xs shop-print-muted">
-                      {g.subtotalBoardFeet.toFixed(2)} BF →                       <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong>{" "}
-                      BF with waste.
+                      {g.subtotalBoardFeet.toFixed(2)} BF →{" "}
+                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF with waste ·{" "}
+                      {g.subtotalLinearFeet.toFixed(2)} LF →{" "}
+                      <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
                     </p>
                     <ul className="mt-2 space-y-0.5 text-xs shop-print-muted">
                       {g.lines.map((ln) => (
                         <li key={ln.partId}>
-                          {ln.partName} ×{ln.quantity} — {ln.boardFeetTotal.toFixed(2)} BF
+                          {ln.partName} ×{ln.quantity} — {ln.boardFeetTotal.toFixed(2)} BF, {ln.linearFeetTotal.toFixed(2)}{" "}
+                          LF
                         </li>
                       ))}
                     </ul>
@@ -164,7 +178,9 @@ export function ShopPrintView() {
         </section>
 
         <p className="no-print mt-10 text-center text-xs shop-print-muted">
-          Use your browser&apos;s print dialog for a paper copy.
+          Use your browser&apos;s print dialog for a paper copy. For a <strong>PDF</strong>, choose{" "}
+          <strong>Print → Save as PDF</strong> (or &quot;Microsoft Print to PDF&quot;) as the destination—no server-side
+          PDF engine required.
         </p>
       </div>
     </div>

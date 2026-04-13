@@ -17,6 +17,7 @@ export function createEmptyProject(): Project {
     maxTransportLengthInches: 96,
     wasteFactorPercent: 15,
     parts: [],
+    joints: [],
   };
 }
 
@@ -57,7 +58,8 @@ export function parseProject(json: string): Project | null {
     if (!v || typeof v !== "object") return null;
     const o = v as Partial<Project>;
     if (o.version !== 1 || !Array.isArray(o.parts)) return null;
-    return o as Project;
+    const joints = Array.isArray(o.joints) ? o.joints : [];
+    return { ...(o as Project), joints };
   } catch {
     return null;
   }

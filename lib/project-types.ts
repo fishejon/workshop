@@ -47,6 +47,27 @@ export type Part = {
   status: PartStatus;
 };
 
+/**
+ * Record of a joinery rule applied to a part (audit + before/after display).
+ * `ruleId` matches `JointRuleId` in `lib/joinery/types.ts`.
+ */
+export type ProjectJoint = {
+  id: string;
+  ruleId: string;
+  /** Part that received the dimensional change. */
+  primaryPartId: string;
+  /** Optional mate (e.g. stile for a rail, side for a shelf). */
+  matePartId?: string;
+  /** Shop-language reference for primary mating edge/face. */
+  primaryEdgeLabel?: string;
+  /** Shop-language reference for mate edge/face. */
+  mateEdgeLabel?: string;
+  params: Record<string, number>;
+  explanation: string;
+  finishedBefore: Dimension3;
+  finishedAfter: Dimension3;
+};
+
 export type Project = {
   version: 1;
   name: string;
@@ -57,4 +78,6 @@ export type Project = {
   /** Applied to board-foot subtotals in buy list. */
   wasteFactorPercent: number;
   parts: Part[];
+  /** Applied joinery rules (Phase 3). */
+  joints: ProjectJoint[];
 };

@@ -72,16 +72,19 @@ export function GrainlineApp() {
     </>
   );
 
+  const setupPanel = <ProjectSetupBar />;
+
   const aboutPanel = (
     <div className="max-w-2xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-sm leading-relaxed text-[var(--gl-muted)]">
       <h2 className="font-display text-xl text-[var(--gl-cream)]">About Grainline</h2>
       <p>
         Furniture-oriented presets and shop math in imperial: dresser case and drawer sizing, board cut lists, and a
-        growing set of case stubs. Use <strong className="font-medium text-[var(--gl-cream-soft)]">Build</strong> for
-        planners and <strong className="font-medium text-[var(--gl-cream-soft)]">Shop</strong> for parts, buy list, and
-        layout.
+        growing set of case stubs. Use <strong className="font-medium text-[var(--gl-cream-soft)]">Setup</strong> for
+        project defaults, <strong className="font-medium text-[var(--gl-cream-soft)]">Build</strong> for planners, and{" "}
+        <strong className="font-medium text-[var(--gl-cream-soft)]">Shop</strong> for parts, buy list (BF + lineal
+        feet), joinery, and rough-stick layout.
       </p>
-      <p className="text-xs text-[var(--gl-muted)]">Phase 6 IA preview — details TBD.</p>
+      <p className="text-xs text-[var(--gl-muted)]">Phase 6 IA — Setup / Build / Shop / About.</p>
     </div>
   );
 
@@ -131,11 +134,10 @@ export function GrainlineApp() {
           </div>
         </header>
 
-        <ProjectSetupBar />
-
         <AppShellTabs
           active={appTab}
           onChange={setAppTab}
+          setupPanel={setupPanel}
           buildLeft={buildLeft}
           shopAside={shopAside}
           aboutPanel={aboutPanel}

@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { ASSEMBLY_IDS, type AssemblyId, type Part, type PartStatus } from "@/lib/project-types";
 import { deriveRough } from "@/lib/project-utils";
+import { boardFeetForPart, linearFeetForPart } from "@/lib/board-feet";
 import { formatImperial } from "@/lib/imperial";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
@@ -20,13 +21,20 @@ function partsToCsv(parts: Part[]): string {
     "rough_w_in",
     "rough_l_in",
     "rough_manual",
+    "board_feet_each",
+    "board_feet_total",
+    "linear_feet_each",
+    "linear_feet_total",
     "material",
     "thickness_category",
     "grain_note",
     "status",
   ];
-  const rows = parts.map((p) =>
-    [
+  const rows = parts.map((p) => {
+    const qty = Math.max(1, p.quantity);
+    const bfEach = boardFeetForPart(p);
+    const lfEach = linearFeetForPart(p);
+    return [
       csvEscape(p.name),
       p.assembly,
       p.quantity,
@@ -37,12 +45,16 @@ function partsToCsv(parts: Part[]): string {
       p.rough.w,
       p.rough.l,
       p.rough.manual,
+      bfEach,
+      bfEach * qty,
+      lfEach,
+      lfEach * qty,
       csvEscape(p.material.label),
       csvEscape(p.material.thicknessCategory),
       csvEscape(p.grainNote),
       p.status,
-    ].join(",")
-  );
+    ].join(",");
+  });
   return [headers.join(","), ...rows].join("\n");
 }
 
@@ -96,7 +108,13 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           <button
             type="button"
             className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
-            onClick={() => clearParts()}
+            onClick={() => {
+              if (
+                confirm("Clear all parts? Joinery history for this project will also be removed.")
+              ) {
+                clearParts();
+              }
+            }}
           >
             Clear all
           </button>
