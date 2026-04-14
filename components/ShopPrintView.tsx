@@ -16,6 +16,7 @@ import {
   createEmptyProject,
   parseProject,
 } from "@/lib/project-utils";
+import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { evaluateAllPurchaseScenarios } from "@/lib/purchase-scenarios";
 import {
@@ -53,12 +54,9 @@ export function ShopPrintView() {
   const subtotalLf = useMemo(() => totalLinearFeet(groups), [groups]);
   const adjustedLf = useMemo(() => totalAdjustedLinearFeet(groups), [groups]);
   const validationIssues = useMemo(() => (project ? validateProject(project) : []), [project]);
+  const jointsForCutList = useMemo(() => (project ? jointsEffectiveForCutList(project) : []), [project]);
   const canPrint = Boolean(
-    project &&
-      canExportOrPrintProject(
-        project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed,
-        validationIssues
-      )
+    project && canExportOrPrintProject(cutListExportCheckpointsReady(project), validationIssues)
   );
   const blockingIssues = useMemo(() => getBlockingValidationIssues(validationIssues), [validationIssues]);
 
@@ -103,15 +101,14 @@ export function ShopPrintView() {
             aria-labelledby="print-lock-title"
           >
             <h1 id="print-lock-title" className="font-display text-2xl text-[var(--gl-ink)]">
-              Print locked pending Review (Release to shop) checkpoints
+              Print locked pending Review
             </h1>
             <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
-              Go to Review (Release to shop) and resolve blocking checks before printing/exporting.
+              Go to Review and resolve blocking checks, or acknowledge material assumptions, before printing/exporting.
             </p>
             <p className="mt-3 text-sm">
               Lock summary: Blocking issues {blockingIssues.length}. Material assumptions{" "}
-              {project.checkpoints.materialAssumptionsReviewed ? "acknowledged" : "not acknowledged"}. Joinery review{" "}
-              {project.checkpoints.joineryReviewed ? "acknowledged" : "not acknowledged"}.
+              {project.checkpoints.materialAssumptionsReviewed ? "acknowledged" : "not acknowledged"}.
             </p>
             <ul className="mt-4 space-y-2 text-sm" aria-label="Print lock checkpoint status">
               <li>
@@ -119,10 +116,6 @@ export function ShopPrintView() {
                 <strong>
                   {project.checkpoints.materialAssumptionsReviewed ? "Acknowledged" : "Not acknowledged"}
                 </strong>
-              </li>
-              <li>
-                Joinery review:{" "}
-                <strong>{project.checkpoints.joineryReviewed ? "Acknowledged" : "Not acknowledged"}</strong>
               </li>
             </ul>
             {blockingIssues.length > 0 ? (
@@ -194,8 +187,9 @@ export function ShopPrintView() {
             Finished parts
           </h2>
           <p className="mb-2 text-xs shop-print-muted">
-            Assumptions column calls out joinery sizing provenance and panel glue-up checks (max single-board panel
-            width: {formatShopImperial(project.maxPurchasableBoardWidthInches)}).
+            Assumptions column reflects the same cut-list scope as the app (panel glue-up checks; joinery history only
+            when enabled in product). Max single-board panel width:{" "}
+            {formatShopImperial(project.maxPurchasableBoardWidthInches)}.
           </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
@@ -214,7 +208,7 @@ export function ShopPrintView() {
                 </thead>
                 <tbody>
                   {project.parts.map((p) => {
-                    const derived = derivePartAssumptionsDetailed(p, project.joints, project);
+                    const derived = derivePartAssumptionsDetailed(p, jointsForCutList, project);
                     return (
                       <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-border)]">
                         <td className="py-2 pr-3 align-top">{p.name}</td>

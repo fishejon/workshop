@@ -9,6 +9,7 @@ import {
   type PartStatus,
   type ProjectJoint,
 } from "@/lib/project-types";
+import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
 import { partsToCsv } from "@/lib/parts-csv";
@@ -31,12 +32,12 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
   } = useProject();
   const [openExplain, setOpenExplain] = useState<string | null>(null);
   const [selectedAssemblyToDuplicate, setSelectedAssemblyToDuplicate] = useState<AssemblyId>(ASSEMBLY_IDS[0]);
-  const checkpointsReady =
-    project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const checkpointsReady = cutListExportCheckpointsReady(project);
+  const jointsForCutList = jointsEffectiveForCutList(project);
   const canExport = canExportOrPrintProject(checkpointsReady, validationIssues);
 
   function downloadCsv() {
-    const blob = new Blob([partsToCsv(project.parts, project.joints, project)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([partsToCsv(project.parts, jointsForCutList, project)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -54,7 +55,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p id="parts-table-title" className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-            Parts
+            Cut list
           </p>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
             Finished vs rough (in). Rough defaults: each axis + milling allowance until you edit rough.
@@ -104,9 +105,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             type="button"
             className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
             onClick={() => {
-              if (
-                confirm("Clear all parts? Joinery history for this project will also be removed.")
-              ) {
+              if (confirm("Clear all parts? (Saved joinery in /labs is cleared too.)")) {
                 clearParts();
               }
             }}
@@ -119,7 +118,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             onClick={downloadCsv}
             disabled={project.parts.length === 0 || !canExport}
             aria-disabled={project.parts.length === 0 || !canExport}
-            title={!canExport ? "Acknowledge both Review checkpoints (Release to shop) to unlock export." : undefined}
+            title={!canExport ? "Acknowledge material assumptions on Review to unlock export." : undefined}
           >
             {canExport ? "Export CSV" : "Export CSV (locked)"}
           </button>
@@ -131,7 +130,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
         <p id="parts-export-lock-reason" className="mt-2 text-xs text-[var(--gl-muted)]" role="status">
           {checkpointsReady
             ? "Export is blocked by high-severity validation issues."
-            : "Export is locked until you acknowledge material assumptions and joinery review in Review (Release to shop)."}
+            : "Export is locked until you acknowledge material assumptions on Review."}
         </p>
       ) : null}
       {blockingValidationIssues.length > 0 ? (
@@ -182,7 +181,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                   stockWidthByMaterialGroup={project.stockWidthByMaterialGroup}
                   openExplain={openExplain === p.id}
                   onToggleExplain={() => setOpenExplain((x) => (x === p.id ? null : p.id))}
-                  joints={project.joints}
+                  joints={jointsForCutList}
                   onUpdate={updatePart}
                   onRemove={() => removePart(p.id)}
                 />

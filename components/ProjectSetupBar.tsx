@@ -6,6 +6,7 @@ import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial } from "@/lib/imperial";
 import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type ProjectTemplate } from "@/lib/project-types";
 import { MAX_PROJECT_LIBRARY_RECORDS, PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
+import { cutListExportCheckpointsReady } from "@/lib/cut-list-scope";
 import { canExportOrPrintProject } from "@/lib/validation";
 import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 
@@ -39,7 +40,7 @@ export function ProjectSetupBar() {
     setLibraryArchived,
     resetProject,
   } = useProject();
-  const checkpointsReady = project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const checkpointsReady = cutListExportCheckpointsReady(project);
   const canPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
   const [duplicateName, setDuplicateName] = useState("");
   const [templateName, setTemplateName] = useState("");
@@ -305,7 +306,7 @@ export function ProjectSetupBar() {
                 aria-disabled={true}
                 aria-describedby="print-lock-helper"
                 className="cursor-not-allowed rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-center text-xs font-medium text-[var(--gl-muted)]"
-                title="Complete both Review (Release to shop) checkpoints to unlock print/export."
+                title="Acknowledge material assumptions on Review to unlock print/export."
               >
                 Print shop sheet (locked)
               </button>
@@ -315,8 +316,14 @@ export function ProjectSetupBar() {
                 ? "PDF: print dialog -> Save as PDF"
                 : checkpointsReady
                   ? "Status: Locked. Reason: high-severity validation issues."
-                  : "Status: Locked. Reason: Review (Release to shop) checkpoints are not acknowledged."}
+                  : "Status: Locked. Reason: material assumptions on Review are not acknowledged."}
             </span>
+            <Link
+              href="/labs"
+              className="text-center text-xs text-[var(--gl-copper-bright)] underline decoration-[var(--gl-copper-bright)]/40 underline-offset-2 hover:decoration-[var(--gl-copper-bright)]"
+            >
+              Joinery & stick layout (labs)
+            </Link>
           </div>
           <button
             type="button"

@@ -4,10 +4,7 @@ import { useState } from "react";
 import { BuyListPanel } from "@/components/BuyListPanel";
 import { DecisionStrip } from "@/components/DecisionStrip";
 import { IssuesPanel } from "@/components/IssuesPanel";
-import { JoineryPanel } from "@/components/JoineryPanel";
-import { RoughStickLayout } from "@/components/RoughStickLayout";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
-import { WorkshopFlowGuide } from "@/components/WorkshopFlowGuide";
 import { CutPlanner } from "@/components/CutPlanner";
 import { DresserPlanner } from "@/components/DresserPlanner";
 import { PartsTable } from "@/components/PartsTable";
@@ -15,6 +12,7 @@ import { ProjectSetupBar } from "@/components/ProjectSetupBar";
 import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
+import { cutListExportCheckpointsReady } from "@/lib/cut-list-scope";
 import { formatShopImperial } from "@/lib/imperial";
 import { canExportOrPrintProject } from "@/lib/validation";
 
@@ -68,8 +66,7 @@ export function GrainlineApp() {
   } = useProject();
   const active = PRESETS.find((p) => p.id === preset);
   const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
-  const checkpointsReady =
-    project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const checkpointsReady = cutListExportCheckpointsReady(project);
   const canExportOrPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
   const hasBlockingIssues = blockingValidationIssues.length > 0;
   const hasWarnings = warningValidationIssues.length > 0;
@@ -78,45 +75,45 @@ export function GrainlineApp() {
     const health = hasBlockingIssues
       ? "Blocked by validation issues"
       : !checkpointsReady
-        ? "Awaiting release review"
+        ? "Awaiting review"
         : hasWarnings
           ? "Warnings need review"
-          : "Ready for release";
+          : "Ready to export";
 
     let recommendation: string;
     if (hasBlockingIssues) {
       recommendation =
-        "Fix blocking issues first (open Materials → Show validation issues, or Review). Exports stay locked until those clear.";
+        "Fix blocking issues first (open Cut list → Show validation issues, or Review). Export stays locked until those clear.";
     } else if (appTab === "setup") {
       recommendation =
-        "You are on Setup: project and shop defaults. Next, use Build to describe the piece and generate parts into the shared project.";
+        "You are on Project: defaults and backups. Next, use Plan to describe the piece and add rows to the cut list.";
     } else if (appTab === "build") {
       recommendation =
-        "You are on Build: intent and presets. When numbers look right, use Generate / handoff so parts appear on Materials, then validate procurement there.";
+        "You are on Plan: presets and intent. When numbers look right, generate parts so they appear on Cut list, then check lumber there.";
     } else if (appTab === "shop") {
       recommendation = !checkpointsReady
-        ? "You are on Materials: parts and buy guidance. When this looks right, go to Review and check both handoff boxes before print or CSV."
+        ? "You are on Cut list: parts and optional buy list. When this looks right, go to Review and acknowledge material assumptions before print or CSV."
         : hasWarnings
-          ? "You are on Materials: resolve or accept warnings, then finish Review before treating outputs as final."
-          : "Materials look consistent; use Review for checkpoints and shop print when you are ready to hand off.";
+          ? "You are on Cut list: resolve or accept warnings, then finish Review before treating outputs as final."
+          : "Cut list looks consistent; use Review when you are ready to hand off.";
     } else {
       recommendation = !checkpointsReady
-        ? "You are on Review: confirm checkpoints when Materials assumptions and joinery match your intent."
+        ? "You are on Review: confirm material assumptions when the cut list matches your intent."
         : hasWarnings
-          ? "Review tab: warnings still need a pass before shop handoff."
-          : "Review tab: checkpoints satisfied and no blockers—export or print from Materials when ready.";
+          ? "Review: warnings still need a pass before shop handoff."
+          : "Review: checkpoint satisfied and no blockers—export or print from Cut list when ready.";
     }
 
     const ctaLabel =
       appTab === "setup"
-        ? "Next: Build"
+        ? "Next: Plan"
         : appTab === "build"
-          ? "Next: Materials"
+          ? "Next: Cut list"
           : appTab === "shop"
             ? "Next: Review"
             : !checkpointsReady || hasBlockingIssues || hasWarnings
-              ? "Back to Materials"
-              : "Open Materials";
+              ? "Back to Cut list"
+              : "Open Cut list";
 
     function handleDecisionCta() {
       if (appTab === "setup") {
@@ -147,29 +144,10 @@ export function GrainlineApp() {
 
   const explainAllowance = `Project milling allowance: ${formatShopImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
-  const shopMaterialsLeft = <PartsTable explainAllowanceText={explainAllowance} />;
-  const shopMaterialsRight = (
-    <>
-      <BuyListPanel />
-      <details className="gl-panel p-5">
-        <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
-          Advanced materials tools
-        </summary>
-        <p className="mt-2 text-xs text-[var(--gl-muted)]">
-          Open when needed for joinery rule history and rough stick nesting diagnostics.
-        </p>
-        <div className="mt-4 space-y-4">
-          <JoineryPanel />
-          <RoughStickLayout />
-        </div>
-      </details>
-    </>
-  );
-
-  const buildLeft = (
+  const planPanel = (
     <>
       <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
-        Define intent by selecting a preset and shaping target geometry before procurement validation.
+        Pick a preset and enter sizes; generated parts land on the shared cut list.
       </div>
       {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
       <div id="build-planner-section">
@@ -192,10 +170,10 @@ export function GrainlineApp() {
       id="review-checkpoints-section"
       className="gl-panel max-w-2xl space-y-4 p-8 text-sm leading-relaxed text-[var(--gl-muted)]"
     >
-      <h2 className="font-display text-xl text-[var(--gl-cream)]">Release to shop checkpoints</h2>
+      <h2 className="font-display text-xl text-[var(--gl-cream)]">Review before shop</h2>
       <p>
-        Before exporting or printing, acknowledge both checkpoints so intent and procurement assumptions are explicitly
-        released to shop.
+        Before exporting or printing, acknowledge that material assumptions on the cut list match what you will buy
+        and mill.
       </p>
       {issuesPanel}
       <div className="gl-panel-muted space-y-3 p-4">
@@ -208,18 +186,9 @@ export function GrainlineApp() {
             aria-label="Acknowledge material assumptions review"
           />
           <span>
-            I reviewed material assumptions (rough dimensions, thickness category, waste factor, and transport limits).
+            I reviewed rough vs finished sizes, material labels, thickness category, waste factor, and transport limits
+            on the cut list.
           </span>
-        </label>
-        <label className="flex items-start gap-2 text-sm text-[var(--gl-cream-soft)]">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={project.checkpoints.joineryReviewed}
-            onChange={(e) => setCheckpointReviewed("joineryReviewed", e.target.checked)}
-            aria-label="Acknowledge joinery review"
-          />
-          <span>I reviewed joinery deltas/history and confirmed finished dimensions before export/print.</span>
         </label>
       </div>
       <p
@@ -229,16 +198,18 @@ export function GrainlineApp() {
         aria-live="polite"
       >
         {canExportOrPrint
-          ? "Export and print are unlocked for release to shop."
+          ? "Export and print are unlocked."
           : checkpointsReady
             ? "Export and print are blocked by high-severity validation issues."
-            : "Export and print stay locked until both release checkpoints are acknowledged."}
+            : "Export and print stay locked until you acknowledge the checklist above."}
       </p>
-      <p>
-        Checkpoints auto-reset when relevant data changes so each export reflects current assumptions.
-      </p>
+      <p>Checkpoints reset when relevant project data changes so each export matches current assumptions.</p>
       <p className="text-xs text-[var(--gl-muted)]">
-        Guided flow: Setup / Build (Define intent) / Materials (Validate procurement) / Review (Release to shop).
+        Flow: Project → Plan → Cut list → Review. Joinery experiments:{" "}
+        <a className="text-[var(--gl-copper-bright)] underline-offset-2 hover:underline" href="/labs">
+          /labs
+        </a>
+        .
       </p>
     </div>
   );
@@ -253,11 +224,10 @@ export function GrainlineApp() {
                 Grainline
               </p>
               <h1 className="font-display mt-2 text-4xl tracking-tight text-[var(--gl-cream)] sm:text-5xl">
-                Furniture presets, shop math
+                Cut lists & lumber math
               </h1>
               <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--gl-muted)]">
-                Start from a piece you recognize, then follow the workshop flow: Build for intent and generated parts,
-                Materials for the cut list and buy guidance, Review for checkpoints and shop print.
+                Plan the piece, validate the cut list, then review once before CSV or shop print.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -301,28 +271,15 @@ export function GrainlineApp() {
           </div>
         </header>
 
-        <div className="mb-6">
-          <WorkshopFlowGuide
-            active={appTab}
-            onGoTo={setAppTab}
-            projectName={project.name}
-            partCount={project.parts.length}
-            materialAssumptionsReviewed={project.checkpoints.materialAssumptionsReviewed}
-            joineryReviewed={project.checkpoints.joineryReviewed}
-            canExportOrPrint={canExportOrPrint}
-          />
-        </div>
-
         <AppShellTabs
           active={appTab}
           onChange={setAppTab}
           setupPanel={setupPanel}
           issuesPanel={issuesPanel}
-          buildLeft={buildLeft}
-          shopMaterialsLeft={shopMaterialsLeft}
-          shopMaterialsRight={shopMaterialsRight}
+          planPanel={planPanel}
+          cutListPartsTable={<PartsTable explainAllowanceText={explainAllowance} />}
+          cutListBuyListPanel={<BuyListPanel />}
           aboutPanel={aboutPanel}
-          canExportOrPrint={canExportOrPrint}
           blockingValidationIssues={blockingValidationIssues}
           decisionStrip={decisionStrip}
         />

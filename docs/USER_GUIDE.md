@@ -4,11 +4,11 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 
 ## Workshop journey (happy path)
 
-1. **Setup** — Name the project and set milling allowance, max transport length, and waste % on the **Setup** tab (plus reset or open **Print shop sheet** when you are ready for paper).
-2. **Build** — Pick a preset and enter target geometry on the **Build** tab, then use each planner’s handoffs so parts land in the shared project (dresser case/drawers, board pack, sideboard shell, etc.).
-3. **Materials** — Switch to **Materials** to validate the **parts table** (finished vs rough), **buy list**, and—when needed—joinery and rough-stick tools under **Advanced materials tools**.
-4. **Review** — On **Review**, clear blocking validation issues if any, acknowledge both release checkpoints, and confirm you are comfortable shipping the current assumptions to the floor.
-5. **Print / CSV** — When export is unlocked, download **Export CSV** from the parts header on **Materials** and/or open **shop print** from **Setup** or **Materials** (browser **Save as PDF** if you want a file).
+1. **Project** — Name the project and set milling allowance, max transport length, and waste % (plus reset or open **Print shop sheet** when you are ready for paper). Optional **`/labs`** link for joinery experiments.
+2. **Plan** — Pick a preset and enter target geometry, then use each planner’s handoffs so parts land in the shared project (dresser case/drawers, board pack, sideboard shell, etc.).
+3. **Cut list** — Validate the **cut list** table (finished vs rough). Open **Lumber & buy list** when you want BF/LF and purchase scenarios.
+4. **Review** — Clear blocking validation issues if any, acknowledge **material assumptions**, and confirm you are comfortable shipping the current numbers to the floor.
+5. **Print / CSV** — When export is unlocked, download **Export CSV** from the cut list header and/or open **shop print** from **Project** or **Cut list** (browser **Save as PDF** if you want a file).
 
 ---
 
@@ -16,16 +16,16 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 
 | Tab | Purpose |
 |-----|--------|
-| **Setup** | Project name, milling allowance, max transport length, waste %, **Print shop sheet** link, **Reset project**. |
-| **Build** | **Define intent** only: single-column presets and planners (dresser, board cuts, sideboard shell, …) plus the shared **decision strip** and next-step CTA—no parts table or buy list here. TV console is available only when you enable **Show experimental presets**. |
-| **Materials** | **Validate procurement**. Parts list and buy list; **Advanced materials tools** expands joinery + rough-stick layout. Same decision strip and release guidance. |
-| **Review** | **Release to shop**. Confirm both checkpoints before export/print handoff. |
+| **Project** | Project name, milling allowance, max transport length, waste %, **Print shop sheet** link, **Reset project**, link to **`/labs`**. |
+| **Plan** | **Define intent** only: presets and planners (dresser, board cuts, sideboard shell, …) plus the shared **decision strip** and next-step CTA. TV console is available only when you enable **Show experimental presets**. |
+| **Cut list** | **Validate procurement**. Cut list table; **Lumber & buy list** is a disclosure below the table. Same decision strip. |
+| **Review** | **Release to shop**. Material assumptions checkpoint before export/print handoff. |
 
 Your data is **one shared project** across tabs: switching tabs does not start a new project.
 
 ---
 
-## Project settings (Setup)
+## Project settings (Project tab)
 
 - **Milling allowance** — Added to each **finished** T, W, and L to suggest **rough** sizes, until you mark a part’s rough as **manual**.
 - **Max transport length** — A **planning assumption** for carry length and default stock length; not a guarantee your yard stocks that length.
@@ -34,7 +34,7 @@ Your data is **one shared project** across tabs: switching tabs does not start a
 
 ---
 
-## Presets (Build / Define intent)
+## Presets (Plan / Define intent)
 
 ### Dresser
 
@@ -52,20 +52,20 @@ Enter overall case dimensions, columns, drawer rows, kick, top/bottom stack, rai
 
 ### TV console (experimental opt-in)
 
-Enable **Show experimental presets** in Build to access TV console. It generates a minimal shell from W×H×D. Joinery is not fully modeled, so treat it as early-access concept sizing.
+Enable **Show experimental presets** in Plan to access TV console. It generates a minimal shell from W×H×D. Joinery is not fully modeled, so treat it as early-access concept sizing.
 
 ---
 
-## Parts table (Materials / Validate procurement)
+## Cut list table (Validate procurement)
 
-- **Finished** vs **rough** T×W×L in inches (decimal storage). Shop-facing dimensions in this table, buy list, joinery summaries, and print use **nearest 1/16″** strings (`formatShopImperial`); internal values stay decimal.
+- **Finished** vs **rough** T×W×L in inches (decimal storage). Shop-facing dimensions in this table, buy list, and print use **nearest 1/16″** strings (`formatShopImperial`); internal values stay decimal. **`project.joints` is not applied** on the main path (see **`/labs`**).
 - **Rough manual** — When on, rough no longer auto-follows finished + allowance until you edit again.
 - **Prov column** — Quick provenance signals: rough source (derived/manual), joinery change count, and mate references.
 - **Assembly** — Case, Drawers, Base, Back, Doors, Other (used for filtering in some joinery flows).
 - **Material** — Free-text label + **thickness category** (e.g. 4/4, 5/4)—used to **group** the buy list. Treat thickness category as yard-facing naming, not measured rough thickness.
 - **Clear all** — Removes every part **and** joinery history for this project.
 - **Assumptions** — Each row now shows explicit joinery sizing provenance and a glue-up assumption line.
-- **Export CSV** — Includes dimensions, material, per-row **board feet** / **lineal feet** (from rough dims), plus joinery/glue-up assumption columns for printout parity. Locked until Review (Release to shop) checkpoints are acknowledged.
+- **Export CSV** — Includes dimensions, material, per-row **board feet** / **lineal feet** (from rough dims), plus glue-up / provenance columns (joinery columns reflect the cut-list scope: no joint history on the main path). Locked until Review material checkpoint is acknowledged.
 
 ---
 
@@ -78,32 +78,19 @@ Enable **Show experimental presets** in Build to access TV console. It generates
 
 ---
 
-## Joinery panel
+## Joinery & rough sticks (`/labs`)
 
-Rules adjust **finished** T×W×L on a chosen part; **rough** updates automatically unless that part’s rough is **manual**.
+Open **`/labs`** for the **joinery panel** and **rough stick layout**. Edits save to the same browser project, but the main **Cut list**, CSV, **`/print`**, and validation **ignore `project.joints`** until joinery is folded back into the product path.
 
-| Rule | Effect (typical) |
-|------|------------------|
-| **Groove for ¼ back** | Back panel: reduce **W** and **L** by 2× groove depth (floating panel in dados). Only **Back** assembly parts in the picker. |
-| **Dado — shelf width** | Shelf: reduce **W** by 2× dado depth (opening-sized blank). |
-| **M&T — rail** | Increase **L** by 2× tenon length per end. |
-| **M&T — stile** | Decrease **L** by 2× tenon length (shoulder seats). |
+**Joinery rules** (labs) adjust **finished** T×W×L on a chosen part; **rough** updates automatically unless that part’s rough is **manual**. Typical rules include groove-for-¼-back, dado shelf width, and mortise-and-tenon rail/stile adjustments.
 
-Optional **mate part** and **edge labels** are stored for connection audit traceability.
-
-**Applied connections** — Expand an entry to see engineering explanation, formula/preset provenance, and **before / after** finished sizes.
-
----
-
-## Rough stick layout
-
-Packs **rough L × quantity** from the parts list into boards of a given stock length and kerf. Complements the buy list; verify kerf and real-world breaks at the bench.
+**Rough stick layout** (labs) packs **rough L × quantity** from the parts list into boards of a given stock length and kerf—verify kerf and real-world breaks at the bench.
 
 ---
 
 ## Print and PDF
 
-- **Print shop sheet** (Setup) or **Shop print** link (Materials tab) opens **`/print`** in a new tab.
+- **Print shop sheet** (Project) or **Shop print** from the cut list flow opens **`/print`** in a new tab.
 - The print page reads the same **`localStorage`** project as the main app.
 - Finished parts include an **Assumptions** column so joinery sizing and panel glue-up assumptions survive to paper/PDF handoff.
 - Treat the printout as a lumber-yard handoff: material + thickness category + adjusted BF/LF, then finalize board counts from what is in stock.

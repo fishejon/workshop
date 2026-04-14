@@ -3,10 +3,10 @@
 import type { AppShellTabId } from "@/components/AppShellTabs";
 
 const FLOW: { id: AppShellTabId; title: string; blurb: string }[] = [
-  { id: "setup", title: "Setup", blurb: "Name, milling allowance, transport, max board stock, waste." },
-  { id: "build", title: "Build", blurb: "Pick a preset, enter intent, generate or append parts." },
-  { id: "shop", title: "Materials", blurb: "Parts table, buy list; advanced joinery & stick pack optional." },
-  { id: "about", title: "Review", blurb: "Issues, checkpoints, then export CSV or shop print." },
+  { id: "setup", title: "Project", blurb: "Name, milling allowance, transport, max board stock, waste." },
+  { id: "build", title: "Plan", blurb: "Pick a preset, enter intent, generate or append parts." },
+  { id: "shop", title: "Cut list", blurb: "Parts table and optional lumber & buy list." },
+  { id: "about", title: "Review", blurb: "Issues, material checkpoint, then export CSV or shop print." },
 ];
 
 type WorkshopFlowGuideProps = {
@@ -15,7 +15,6 @@ type WorkshopFlowGuideProps = {
   projectName: string;
   partCount: number;
   materialAssumptionsReviewed: boolean;
-  joineryReviewed: boolean;
   canExportOrPrint: boolean;
 };
 
@@ -46,7 +45,6 @@ export function WorkshopFlowGuide({
   projectName,
   partCount,
   materialAssumptionsReviewed,
-  joineryReviewed,
   canExportOrPrint,
 }: WorkshopFlowGuideProps) {
   const named = projectName.trim().length > 0;
@@ -63,8 +61,8 @@ export function WorkshopFlowGuide({
             Workshop flow
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--gl-muted)]">
-            Work left to right through the tabs. Build produces intent; Materials validates what you will cut and buy;
-            Review unlocks export when checkpoints pass and there are no blocking issues.
+            Work left to right through the tabs. Plan produces intent; Cut list validates what you will cut and buy;
+            Review unlocks export when the material checkpoint passes and there are no blocking issues.
           </p>
         </div>
       </div>
@@ -110,8 +108,8 @@ export function WorkshopFlowGuide({
           />
           <CheckRow
             done={hasParts}
-            label="Parts list has at least one row"
-            detail="Generate from a Build preset or add rows manually on Materials."
+            label="Cut list has at least one row"
+            detail="Generate from a Plan preset or add rows manually on Cut list."
           />
           <CheckRow
             done={materialAssumptionsReviewed}
@@ -119,14 +117,9 @@ export function WorkshopFlowGuide({
             detail="Rough sizes, thickness category, waste, transport limits."
           />
           <CheckRow
-            done={joineryReviewed}
-            label="Joinery review acknowledged (Review tab)"
-            detail="If you used joinery rules, confirm finished sizes match your intent."
-          />
-          <CheckRow
             done={canExportOrPrint}
             label="Export / shop print unlocked"
-            detail="Requires checkpoints and no blocking validation issues."
+            detail="Requires material checkpoint and no blocking validation issues."
           />
         </ul>
         <p className="mt-3 text-xs text-[var(--gl-muted)]">

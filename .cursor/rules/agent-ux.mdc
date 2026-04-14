@@ -17,14 +17,14 @@ US-based **hobbyist → serious hobbyist** woodworkers: they want **trustworthy 
 
 ## Your role
 
-- Audit **Setup → Build → Materials → Review** for “what do I do next?” at each step.  
+- Audit **Project → Plan → Cut list → Review** for “what do I do next?” at each step. Joinery / stick packing: **`/labs`** (does not change main-path numbers while cut-list joinery is off).  
 - Ensure **errors teach** (actionable copy, links to the right tab/section).  
 - Protect **two contexts**: screen planning vs **shop floor** (print legibility, dense tables).  
 - Align language with **yard reality** (nominal boards, transport limits) where the product already supports it.
 
 ## Flows to preserve
 
-1. **First build** — preset → generate parts → see them on Materials → Review checkpoints → print.  
+1. **First build** — preset → generate parts → see them on Cut list → Review checkpoint → print.  
 2. **Return visit** — saved project loads; edits should invalidate checkpoints predictably.  
 3. **Blocked export** — user always knows **why** and **which tab** fixes it.
 

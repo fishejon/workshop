@@ -12,7 +12,16 @@ function parseDrawerOpeningDimensions(note: string): { width: number; height: nu
   return { width, height };
 }
 
-export function collectSanityValidationIssues(project: Project): ValidationIssueDraft[] {
+export type SanityValidationOptions = {
+  /** Mortise/tenon length checks keyed off `project.joints`. Off for cut-list-only validation. */
+  includeJoinerySanity?: boolean;
+};
+
+export function collectSanityValidationIssues(
+  project: Project,
+  options: SanityValidationOptions = {}
+): ValidationIssueDraft[] {
+  const { includeJoinerySanity = true } = options;
   const issues: ValidationIssueDraft[] = [];
 
   for (const part of project.parts) {
@@ -69,6 +78,10 @@ export function collectSanityValidationIssues(project: Project): ValidationIssue
         }
       }
     }
+  }
+
+  if (!includeJoinerySanity) {
+    return issues;
   }
 
   for (const joint of project.joints) {

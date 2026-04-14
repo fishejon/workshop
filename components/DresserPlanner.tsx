@@ -594,7 +594,7 @@ export function DresserPlanner() {
             <strong className="text-[var(--gl-cream-soft)]">Calculated outputs</strong> block below is read-only math
             from those inputs. Cutlist parts do not change until you press{" "}
             <strong className="text-[var(--gl-cream-soft)]">Generate / replace dresser parts</strong> — see the
-            Materials tab for parts, buy list, and procurement.
+            Cut list tab for parts, lumber & buy list, and procurement.
           </p>
           <details className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-muted)]">
             <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">

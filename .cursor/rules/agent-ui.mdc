@@ -30,7 +30,7 @@ Error / warn / success: semantic, sparingly used
 
 ## Your role
 
-- Harmonize **panels, tabs, and disclosure** so advanced sections feel **secondary** to the main flow.  
+- Harmonize **panels, tabs, and disclosure** so advanced sections feel **secondary** to the main flow. Joinery + rough-stick UI: **`/labs`** (not the Cut list surface).  
 - Tighten **microcopy** on buttons and validation (action + outcome).  
 - Guard against **visual debt** as presets multiply—shared primitives over one-offs.
 

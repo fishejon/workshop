@@ -1,23 +1,22 @@
 # Woodworker readiness checklist (Grainline)
 
-Use this alongside the in-app **Workshop flow** panel. It describes what “ready for the shop” means in this tool—not every possible real-world step (hardware pull, finish schedule, etc.).
+Use this alongside the main tabs. It describes what “ready for the shop” means in this tool—not every possible real-world step (hardware pull, finish schedule, etc.).
 
 ## Guided sequence
 
-1. **Setup** — Project name, milling allowance, max transport length, widest board you can buy (nominal / actual), waste %, workshop defaults.
-2. **Build** — Choose a preset (dresser, board pack, sideboard shell, …). Enter intent. **Generate / replace parts** so rows land in the parts list.
-3. **Materials** — Review finished vs rough, material groups, buy list (BF/LF + 2D estimate). Open **Advanced materials tools** only when you need joinery history or 1D stick packing.
-4. **Review** — Expand **Show validation issues** if needed. Check both **release checkpoints**. Export CSV and/or open **shop print** when unlocked.
+1. **Project** — Project name, milling allowance, max transport length, widest board you can buy (nominal / actual), waste %, workshop defaults.
+2. **Plan** — Choose a preset (dresser, board pack, sideboard shell, …). Enter intent. **Generate / replace parts** so rows land on the cut list.
+3. **Cut list** — Review finished vs rough; open **Lumber & buy list** for BF/LF + 2D estimate. Joinery history and 1D stick packing are optional on **`/labs`** only.
+4. **Review** — Expand **Show validation issues** if needed. Acknowledge **material assumptions**. Export CSV and/or open **shop print** when unlocked.
 
 ## Pass / fail (mirrors the in-app checklist)
 
 | Item | How to satisfy |
 |------|----------------|
 | Named project | Non-empty name in Setup. |
-| Parts exist | At least one part row (from Build generation or manual add on Materials). |
+| Parts exist | At least one part row (from Plan generation or manual add on Cut list). |
 | Material assumptions reviewed | Checkbox on Review tab. |
-| Joinery reviewed | Checkbox on Review tab (especially if you applied joinery rules). |
-| Export / print allowed | Checkpoints checked **and** no blocking validation issues. |
+| Export / print allowed | Material checkpoint **and** no blocking validation issues. |
 
 ## Not covered here (honest gaps)
 

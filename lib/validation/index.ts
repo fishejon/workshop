@@ -3,6 +3,11 @@ import { collectJoineryConflictIssues } from "@/lib/validation/joinery-conflicts
 import { collectSanityValidationIssues } from "@/lib/validation/sanity-checks";
 import type { ValidationIssue, ValidationIssueDraft } from "@/lib/validation/types";
 
+export type ValidateProjectOptions = {
+  /** `cutList` (default): ignore joinery conflicts and joint-only sanity checks. `full`: legacy / labs. */
+  joineryValidation?: "cutList" | "full";
+};
+
 function makeIssueId(draft: ValidationIssueDraft): string {
   const part = draft.partId ?? "none";
   const rules = (draft.ruleIds ?? []).slice().sort().join(",");
@@ -31,8 +36,16 @@ function dedupeIssues(drafts: ValidationIssueDraft[]): ValidationIssue[] {
   return sortIssues([...map.values()]);
 }
 
-export function validateProject(project: Project): ValidationIssue[] {
-  return dedupeIssues([...collectSanityValidationIssues(project), ...collectJoineryConflictIssues(project)]);
+export function validateProject(
+  project: Project,
+  options: ValidateProjectOptions = {}
+): ValidationIssue[] {
+  const mode = options.joineryValidation ?? "cutList";
+  const sanity = collectSanityValidationIssues(project, {
+    includeJoinerySanity: mode === "full",
+  });
+  const joinery = mode === "full" ? collectJoineryConflictIssues(project) : [];
+  return dedupeIssues([...sanity, ...joinery]);
 }
 
 export function getBlockingValidationIssues(issues: ValidationIssue[]): ValidationIssue[] {

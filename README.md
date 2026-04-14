@@ -12,7 +12,7 @@ Working title for a **hobbyist hardwood** planning app: **furniture presets** wi
 
 ## Project / outputs (PRD path)
 
-- **Tabs** — **Setup** (defaults + print link), **Build** (presets only), **Materials** (parts, buy list; joinery + rough sticks under **Advanced materials tools**), **Review** (checkpoints + issues). State persists in `localStorage` (`grainline-project-v1`).
+- **Tabs** — **Project** (defaults + print link), **Plan** (presets only), **Cut list** (table + **Lumber & buy list** disclosure), **Review** (material checkpoint + issues). Joinery and rough-stick nesting live on **`/labs`** and do not change main-path numbers. State persists in `localStorage` (`grainline-project-v1`).
 - **Parts table** — finished vs rough T×W×L (in), manual rough toggle, provenance pills, explicit **joinery + glue-up assumptions** per row, **Why?** explainer, **CSV export** (includes BF/LF + detailed provenance columns).
 - **Buy list** — board feet and **lineal feet** from **rough** dims, grouped by material + thickness category, plus **2D board estimate** (width-lane expansion + constrained length packing) with per-group stock width overrides.
 - **Joinery** — Groove/back, dado shelf width, M&T rail/stile, and **thickness-aware drawer joinery presets** with formula/provenance labeling.

@@ -7,10 +7,10 @@ export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
 export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
 
 const TAB_META: Record<AppShellTabId, { label: string; task: string }> = {
-  setup: { label: "Setup", task: "Project & shop defaults" },
-  build: { label: "Build", task: "Define intent" },
-  shop: { label: "Materials", task: "Parts & buy list" },
-  about: { label: "Review", task: "Release to shop" },
+  setup: { label: "Project", task: "Name & shop defaults" },
+  build: { label: "Plan", task: "Presets & parts" },
+  shop: { label: "Cut list", task: "Parts & lumber" },
+  about: { label: "Review", task: "Checklist & print" },
 };
 
 function focusTabButton(id: AppShellTabId) {
@@ -18,19 +18,17 @@ function focusTabButton(id: AppShellTabId) {
 }
 
 /**
- * IA shell: Setup, Build (planners only), Materials (parts + buy + optional right column), Review.
- * On Materials, `shopMaterialsLeft` / `shopMaterialsRight` split the wide layout (parts vs buy/advanced tools).
+ * Option A shell: Project, Plan, Cut list (single column + buy list disclosure), Review.
  */
 export function AppShellTabs({
   active,
   onChange,
   setupPanel,
   issuesPanel,
-  buildLeft,
-  shopMaterialsLeft,
-  shopMaterialsRight,
+  planPanel,
+  cutListPartsTable,
+  cutListBuyListPanel,
   aboutPanel,
-  canExportOrPrint,
   blockingValidationIssues,
   decisionStrip,
 }: {
@@ -38,17 +36,13 @@ export function AppShellTabs({
   onChange: (id: AppShellTabId) => void;
   setupPanel: ReactNode;
   issuesPanel: ReactNode;
-  buildLeft: ReactNode;
-  shopMaterialsLeft: ReactNode;
-  shopMaterialsRight: ReactNode;
+  planPanel: ReactNode;
+  cutListPartsTable: ReactNode;
+  cutListBuyListPanel: ReactNode;
   aboutPanel: ReactNode;
-  canExportOrPrint: boolean;
   blockingValidationIssues: ValidationIssue[];
   decisionStrip: ReactNode;
 }) {
-  const activeStepIndex = APP_SHELL_TAB_IDS.indexOf(active);
-  const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_META[id].label);
-
   const handleTabListKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       const el = document.activeElement;
@@ -84,33 +78,6 @@ export function AppShellTabs({
 
   return (
     <div className="space-y-6">
-      <div className="gl-stepper-shell" aria-label="Guided sequence progress">
-        <ol className="flex flex-wrap gap-1.5" aria-label="Guided sequence steps">
-          {APP_SHELL_TAB_IDS.map((id, idx) => {
-            const isCurrent = id === active;
-            const isComplete = idx < activeStepIndex;
-            return (
-              <li
-                key={id}
-                className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                  isCurrent
-                    ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text-soft)]"
-                    : isComplete
-                      ? "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)]"
-                      : "border-[var(--gl-border)] text-[var(--gl-muted)]/90"
-                }`}
-                aria-current={isCurrent ? "step" : undefined}
-              >
-                {idx + 1}. {TAB_META[id].label}
-              </li>
-            );
-          })}
-        </ol>
-        <p className="mt-1.5 text-xs text-[var(--gl-muted)]/90">
-          {remaining.length > 0 ? `Remaining: ${remaining.join(" -> ")}` : "Final step reached."}
-        </p>
-      </div>
-
       <div
         role="tablist"
         aria-label="Main sections"
@@ -118,7 +85,7 @@ export function AppShellTabs({
         onKeyDown={handleTabListKeyDown}
       >
         {APP_SHELL_TAB_IDS.map((id) => {
-          const selected = active === id;
+          const selected = id === active;
           return (
             <button
               key={id}
@@ -150,46 +117,40 @@ export function AppShellTabs({
         ) : active === "build" ? (
           <div className="space-y-6">
             {decisionStrip}
-            <div className="min-w-0 space-y-6">{buildLeft}</div>
+            <div className="min-w-0 space-y-6">{planPanel}</div>
           </div>
         ) : (
           <div className="space-y-6">
             {decisionStrip}
-            <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
-              <p>
-                Validate procurement against your current parts assumptions before release. Export CSV from the parts
-                header, or open{" "}
-                {canExportOrPrint ? (
-                  <a
-                    href="/print"
-                    className="font-medium text-[var(--gl-copper-bright)] underline-offset-2 hover:underline"
-                  >
-                    shop print
-                  </a>
-                ) : (
-                  <span className="font-medium text-[var(--gl-muted)]" aria-label="Shop print locked">
-                    shop print (locked)
-                  </span>
-                )}{" "}
-                for a paper-friendly sheet.
-              </p>
-              {!canExportOrPrint && blockingValidationIssues.length > 0 ? (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]">
-                  {blockingValidationIssues.slice(0, 3).map((issue) => (
-                    <li key={issue.id}>{issue.message}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
             <details className="gl-panel-muted p-4">
               <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
                 Show validation issues
               </summary>
               <div className="mt-3">{issuesPanel}</div>
             </details>
-            <div className="min-w-0 space-y-6">
-              {shopMaterialsLeft}
-              {shopMaterialsRight}
+            {blockingValidationIssues.length > 0 ? (
+              <ul
+                className="list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]"
+                aria-label="Blocking issues summary"
+              >
+                {blockingValidationIssues.slice(0, 4).map((issue) => (
+                  <li key={issue.id}>{issue.message}</li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="min-w-0 space-y-4">
+              {cutListPartsTable}
+              <details className="gl-panel border border-[var(--gl-border)] p-4">
+                <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
+                  Lumber & buy list
+                </summary>
+                <p className="mt-2 text-xs text-[var(--gl-muted)]">
+                  Board feet, purchase scenarios, and stock-width helpers. Use{" "}
+                  <span className="font-medium text-[var(--gl-cream-soft)]">Export CSV</span> on the cut list table
+                  when Review unlocks export.
+                </p>
+                <div className="mt-4">{cutListBuyListPanel}</div>
+              </details>
             </div>
           </div>
         )}

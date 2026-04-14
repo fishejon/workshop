@@ -8,8 +8,17 @@ import {
 } from "@/lib/validation";
 
 describe("validateProject", () => {
-  it("detects sanity and joinery issues with stable ordering", () => {
-    const issues = validateProject(VALIDATION_FIXTURE_PROJECT);
+  it("cut-list mode omits joinery-driven issues", () => {
+    const issues = validateProject(VALIDATION_FIXTURE_PROJECT, { joineryValidation: "cutList" });
+    const codes = issues.map((issue) => issue.code);
+    expect(codes).toContain("drawer_box_wider_than_opening");
+    expect(codes).toContain("rough_less_than_finished");
+    expect(codes).not.toContain("tenon_too_long_for_part");
+    expect(codes).not.toContain("joinery_axis_direction_conflict");
+  });
+
+  it("full mode detects sanity and joinery issues with stable ordering", () => {
+    const issues = validateProject(VALIDATION_FIXTURE_PROJECT, { joineryValidation: "full" });
     expect(issues.length).toBeGreaterThan(0);
     expect(issues[0]?.severity).toBe("high");
     expect(issues[0]?.id).toBeTruthy();
@@ -22,7 +31,7 @@ describe("validateProject", () => {
   });
 
   it("splits blocking vs warning and gates print/export", () => {
-    const issues = validateProject(VALIDATION_FIXTURE_PROJECT);
+    const issues = validateProject(VALIDATION_FIXTURE_PROJECT, { joineryValidation: "full" });
     const blocking = getBlockingValidationIssues(issues);
     const warnings = getWarningValidationIssues(issues);
 
@@ -43,7 +52,7 @@ describe("validateProject", () => {
         },
       ],
     };
-    const issues = validateProject(project);
+    const issues = validateProject(project, { joineryValidation: "full" });
     const uniqueIds = new Set(issues.map((issue) => issue.id));
     expect(uniqueIds.size).toBe(issues.length);
   });
