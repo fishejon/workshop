@@ -12,6 +12,9 @@ const OFFCUT_MODE_LABELS: Record<OffcutModeId, string> = {
   none: "Do not preserve offcuts",
   keep_serviceable: "Preserve serviceable offcuts",
 };
+const TRANSPORT_LENGTH_PRESETS = [72, 96, 120];
+const BOARD_WIDTH_PRESETS = [8, 12, 16, 20];
+const WASTE_PERCENT_PRESETS = [10, 15, 20];
 
 export function ProjectSetupBar() {
   const {
@@ -120,10 +123,16 @@ export function ProjectSetupBar() {
   }
 
   return (
-    <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+    <section
+      id="project-setup-section"
+      className="mb-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
+      aria-labelledby="project-setup-title"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex-1 space-y-3">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Project</p>
+          <p id="project-setup-title" className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Project
+          </p>
           <label className="block text-sm">
             <span className="text-[var(--gl-cream-soft)]">Name</span>
             <input
@@ -140,6 +149,7 @@ export function ProjectSetupBar() {
               type="number"
               step="any"
               min={0}
+              inputMode="decimal"
               className="input-wood mt-1"
               value={project.millingAllowanceInches}
               onChange={(e) => setMillingAllowanceInches(Math.max(0, Number.parseFloat(e.target.value) || 0))}
@@ -154,12 +164,25 @@ export function ProjectSetupBar() {
               type="number"
               step="any"
               min={1}
+              inputMode="decimal"
               className="input-wood mt-1"
               value={project.maxTransportLengthInches}
               onChange={(e) =>
                 setMaxTransportLengthInches(Math.max(1, Number.parseFloat(e.target.value) || 96))
               }
             />
+            <div className="mt-1 flex flex-wrap gap-1">
+              {TRANSPORT_LENGTH_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="rounded border border-white/15 px-2 py-1 text-[10px] text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  onClick={() => setMaxTransportLengthInches(preset)}
+                >
+                  {preset}&quot;
+                </button>
+              ))}
+            </div>
           </label>
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Max purchasable board width (in)</span>
@@ -167,6 +190,7 @@ export function ProjectSetupBar() {
               type="number"
               step="any"
               min={0.0001}
+              inputMode="decimal"
               className="input-wood mt-1"
               value={project.maxPurchasableBoardWidthInches}
               onChange={(e) =>
@@ -175,6 +199,18 @@ export function ProjectSetupBar() {
                 )
               }
             />
+            <div className="mt-1 flex flex-wrap gap-1">
+              {BOARD_WIDTH_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="rounded border border-white/15 px-2 py-1 text-[10px] text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  onClick={() => setMaxPurchasableBoardWidthInches(preset)}
+                >
+                  {preset}&quot;
+                </button>
+              ))}
+            </div>
             <span className="mt-0.5 block text-[10px] text-[var(--gl-muted)]">
               Panel glue-up copy and buy-list width caveat (widest single board you shop for)
             </span>
@@ -185,12 +221,25 @@ export function ProjectSetupBar() {
               type="number"
               step="1"
               min={0}
+              inputMode="numeric"
               className="input-wood mt-1"
               value={project.wasteFactorPercent}
               onChange={(e) =>
                 setWasteFactorPercent(Math.max(0, Number.parseFloat(e.target.value) || 0))
               }
             />
+            <div className="mt-1 flex flex-wrap gap-1">
+              {WASTE_PERCENT_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="rounded border border-white/15 px-2 py-1 text-[10px] text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  onClick={() => setWasteFactorPercent(preset)}
+                >
+                  {preset}%
+                </button>
+              ))}
+            </div>
           </label>
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-2">
@@ -272,19 +321,20 @@ export function ProjectSetupBar() {
             ) : (
               <button
                 type="button"
-                aria-disabled="true"
+                aria-disabled={true}
+                aria-describedby="print-lock-helper"
                 className="cursor-not-allowed rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-medium text-[var(--gl-muted)]"
-                title="Complete both Review checkpoints to unlock print/export."
+                title="Complete both Review (Release to shop) checkpoints to unlock print/export."
               >
                 Print shop sheet (locked)
               </button>
             )}
-            <span className="text-center text-[10px] text-[var(--gl-muted)]">
+            <span id="print-lock-helper" className="text-center text-[10px] text-[var(--gl-muted)]" role="status">
               {canPrint
                 ? "PDF: print dialog -> Save as PDF"
                 : checkpointsReady
-                  ? "Blocked by high-severity validation issues"
-                  : "Locked until Review checkpoints are acknowledged"}
+                  ? "Status: Locked. Reason: high-severity validation issues."
+                  : "Status: Locked. Reason: Review (Release to shop) checkpoints are not acknowledged."}
             </span>
           </div>
           <button
@@ -319,7 +369,10 @@ export function ProjectSetupBar() {
       {blockingValidationIssues.length > 0 ? (
         <div className="mt-3 rounded-lg border border-red-300/30 bg-red-500/10 p-3">
           <p className="text-xs font-medium text-red-100">Print/Export blocking issues</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-100/90">
+          <ul
+            className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-100/90"
+            aria-label={`Print or export blocking issues: ${blockingValidationIssues.length}`}
+          >
             {blockingValidationIssues.slice(0, 5).map((issue) => (
               <li key={issue.id}>{issue.message}</li>
             ))}

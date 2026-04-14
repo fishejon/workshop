@@ -46,10 +46,16 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+    <section
+      id="parts-table-section"
+      className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
+      aria-labelledby="parts-table-title"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Parts</p>
+          <p id="parts-table-title" className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Parts
+          </p>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
             Finished vs rough (in). Rough defaults: each axis + milling allowance until you edit rough.
           </p>
@@ -113,7 +119,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             onClick={downloadCsv}
             disabled={project.parts.length === 0 || !canExport}
             aria-disabled={project.parts.length === 0 || !canExport}
-            title={!canExport ? "Acknowledge both Review checkpoints to unlock export." : undefined}
+            title={!canExport ? "Acknowledge both Review checkpoints (Release to shop) to unlock export." : undefined}
           >
             {canExport ? "Export CSV" : "Export CSV (locked)"}
           </button>
@@ -122,14 +128,17 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
 
       <p className="mt-2 text-xs text-[var(--gl-muted)]">{explainAllowanceText}</p>
       {!canExport ? (
-        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+        <p id="parts-export-lock-reason" className="mt-2 text-xs text-[var(--gl-muted)]" role="status">
           {checkpointsReady
             ? "Export is blocked by high-severity validation issues."
-            : "Export is locked until you acknowledge material assumptions and joinery review in the Review step."}
+            : "Export is locked until you acknowledge material assumptions and joinery review in Review (Release to shop)."}
         </p>
       ) : null}
       {blockingValidationIssues.length > 0 ? (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-200/90">
+        <ul
+          className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-200/90"
+          aria-label={`Blocking issues: ${blockingValidationIssues.length}`}
+        >
           {blockingValidationIssues.slice(0, 4).map((issue) => (
             <li key={issue.id}>{issue.message}</li>
           ))}
@@ -243,7 +252,7 @@ function PartRow({
 
   return (
     <>
-      <tr className="bg-white/[0.02] align-top">
+      <tr id={`part-row-${part.id}`} tabIndex={-1} className="bg-white/[0.02] align-top">
         <td className="px-2 py-2">
           <input
             className="input-wood max-w-[140px] py-1.5 text-xs"

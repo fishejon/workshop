@@ -6,11 +6,11 @@ import type { ValidationIssue } from "@/lib/validation/types";
 export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
 export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
 
-const TAB_LABELS: Record<AppShellTabId, string> = {
-  setup: "Setup",
-  build: "Construction",
-  shop: "Materials",
-  about: "Review",
+const TAB_META: Record<AppShellTabId, { label: string; task: string }> = {
+  setup: { label: "Setup", task: "Set project defaults" },
+  build: { label: "Build", task: "Define intent" },
+  shop: { label: "Materials", task: "Validate procurement" },
+  about: { label: "Review", task: "Release to shop" },
 };
 
 /**
@@ -21,25 +21,29 @@ export function AppShellTabs({
   active,
   onChange,
   setupPanel,
+  issuesPanel,
   buildLeft,
   shopMaterialsLeft,
   shopMaterialsRight,
   aboutPanel,
   canExportOrPrint,
   blockingValidationIssues,
+  decisionStrip,
 }: {
   active: AppShellTabId;
   onChange: (id: AppShellTabId) => void;
   setupPanel: ReactNode;
+  issuesPanel: ReactNode;
   buildLeft: ReactNode;
   shopMaterialsLeft: ReactNode;
   shopMaterialsRight: ReactNode;
   aboutPanel: ReactNode;
   canExportOrPrint: boolean;
   blockingValidationIssues: ValidationIssue[];
+  decisionStrip: ReactNode;
 }) {
   const activeStepIndex = APP_SHELL_TAB_IDS.indexOf(active);
-  const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_LABELS[id]);
+  const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_META[id].label);
 
   return (
     <div className="space-y-6">
@@ -63,7 +67,7 @@ export function AppShellTabs({
                 }`}
                 aria-current={isCurrent ? "step" : undefined}
               >
-                {idx + 1}. {TAB_LABELS[id]}
+                {idx + 1}. {TAB_META[id].label}
               </li>
             );
           })}
@@ -96,7 +100,8 @@ export function AppShellTabs({
                   : "border-transparent bg-transparent text-[var(--gl-muted)] hover:border-white/10 hover:text-[var(--gl-cream-soft)]"
               }`}
             >
-              {TAB_LABELS[id]}
+              <span className="block">{TAB_META[id].label}</span>
+              <span className="block text-[10px] font-normal text-[var(--gl-muted)]">{TAB_META[id].task}</span>
             </button>
           );
         })}
@@ -108,22 +113,26 @@ export function AppShellTabs({
         ) : active === "setup" ? (
           <div className="mx-auto max-w-4xl">{setupPanel}</div>
         ) : active === "build" ? (
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
-            <div className="min-w-0 space-y-6">{buildLeft}</div>
-            <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
-              <div className="space-y-6">
-                {shopMaterialsLeft}
-                {shopMaterialsRight}
-              </div>
-            </aside>
+          <div className="space-y-6">
+            {decisionStrip}
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
+              <div className="min-w-0 space-y-6">{buildLeft}</div>
+              <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
+                <div className="space-y-6">
+                  {issuesPanel}
+                  {shopMaterialsLeft}
+                  {shopMaterialsRight}
+                </div>
+              </aside>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
+            {decisionStrip}
             <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-[var(--gl-muted)]">
               <p>
-                Parts list, buy list, joinery, and rough-stick layout. Project name, milling allowance, transport cap,
-                and waste % live under <strong className="text-[var(--gl-cream-soft)]">Setup</strong>. Export CSV from
-                the parts header, or open{" "}
+                Validate procurement against your current parts assumptions before release. Export CSV from the parts
+                header, or open{" "}
                 {canExportOrPrint ? (
                   <a
                     href="/print"
@@ -146,6 +155,7 @@ export function AppShellTabs({
                 </ul>
               ) : null}
             </div>
+            {issuesPanel}
             <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,380px)] lg:items-start">
               <div className="min-w-0 space-y-6">{shopMaterialsLeft}</div>
               <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">{shopMaterialsRight}</aside>

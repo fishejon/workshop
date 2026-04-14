@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { BuyListPanel } from "@/components/BuyListPanel";
+import { DecisionStrip } from "@/components/DecisionStrip";
+import { IssuesPanel } from "@/components/IssuesPanel";
 import { JoineryPanel } from "@/components/JoineryPanel";
 import { RoughStickLayout } from "@/components/RoughStickLayout";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
@@ -68,6 +70,46 @@ export function GrainlineApp() {
   const checkpointsReady =
     project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
   const canExportOrPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
+  const hasBlockingIssues = blockingValidationIssues.length > 0;
+  const hasWarnings = warningValidationIssues.length > 0;
+
+  const decisionStrip = (
+    <DecisionStrip
+      health={
+        hasBlockingIssues
+          ? "Blocked by validation issues"
+          : !checkpointsReady
+            ? "Awaiting release review"
+            : hasWarnings
+              ? "Warnings need review"
+              : "Ready for release"
+      }
+      recommendation={
+        hasBlockingIssues
+          ? "Resolve blocking issues before releasing to shop."
+          : !checkpointsReady
+            ? "Finish procurement validation, then acknowledge Review checkpoints."
+            : hasWarnings
+              ? "Review warnings in Materials and Joinery before release."
+              : "Procurement is validated; release to shop when ready."
+      }
+      ctaLabel={
+        appTab === "build"
+          ? "Next: Validate procurement"
+          : !checkpointsReady || hasBlockingIssues || hasWarnings
+            ? "Next: Release to shop"
+            : "Open release checklist"
+      }
+      onCta={() => {
+        if (appTab === "build") {
+          setAppTab("shop");
+          return;
+        }
+        setAppTab("about");
+      }}
+      tone={hasBlockingIssues ? "blocked" : !checkpointsReady || hasWarnings ? "warning" : "ready"}
+    />
+  );
 
   const explainAllowance = `Project milling allowance: ${formatImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
@@ -82,11 +124,16 @@ export function GrainlineApp() {
 
   const buildLeft = (
     <>
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-[var(--gl-muted)]">
+        Define intent by selecting a preset and shaping target geometry before procurement validation.
+      </div>
       {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
-      {preset === "dresser" ? <DresserPlanner /> : null}
-      {preset === "board" ? <CutPlanner /> : null}
-      {preset === "sideboard-console" ? <SideboardPlanner /> : null}
-      {preset === "tv-console" ? <TvConsoleStub /> : null}
+      <div id="build-planner-section">
+        {preset === "dresser" ? <DresserPlanner /> : null}
+        {preset === "board" ? <CutPlanner /> : null}
+        {preset === "sideboard-console" ? <SideboardPlanner /> : null}
+        {preset === "tv-console" ? <TvConsoleStub /> : null}
+      </div>
       {preset === "soon-cab" ? (
         <p className="text-[var(--gl-muted)]">This preset is queued. Use Dresser or Board cuts for now.</p>
       ) : null}
@@ -94,14 +141,19 @@ export function GrainlineApp() {
   );
 
   const setupPanel = <ProjectSetupBar />;
+  const issuesPanel = <IssuesPanel title="Project issues and warnings" />;
 
   const aboutPanel = (
-    <div className="max-w-2xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-sm leading-relaxed text-[var(--gl-muted)]">
-      <h2 className="font-display text-xl text-[var(--gl-cream)]">Review checkpoints</h2>
+    <div
+      id="review-checkpoints-section"
+      className="max-w-2xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-sm leading-relaxed text-[var(--gl-muted)]"
+    >
+      <h2 className="font-display text-xl text-[var(--gl-cream)]">Release to shop checkpoints</h2>
       <p>
-        Before exporting or printing, acknowledge two checkpoints so assumptions are intentionally reviewed right before
-        handoff.
+        Before exporting or printing, acknowledge both checkpoints so intent and procurement assumptions are explicitly
+        released to shop.
       </p>
+      {issuesPanel}
       <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
         <label className="flex items-start gap-2 text-sm text-[var(--gl-cream-soft)]">
           <input
@@ -133,30 +185,17 @@ export function GrainlineApp() {
         aria-live="polite"
       >
         {canExportOrPrint
-          ? "Export and print are unlocked."
+          ? "Export and print are unlocked for release to shop."
           : checkpointsReady
             ? "Export and print are blocked by high-severity validation issues."
-            : "Export and print stay locked until both checkpoints are acknowledged."}
+            : "Export and print stay locked until both release checkpoints are acknowledged."}
       </p>
-      {blockingValidationIssues.length > 0 ? (
-        <div className="rounded-xl border border-red-300/30 bg-red-500/10 p-3 text-xs text-red-100">
-          <p className="font-medium">Blocking issues ({blockingValidationIssues.length})</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {blockingValidationIssues.slice(0, 5).map((issue) => (
-              <li key={issue.id}>{issue.message}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {warningValidationIssues.length > 0 ? (
-        <p className="text-xs text-amber-200/90">
-          Warnings: {warningValidationIssues.length} (visible in Materials and Joinery; they do not block print/export).
-        </p>
-      ) : null}
       <p>
         Checkpoints auto-reset when relevant data changes so each export reflects current assumptions.
       </p>
-      <p className="text-xs text-[var(--gl-muted)]">Guided flow: Setup / Construction / Materials / Review.</p>
+      <p className="text-xs text-[var(--gl-muted)]">
+        Guided flow: Setup / Build (Define intent) / Materials (Validate procurement) / Review (Release to shop).
+      </p>
     </div>
   );
 
@@ -228,12 +267,14 @@ export function GrainlineApp() {
           active={appTab}
           onChange={setAppTab}
           setupPanel={setupPanel}
+          issuesPanel={issuesPanel}
           buildLeft={buildLeft}
           shopMaterialsLeft={shopMaterialsLeft}
           shopMaterialsRight={shopMaterialsRight}
           aboutPanel={aboutPanel}
           canExportOrPrint={canExportOrPrint}
           blockingValidationIssues={blockingValidationIssues}
+          decisionStrip={decisionStrip}
         />
       </div>
     </div>

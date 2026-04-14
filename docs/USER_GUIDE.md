@@ -9,9 +9,9 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 | Tab | Purpose |
 |-----|--------|
 | **Setup** | Project name, milling allowance, max transport length, waste %, **Print shop sheet** link, **Reset project**. |
-| **Build** | Choose a **preset** (dresser, board cuts, …). The preset’s planner is on the left; **Shop** panels stay on the right. TV console is available only when you enable **Show experimental presets**. |
-| **Shop** | Same **Shop** column as Build, full width—parts list, buy list, joinery, rough-stick layout. |
-| **About** | Short product blurb. |
+| **Build** | **Define intent**. Choose a preset (dresser, board cuts, …) and shape target geometry. Materials panels stay visible on the right with a decision strip and next-step CTA. TV console is available only when you enable **Show experimental presets**. |
+| **Materials** | **Validate procurement**. Full-width materials workflow (parts list, buy list, joinery, rough-stick layout) with the same persistent decision strip and release guidance. |
+| **Review** | **Release to shop**. Confirm both checkpoints before export/print handoff. |
 
 Your data is **one shared project** across tabs: switching tabs does not start a new project.
 
@@ -26,7 +26,7 @@ Your data is **one shared project** across tabs: switching tabs does not start a
 
 ---
 
-## Presets (Build)
+## Presets (Build / Define intent)
 
 ### Dresser
 
@@ -48,7 +48,7 @@ Enable **Show experimental presets** in Build to access TV console. It generates
 
 ---
 
-## Parts table (Shop)
+## Parts table (Materials / Validate procurement)
 
 - **Finished** vs **rough** T×W×L in inches (decimal storage; UI shows friendly fractions where relevant).
 - **Rough manual** — When on, rough no longer auto-follows finished + allowance until you edit again.
@@ -57,7 +57,7 @@ Enable **Show experimental presets** in Build to access TV console. It generates
 - **Material** — Free-text label + **thickness category** (e.g. 4/4, 5/4)—used to **group** the buy list. Treat thickness category as yard-facing naming, not measured rough thickness.
 - **Clear all** — Removes every part **and** joinery history for this project.
 - **Assumptions** — Each row now shows explicit joinery sizing provenance and a glue-up assumption line.
-- **Export CSV** — Includes dimensions, material, per-row **board feet** / **lineal feet** (from rough dims), plus joinery/glue-up assumption columns for printout parity.
+- **Export CSV** — Includes dimensions, material, per-row **board feet** / **lineal feet** (from rough dims), plus joinery/glue-up assumption columns for printout parity. Locked until Review (Release to shop) checkpoints are acknowledged.
 
 ---
 
@@ -95,7 +95,7 @@ Packs **rough L × quantity** from the parts list into boards of a given stock l
 
 ## Print and PDF
 
-- **Print shop sheet** (Setup) or **Shop print** link (Shop tab) opens **`/print`** in a new tab.
+- **Print shop sheet** (Setup) or **Shop print** link (Materials tab) opens **`/print`** in a new tab.
 - The print page reads the same **`localStorage`** project as the main app.
 - Finished parts include an **Assumptions** column so joinery sizing and panel glue-up assumptions survive to paper/PDF handoff.
 - Treat the printout as a lumber-yard handoff: material + thickness category + adjusted BF/LF, then finalize board counts from what is in stock.

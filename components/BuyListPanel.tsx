@@ -22,6 +22,7 @@ const SCENARIO_ORDER: PurchaseScenarioId[] = [
   "minWaste",
   "minBoardCount",
 ];
+const COMMON_STOCK_WIDTH_PRESETS = [4, 6, 8, 10, 12];
 
 export function BuyListPanel() {
   const { project, setMaterialGroupCostRate, setMaterialGroupStockWidth } = useProject();
@@ -189,30 +190,35 @@ export function BuyListPanel() {
             </span>
           </div>
           <ul className="space-y-3">
-            {groups.map((g) => (
-              <li
-                key={g.key}
-                className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-[var(--gl-cream)]"
-              >
+            {groups.map((g) => {
+              const twoDGroup = twoDGroupByKey.get(g.key);
+              const stockWidthAssumed = twoDGroup?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches;
+              const hasCustomStockWidth = typeof project.stockWidthByMaterialGroup?.[g.key] === "number";
+              return (
+                <li
+                  key={g.key}
+                  className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-[var(--gl-cream)] sm:p-4"
+                >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-medium">{g.materialLabel}</span>
                   <span className="text-xs text-[var(--gl-muted)]">{g.thicknessCategory}</span>
                 </div>
-                <p className="mt-1 text-xs text-[var(--gl-muted)]">
-                  Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
-                  sizes/qty. Yard estimate with waste: <strong>{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
-                  <strong>{g.adjustedLinearFeet.toFixed(2)}</strong> LF. Solver constraint: stock length ≤{" "}
-                  {formatImperial(project.maxTransportLengthInches)}; verify stock dimensions and bench-side cut sequence.
-                </p>
-                <div className="mt-2 rounded-lg border border-white/10 bg-black/30 p-2 text-xs text-[var(--gl-muted)]">
-                  <p className="font-medium text-[var(--gl-cream-soft)]">2D estimate (this group)</p>
-                  <p className="mt-1">
-                    Stock width assumed:{" "}
-                    {formatImperial(twoDGroupByKey.get(g.key)?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches)}{" "}
-                    · ~{twoDGroupByKey.get(g.key)?.estimatedBoards2d ?? 0} board(s)
+                <div className="mt-2 rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-[var(--gl-muted)]">
+                  <p className="text-[11px] font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                    2D estimate (decision)
                   </p>
-                  <p className="mt-0.5">{twoDGroupByKey.get(g.key)?.detail}</p>
-                  {(twoDGroupByKey.get(g.key)?.flags ?? []).map((f) => (
+                  <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">
+                    ~{twoDGroup?.estimatedBoards2d ?? 0} board(s) using width + length packing
+                  </p>
+                  <p className="mt-1">{twoDGroup?.detail}</p>
+                </div>
+                <div className="mt-2 rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-[var(--gl-muted)]">
+                  <p className="text-[11px] font-medium tracking-widest text-[var(--gl-muted)] uppercase">Assumptions</p>
+                  <p className="mt-1">
+                    Stock width assumed: {formatImperial(stockWidthAssumed)}{" "}
+                    {hasCustomStockWidth ? "(group override)" : "(project default)"}
+                  </p>
+                  {(twoDGroup?.flags ?? []).map((f) => (
                     <p key={f} className="mt-1 text-amber-200/90">
                       {f}
                     </p>
@@ -223,6 +229,7 @@ export function BuyListPanel() {
                       type="number"
                       step="any"
                       min={0.1}
+                      inputMode="decimal"
                       className="input-wood mt-1 text-xs"
                       placeholder={`Default ${project.maxPurchasableBoardWidthInches}`}
                       value={project.stockWidthByMaterialGroup?.[g.key] ?? ""}
@@ -238,6 +245,42 @@ export function BuyListPanel() {
                       }}
                     />
                   </label>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      className="rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-[11px] text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]"
+                      onClick={() => setMaterialGroupStockWidth(g.key, null)}
+                    >
+                      Use default
+                    </button>
+                    {COMMON_STOCK_WIDTH_PRESETS.map((widthIn) => (
+                      <button
+                        key={widthIn}
+                        type="button"
+                        className="rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-[11px] text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]"
+                        onClick={() => setMaterialGroupStockWidth(g.key, widthIn)}
+                      >
+                        {widthIn}&quot;
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-2 rounded-lg border border-white/10 bg-black/25 p-3 text-xs text-[var(--gl-muted)]">
+                  <p className="text-[11px] font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                    BF / LF / cost diagnostics
+                  </p>
+                  <p className="mt-1">
+                    Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
+                    sizes/qty.
+                  </p>
+                  <p className="mt-0.5">
+                    Yard estimate with waste: <strong>{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
+                    <strong>{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
+                  </p>
+                  <p className="mt-0.5">
+                    Solver constraint: stock length ≤ {formatImperial(project.maxTransportLengthInches)}; verify stock dimensions
+                    and bench-side cut sequence.
+                  </p>
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   <label className="text-xs text-[var(--gl-muted)]">
@@ -290,8 +333,9 @@ export function BuyListPanel() {
                     </li>
                   ))}
                 </ul>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

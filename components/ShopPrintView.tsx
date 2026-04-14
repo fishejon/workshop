@@ -17,7 +17,7 @@ import {
   parseProject,
 } from "@/lib/project-utils";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
-import { evaluatePurchaseScenario } from "@/lib/purchase-scenarios";
+import { evaluateAllPurchaseScenarios } from "@/lib/purchase-scenarios";
 import {
   canExportOrPrintProject,
   getBlockingValidationIssues,
@@ -64,14 +64,17 @@ export function ShopPrintView() {
 
   const purchasePreview = useMemo(() => {
     if (!project) return null;
-    return evaluatePurchaseScenario("fitTransport", {
+    return (
+      evaluateAllPurchaseScenarios({
       parts: project.parts,
       wasteFactorPercent: project.wasteFactorPercent,
       maxTransportLengthInches: project.maxTransportLengthInches,
       maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
       stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+      costRatesByGroup: project.costRatesByGroup,
       kerfInches: 0.125,
-    });
+      }).find((plan) => plan.scenario === "fitTransport") ?? null
+    );
   }, [project]);
 
   if (!project) {
@@ -94,12 +97,23 @@ export function ShopPrintView() {
               Back to planner
             </Link>
           </p>
-          <section className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5">
-            <h1 className="font-display text-2xl text-[var(--gl-ink)]">Print locked pending review checkpoints</h1>
+          <section
+            id="print-lock-section"
+            className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5"
+            aria-labelledby="print-lock-title"
+          >
+            <h1 id="print-lock-title" className="font-display text-2xl text-[var(--gl-ink)]">
+              Print locked pending Review (Release to shop) checkpoints
+            </h1>
             <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
-              Go to the Review step and resolve blocking checks before printing/exporting.
+              Go to Review (Release to shop) and resolve blocking checks before printing/exporting.
             </p>
-            <ul className="mt-4 space-y-2 text-sm">
+            <p className="mt-3 text-sm">
+              Lock summary: Blocking issues {blockingIssues.length}. Material assumptions{" "}
+              {project.checkpoints.materialAssumptionsReviewed ? "acknowledged" : "not acknowledged"}. Joinery review{" "}
+              {project.checkpoints.joineryReviewed ? "acknowledged" : "not acknowledged"}.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm" aria-label="Print lock checkpoint status">
               <li>
                 Material assumptions:{" "}
                 <strong>
@@ -114,13 +128,27 @@ export function ShopPrintView() {
             {blockingIssues.length > 0 ? (
               <>
                 <p className="mt-4 text-sm font-medium text-[var(--gl-ink)]">Blocking validation reasons</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                <ul
+                  className="mt-2 list-disc space-y-1 pl-5 text-sm"
+                  aria-label={`Blocking validation reasons: ${blockingIssues.length}`}
+                >
                   {blockingIssues.map((issue) => (
                     <li key={issue.id}>{issue.message}</li>
                   ))}
                 </ul>
               </>
             ) : null}
+            <p className="mt-4 text-sm">
+              Jump back to{" "}
+              <Link href="/#review-checkpoints-section" className="underline underline-offset-2">
+                Review checkpoints
+              </Link>{" "}
+              or{" "}
+              <Link href="/#parts-table-section" className="underline underline-offset-2">
+                Parts table
+              </Link>
+              .
+            </p>
           </section>
         </div>
       </div>
@@ -258,21 +286,59 @@ export function ShopPrintView() {
                 </span>
               </p>
               <ul className="space-y-4">
-                {groups.map((g) => (
-                  <li
-                    key={g.key}
-                    className="shop-print-avoid-break rounded-lg border border-[var(--gl-ink)]/20 bg-white/60 p-4 text-sm"
-                  >
+                {groups.map((g) => {
+                  const twoDGroup = purchasePreview?.twoDimensional.groups.find((row) => row.key === g.key);
+                  const costGroup = purchasePreview?.groupCosts.find((row) => row.key === g.key);
+                  return (
+                    <li
+                      key={g.key}
+                      className="shop-print-avoid-break rounded-lg border border-[var(--gl-ink)]/20 bg-white/60 p-4 text-sm"
+                    >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-semibold text-[var(--gl-ink)]">{g.materialLabel}</span>
                       <span className="text-xs shop-print-muted">{g.thicknessCategory}</span>
                     </div>
-                    <p className="mt-1 text-xs shop-print-muted">
-                      Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from
-                      rough sizes/qty. Yard estimate with waste:{" "}
-                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
-                      <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
-                    </p>
+                    <div className="mt-2 rounded border border-[var(--gl-ink)]/15 bg-white/70 p-2 text-xs shop-print-muted">
+                      <p className="font-semibold text-[var(--gl-ink)]">2D estimate first</p>
+                      <p className="mt-0.5 text-[var(--gl-ink)]/90">
+                        ~{twoDGroup?.estimatedBoards2d ?? 0} board(s) by width + length packing
+                      </p>
+                      <p className="mt-0.5">{twoDGroup?.detail}</p>
+                    </div>
+                    <div className="mt-2 rounded border border-[var(--gl-ink)]/15 bg-white/70 p-2 text-xs shop-print-muted">
+                      <p className="font-semibold text-[var(--gl-ink)]">Assumptions</p>
+                      <p className="mt-0.5">
+                        Stock width assumed:{" "}
+                        {formatImperial(
+                          twoDGroup?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches
+                        )}
+                      </p>
+                      {purchasePreview?.twoDimensional.assumptions.slice(0, 2).map((assumption) => (
+                        <p key={assumption} className="mt-0.5">
+                          {assumption}
+                        </p>
+                      ))}
+                      {(twoDGroup?.flags ?? []).map((flag) => (
+                        <p key={flag} className="mt-0.5 text-[var(--gl-ink)]/90">
+                          {flag}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="mt-2 rounded border border-[var(--gl-ink)]/15 bg-white/70 p-2 text-xs shop-print-muted">
+                      <p className="font-semibold text-[var(--gl-ink)]">BF / LF / cost diagnostics</p>
+                      <p className="mt-0.5">
+                        Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
+                        sizes/qty.
+                      </p>
+                      <p className="mt-0.5">
+                        Yard estimate with waste: <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong>{" "}
+                        BF and <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
+                      </p>
+                      <p className="mt-0.5">
+                        Estimated group cost:{" "}
+                        <strong className="text-[var(--gl-ink)]">${(costGroup?.totalCost ?? 0).toFixed(2)}</strong>
+                      </p>
+                    </div>
                     <ul className="mt-2 space-y-0.5 text-xs shop-print-muted">
                       {g.lines.map((ln) => (
                         <li key={ln.partId}>
@@ -281,8 +347,9 @@ export function ShopPrintView() {
                         </li>
                       ))}
                     </ul>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
