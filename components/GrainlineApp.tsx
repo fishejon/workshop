@@ -7,6 +7,7 @@ import { IssuesPanel } from "@/components/IssuesPanel";
 import { JoineryPanel } from "@/components/JoineryPanel";
 import { RoughStickLayout } from "@/components/RoughStickLayout";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
+import { WorkshopFlowGuide } from "@/components/WorkshopFlowGuide";
 import { CutPlanner } from "@/components/CutPlanner";
 import { DresserPlanner } from "@/components/DresserPlanner";
 import { PartsTable } from "@/components/PartsTable";
@@ -222,8 +223,8 @@ export function GrainlineApp() {
                 Furniture presets, shop math
               </h1>
               <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--gl-muted)]">
-                Start from a piece you recognize. Build a joinery-aware parts list and buy plan on the right while you
-                sketch the case on the left.
+                Start from a piece you recognize, then follow the workshop flow: Build for intent and generated parts,
+                Materials for the cut list and buy guidance, Review for checkpoints and shop print.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -266,6 +267,18 @@ export function GrainlineApp() {
             </div>
           </div>
         </header>
+
+        <div className="mb-6">
+          <WorkshopFlowGuide
+            active={appTab}
+            onGoTo={setAppTab}
+            projectName={project.name}
+            partCount={project.parts.length}
+            materialAssumptionsReviewed={project.checkpoints.materialAssumptionsReviewed}
+            joineryReviewed={project.checkpoints.joineryReviewed}
+            canExportOrPrint={canExportOrPrint}
+          />
+        </div>
 
         <AppShellTabs
           active={appTab}

@@ -23,6 +23,7 @@ Glue-up assumptions use a shared panel glue-up planner with project/per-group bo
 ## Documentation
 
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md) — how to use the app (tabs, presets, shop, print, storage).  
+- [docs/WOODWORKER_CHECKLIST.md](docs/WOODWORKER_CHECKLIST.md) — tab order and readiness before shop handoff.  
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — repo layout, scripts, tests, extending joinery.  
 - [docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md) — internal strategy memo (north star, wedge, pillars, phased roadmap, MVP, risks).  
 - [docs/PRD.md](docs/PRD.md) — product requirements (Workshop Companion / Grainline).  

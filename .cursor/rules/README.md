@@ -1,52 +1,45 @@
-# Cursor Agent Rules — Woodworker's Cut List Tool
+# Cursor agent rules — Grainline
 
-Drop the `.mdc` files in this folder into your project at:
+These `.mdc` files live in **this repo** at `.cursor/rules/`. They steer **on-demand** AI behavior (`alwaysApply: false`).
 
-```
-your-project/
-└── .cursor/
-    └── rules/
-        ├── agent-architect.mdc
-        ├── agent-frontend.mdc
-        ├── agent-backend.mdc
-        ├── agent-eng-manager.mdc
-        ├── agent-ux.mdc
-        ├── agent-ui.mdc
-        └── agent-pm.mdc
-```
+**Canonical product docs:** `docs/PRODUCT_STRATEGY.md`, `docs/PRD.md`, `docs/USER_GUIDE.md`, and `docs/plans/cohesion-woodworker-readiness.md`.
 
 ## How to use in Cursor
 
-Each rule is set to `alwaysApply: false` — meaning agents are invoked on demand, not on every prompt. To use one, either:
+**Option A — Tag in chat:**  
+`@agent-pm` … `@agent-architect` … (pick the role that matches the question.)
 
-**Option A — Tag in chat:**
-Type `@` in the Cursor chat and select the rule by name. Example:
-> `@agent-pm what should I build next?`
+**Option B — Natural language:**  
+“From a UX perspective, …” — Cursor may still surface a matching rule by description.
 
-**Option B — Reference by description:**
-Open Cursor chat and reference the agent naturally:
-> "As the UX designer, review this form layout"
+## Which agent when?
 
-Cursor will surface the matching rule.
+| Question type | Start with |
+|----------------|--------------|
+| Scope, roadmap, acceptance criteria | `agent-pm` |
+| System shape, boundaries, data model | `agent-architect` |
+| Lumber tables, persistence, calculation purity vs tests | `agent-backend` |
+| Components, React state, forms, print route | `agent-frontend` |
+| Flow, hierarchy, onboarding, friction | `agent-ux` |
+| Tokens, type, density, microcopy | `agent-ui` |
+| DoD, test gaps, ship blockers | `agent-eng-manager` |
 
-## Agents
+## Files
 
 | File | Agent | Focus |
 |------|-------|-------|
-| `agent-architect.mdc` | Alex Chen | Tech stack, system design, data model, lumber math architecture |
-| `agent-frontend.mdc` | Priya Nair | Components, state, fraction inputs, print output, UI logic |
-| `agent-backend.mdc` | Marcus Reid | Lumber lookup table, fractional math, local storage schema, validation |
-| `agent-eng-manager.mdc` | Jordan Taylor | QA, definition of done, scope discipline, test coverage |
-| `agent-ux.mdc` | Sofia Andreou | User flows, form usability, output hierarchy, onboarding |
-| `agent-ui.mdc` | Luca Ferretti | Color system, typography, copy, print stylesheet, visual polish |
-| `agent-pm.mdc` | Amara Diallo | Requirements, prioritization, user stories, roadmap sequencing |
+| `agent-architect.mdc` | Alex Chen | Stack fit, boundaries, furniture vs config |
+| `agent-frontend.mdc` | Priya Nair | UI implementation, a11y, print/export |
+| `agent-backend.mdc` | Marcus Reid | Data model, nominal lumber SSOT, math/testing |
+| `agent-eng-manager.mdc` | Jordan Taylor | DoD, tests, release discipline |
+| `agent-ux.mdc` | Sofia Andreou | Journeys, progressive disclosure |
+| `agent-ui.mdc` | Luca Ferretti | Visual language, shop/read contrast |
+| `agent-pm.mdc` | Amara Diallo | Requirements, prioritization |
 
-## Good starting prompts
+## Example prompts
 
-- `@agent-pm` → "What are the must-have requirements for the dresser calculator MVP?"
-- `@agent-architect` → "Review the current project structure and flag any architectural concerns"
-- `@agent-backend` → "Is our lumber size lookup table using correct nominal vs. actual dimensions?"
-- `@agent-ux` → "Walk through the new project flow and identify any friction points"
-- `@agent-ui` → "Review this component against our design system"
-- `@agent-frontend` → "How should we handle imperial fraction input in the form fields?"
-- `@agent-eng-manager` → "What's blocking us from shipping the dresser calculator?"
+- `@agent-pm` — “What’s in scope for the next milestone vs later?”
+- `@agent-architect` — “Where should joinery vs buy math live?”
+- `@agent-backend` — “Review `lib/nominal-lumber-stocks.ts` and storage migration risk.”
+- `@agent-ux` — “Does Setup → Build → Materials → Review read as one journey?”
+- `@agent-eng-manager` — “What’s the DoD for shipping a dresser change?”
