@@ -101,9 +101,11 @@ export function BuyListPanel() {
     <section className="gl-panel p-5">
       <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Lumber & buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
-        Lineal feet and 1/16″ cuts first. Vehicle length comes from <strong className="text-[var(--gl-cream)]">max transport</strong> on
-        the Project tab ({formatShopImperial(project.maxTransportLengthInches)}). Board-foot totals stay under{" "}
-        <strong className="text-[var(--gl-cream-soft)]">Advanced yard estimate</strong> if you need them.
+        First: how many sticks per lumber type and a <strong className="text-[var(--gl-cream)]">visual cut layout</strong> along
+        each stick&apos;s length (max transport from Project). Optional section below adds{" "}
+        <strong className="text-[var(--gl-cream-soft)]">board feet</strong>, a{" "}
+        <strong className="text-[var(--gl-cream-soft)]">width + length</strong> board-count estimate, and cost fields for
+        yard quotes—not required to read the board counts above.
       </p>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Default max board face width is{" "}
@@ -120,8 +122,14 @@ export function BuyListPanel() {
 
           <details className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
             <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
-              Advanced yard estimate &amp; 2D solver
+              Board feet &amp; width estimate (optional)
             </summary>
+            <p className="mt-3 text-xs text-[var(--gl-muted)]">
+              Open when you want <strong className="text-[var(--gl-cream-soft)]">BF/LF</strong> subtotals, scenario
+              labels, the <strong className="text-[var(--gl-cream-soft)]">width × length</strong> board-count model
+              (rips / glue strips), or <strong className="text-[var(--gl-cream-soft)]">cost</strong> inputs. The board
+              counts in the table above already come from length-only packing on your transport cap.
+            </p>
             <div className="mt-4 space-y-4">
           <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">

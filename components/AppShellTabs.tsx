@@ -145,10 +145,10 @@ export function AppShellTabs({
                   Lumber & buy list
                 </summary>
                 <p className="mt-2 text-xs text-[var(--gl-muted)]">
-                  Dimensional lumber table (lineal first), cut packing, then component cut list. Purchase scenarios
-                  and BF live inside <strong className="text-[var(--gl-cream-soft)]">Advanced yard estimate</strong>.
-                  Use <span className="font-medium text-[var(--gl-cream-soft)]">Export CSV</span> on the cut list when
-                  Review unlocks export.
+                  Stick counts and the <strong className="text-[var(--gl-cream-soft)]">cut layout</strong> bars, then
+                  component lineal rollup. Optional <strong className="text-[var(--gl-cream-soft)]">BF &amp; width estimate</strong>{" "}
+                  for yard quotes. Use <span className="font-medium text-[var(--gl-cream-soft)]">Export CSV</span> on
+                  the cut list when Review unlocks export.
                 </p>
                 <div className="mt-4">{cutListBuyListPanel}</div>
               </details>

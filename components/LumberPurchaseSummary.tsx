@@ -79,9 +79,14 @@ export function DimensionalLumberPurchaseTable({
       <div className="border-b border-[var(--gl-border)] px-4 py-3">
         <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Boards to buy</h3>
         <p className="mt-1 text-xs text-[var(--gl-muted)]">
-          Read-only from your cut list: one row per lumber type, count = sticks needed at{" "}
-          <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
-          <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts. Nothing here is editable.
+          Read-only from your cut list: one row per lumber type. Each count is how many full-length sticks you need
+          when every cut is placed <strong className="text-[var(--gl-cream-soft)]">along the length</strong> of the
+          board (using each part&apos;s <strong className="text-[var(--gl-cream-soft)]">rough length</strong>), at
+          your max transport length of{" "}
+          <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong>, with{" "}
+          <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same stick. Width and
+          thickness are not re-ripped here—that optional math lives under{" "}
+          <strong className="text-[var(--gl-cream-soft)]">Board feet &amp; width estimate</strong> below.
         </p>
       </div>
       <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
@@ -109,34 +114,36 @@ export function DimensionalLumberPurchaseTable({
         </tbody>
       </table>
 
-      <details className="group border-t border-[var(--gl-border)]">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-[var(--gl-copper-bright)] marker:content-none [&::-webkit-details-marker]:hidden hover:underline">
-          Show cut layout (how each board is used)
-        </summary>
-        <div className="space-y-4 border-t border-[var(--gl-border)] border-dashed p-4 pt-4">
-          {rows.map((row) => (
-            <div key={`vis-${row.key}`} className="space-y-2">
-              <p className="text-sm font-medium text-[var(--gl-cream)]">{row.lumberTypeLabel}</p>
-              {row.packError ? (
-                <p className="text-xs text-[var(--gl-warning)]">{row.packError}</p>
-              ) : row.packedBoards && row.packedBoards.length > 0 ? (
-                <ul className="space-y-2">
-                  {row.packedBoards.map((board) => (
-                    <BoardCutStrip
-                      key={board.index}
-                      boardIndex={board.index}
-                      stockLengthInches={board.stockLengthInches}
-                      cuts={board.cuts}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-[var(--gl-muted)]">No rough lengths to pack for this type.</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </details>
+      <div className="border-t border-[var(--gl-border)] px-4 py-3">
+        <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>
+        <p className="mt-1 text-xs text-[var(--gl-muted)]">
+          Bars show how cuts nest on each stick (same lengths as the table above). This is the visual cut list for
+          shopping sticks—not the editable parts grid on the Cut list tab.
+        </p>
+      </div>
+      <div className="space-y-4 p-4 pt-0">
+        {rows.map((row) => (
+          <div key={`vis-${row.key}`} className="space-y-2">
+            <p className="text-sm font-medium text-[var(--gl-cream)]">{row.lumberTypeLabel}</p>
+            {row.packError ? (
+              <p className="text-xs text-[var(--gl-warning)]">{row.packError}</p>
+            ) : row.packedBoards && row.packedBoards.length > 0 ? (
+              <ul className="space-y-2">
+                {row.packedBoards.map((board) => (
+                  <BoardCutStrip
+                    key={board.index}
+                    boardIndex={board.index}
+                    stockLengthInches={board.stockLengthInches}
+                    cuts={board.cuts}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[var(--gl-muted)]">No rough lengths to pack for this type.</p>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

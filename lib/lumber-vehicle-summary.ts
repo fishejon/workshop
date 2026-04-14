@@ -1,6 +1,6 @@
 /**
  * Lineal-first lumber summary: total lineal per material group, boards ÷ vehicle length,
- * and 1D kerf pack on max transport length (same stick model as rough layout).
+ * and length-axis kerf packing on max transport (each cut uses rough L along the stick).
  */
 
 import type { BoardFootGroup } from "./board-feet";
