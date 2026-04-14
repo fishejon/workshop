@@ -58,14 +58,11 @@ Enable **Show experimental presets** in Plan to access TV console. It generates 
 
 ## Cut list table (Validate procurement)
 
-- **Finished** vs **rough** T×W×L in inches (decimal storage). Shop-facing dimensions in this table, buy list, and print use **nearest 1/16″** strings (`formatShopImperial`); internal values stay decimal. **`project.joints` is not applied** on the main path (see **`/labs`**).
-- **Rough manual** — When on, rough no longer auto-follows finished + allowance until you edit again.
-- **Prov column** — Quick provenance signals: rough source (derived/manual), joinery change count, and mate references.
-- **Assembly** — Case, Drawers, Base, Back, Doors, Other (used for filtering in some joinery flows).
-- **Material** — Free-text label + **thickness category** (e.g. 4/4, 5/4)—used to **group** the buy list. Treat thickness category as yard-facing naming, not measured rough thickness.
+- **Read-only grid** — Component, assembly, qty, finished and rough T×W×L (shop **nearest 1/16″**), lumber (label · thickness category), status. Internal storage stays decimal; **`project.joints` is not applied** on the main path (see **`/labs`**).
+- **Edit** — Opens a modal with all fields (dimensions as numbers + live fraction preview), grain note, manual rough toggle, and a collapsible **Why these numbers?** (glue-up / rough derivation). Save applies changes; Cancel discards.
+- **Assembly** — Case, Drawers, Base, Back, Doors, Other.
 - **Clear all** — Removes every part **and** joinery history for this project.
-- **Assumptions** — Each row now shows explicit joinery sizing provenance and a glue-up assumption line.
-- **Export CSV** — Includes dimensions, material, per-row **board feet** / **lineal feet** (from rough dims), plus glue-up / provenance columns (joinery columns reflect the cut-list scope: no joint history on the main path). Locked until Review material checkpoint is acknowledged.
+- **Export CSV** — Same columns as before export pipeline (BF/LF, glue-up, provenance). Locked until Review material checkpoint is acknowledged.
 
 ---
 

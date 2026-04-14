@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import {
   ASSEMBLY_IDS,
@@ -18,6 +18,10 @@ import { canExportOrPrintProject } from "@/lib/validation";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
 
+function formatDim3(d: { t: number; w: number; l: number }): string {
+  return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
+}
+
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
   const {
     project,
@@ -30,11 +34,16 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
     clearParts,
     duplicateAssemblyGroup,
   } = useProject();
-  const [openExplain, setOpenExplain] = useState<string | null>(null);
   const [selectedAssemblyToDuplicate, setSelectedAssemblyToDuplicate] = useState<AssemblyId>(ASSEMBLY_IDS[0]);
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
   const checkpointsReady = cutListExportCheckpointsReady(project);
   const jointsForCutList = jointsEffectiveForCutList(project);
   const canExport = canExportOrPrintProject(checkpointsReady, validationIssues);
+
+  const liveEditPart = useMemo(
+    () => (editingPartId ? project.parts.find((p) => p.id === editingPartId) ?? null : null),
+    [editingPartId, project.parts]
+  );
 
   function downloadCsv() {
     const blob = new Blob([partsToCsv(project.parts, jointsForCutList, project)], { type: "text/csv;charset=utf-8" });
@@ -58,7 +67,8 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             Cut list
           </p>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
-            Finished vs rough (in). Rough defaults: each axis + milling allowance until you edit rough.
+            Read-only summary (nearest 1/16″). Use <strong className="text-[var(--gl-cream-soft)]">Edit</strong> to
+            change a row—numbers stay calculated until you save in the editor.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -150,39 +160,28 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       ) : null}
 
       {project.parts.length === 0 ? (
-        <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Dresser results or manually.</p>
+        <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Plan presets or Add row, then Edit.</p>
       ) : (
-        <div className="mt-4 max-h-[min(60vh,640px)] overflow-auto rounded-xl border border-[var(--gl-border)]">
-          <table className="gl-numeric w-full min-w-[880px] text-left text-xs">
+        <div className="mt-4 max-h-[min(70vh,720px)] overflow-auto rounded-xl border border-[var(--gl-border)]">
+          <table className="gl-numeric w-full min-w-[520px] text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[var(--gl-ink)]/98 text-xs tracking-wide text-[var(--gl-muted)] uppercase">
               <tr>
-                <th className="px-2 py-2 font-medium">Name</th>
-                <th className="px-2 py-2 font-medium">Asm</th>
-                <th className="px-2 py-2 font-medium">Qty</th>
-                <th className="px-2 py-2 font-medium">Fin T×W×L</th>
-                <th className="px-2 py-2 font-medium">Rough T×W×L</th>
-                <th className="px-2 py-2 font-medium">Manual</th>
-                <th className="px-2 py-2 font-medium">Material</th>
-                <th className="px-2 py-2 font-medium">Thick cat</th>
-                <th className="px-2 py-2 font-medium">Grain</th>
-                <th className="px-2 py-2 font-medium">Status</th>
-                <th className="px-2 py-2 font-medium">Assumptions</th>
-                <th className="px-2 py-2 font-medium">Prov</th>
-                <th className="px-2 py-2 font-medium" />
+                <th className="px-3 py-2.5 font-medium">Component</th>
+                <th className="px-3 py-2.5 font-medium">Asm</th>
+                <th className="px-3 py-2.5 font-medium">Qty</th>
+                <th className="px-3 py-2.5 font-medium">Finished T×W×L</th>
+                <th className="px-3 py-2.5 font-medium">Rough T×W×L</th>
+                <th className="px-3 py-2.5 font-medium">Lumber</th>
+                <th className="px-3 py-2.5 font-medium">Status</th>
+                <th className="px-3 py-2.5 font-medium"> </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--gl-border)] text-[var(--gl-cream)]">
               {project.parts.map((p) => (
-                <PartRow
+                <CutListReadRow
                   key={p.id}
                   part={p}
-                  millingAllowanceInches={project.millingAllowanceInches}
-                  maxPurchasableBoardWidthInches={project.maxPurchasableBoardWidthInches}
-                  stockWidthByMaterialGroup={project.stockWidthByMaterialGroup}
-                  openExplain={openExplain === p.id}
-                  onToggleExplain={() => setOpenExplain((x) => (x === p.id ? null : p.id))}
-                  joints={jointsForCutList}
-                  onUpdate={updatePart}
+                  onEdit={() => setEditingPartId(p.id)}
                   onRemove={() => removePart(p.id)}
                 />
               ))}
@@ -190,241 +189,328 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           </table>
         </div>
       )}
+
+      {liveEditPart ? (
+        <PartEditDialog
+          key={`${liveEditPart.id}-${liveEditPart.finished.l}-${liveEditPart.rough.l}-${liveEditPart.quantity}`}
+          part={liveEditPart}
+          millingAllowanceInches={project.millingAllowanceInches}
+          maxPurchasableBoardWidthInches={project.maxPurchasableBoardWidthInches}
+          stockWidthByMaterialGroup={project.stockWidthByMaterialGroup}
+          joints={jointsForCutList}
+          onClose={() => setEditingPartId(null)}
+          onSave={(patch) => {
+            updatePart(liveEditPart.id, patch);
+            setEditingPartId(null);
+          }}
+          onRemove={() => {
+            removePart(liveEditPart.id);
+            setEditingPartId(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
 
-function PartRow({
+function CutListReadRow({
+  part,
+  onEdit,
+  onRemove,
+}: {
+  part: Part;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const roughManual = part.rough.manual;
+  return (
+    <tr className="align-middle hover:bg-[var(--gl-surface-muted)]/40">
+      <td className="px-3 py-2.5 font-medium text-[var(--gl-cream-soft)]">{part.name || "—"}</td>
+      <td className="px-3 py-2.5 text-[var(--gl-muted)]">{part.assembly}</td>
+      <td className="px-3 py-2.5 tabular-nums">{part.quantity}</td>
+      <td className="px-3 py-2.5 font-mono text-[var(--gl-cream)]">{formatDim3(part.finished)}</td>
+      <td className="px-3 py-2.5 font-mono text-[var(--gl-cream)]">
+        {formatDim3(part.rough)}
+        {roughManual ? (
+          <span className="ml-1 rounded border border-[var(--gl-border)] px-1 text-xs uppercase text-[var(--gl-muted)]">
+            manual rough
+          </span>
+        ) : null}
+      </td>
+      <td className="max-w-[10rem] truncate px-3 py-2.5 text-[var(--gl-muted)]" title={`${part.material.label} · ${part.material.thicknessCategory}`}>
+        {part.material.label} · {part.material.thicknessCategory}
+      </td>
+      <td className="px-3 py-2.5 text-[var(--gl-muted)]">{part.status}</td>
+      <td className="px-3 py-2.5">
+        <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            className="rounded-md border border-[var(--gl-border-strong)] px-2 py-1 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
+            onClick={onEdit}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="text-xs text-[var(--gl-muted)] hover:text-[var(--gl-danger)]"
+            onClick={() => {
+              if (confirm(`Remove “${part.name}” from the cut list?`)) onRemove();
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function PartEditDialog({
   part,
   millingAllowanceInches,
   maxPurchasableBoardWidthInches,
   stockWidthByMaterialGroup,
-  openExplain,
-  onToggleExplain,
   joints,
-  onUpdate,
+  onClose,
+  onSave,
   onRemove,
 }: {
   part: Part;
   millingAllowanceInches: number;
   maxPurchasableBoardWidthInches: number;
   stockWidthByMaterialGroup?: Record<string, number>;
-  openExplain: boolean;
-  onToggleExplain: () => void;
   joints: ProjectJoint[];
-  onUpdate: (id: string, patch: Partial<Part>) => void;
+  onClose: () => void;
+  onSave: (patch: Partial<Part>) => void;
   onRemove: () => void;
 }) {
+  const [draft, setDraft] = useState<Part>(() => ({ ...part }));
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const derived = useMemo(
     () =>
-      derivePartAssumptionsDetailed(part, joints, {
+      derivePartAssumptionsDetailed(draft, joints, {
         maxPurchasableBoardWidthInches,
         stockWidthByMaterialGroup,
       }),
-    [part, joints, maxPurchasableBoardWidthInches, stockWidthByMaterialGroup]
-  );
-  const provenance = derived.provenance;
-  const assumptions = derived.assumptions;
-  const summary = useMemo(
-    () => {
-      const roughSummary =
-        provenance.roughSource === "manual"
-          ? "Rough dims are manually overridden for this part."
-          : `Rough dims are derived from finished + ${formatShopImperial(millingAllowanceInches)} allowance on T, W, and L.`;
-      const joinerySummary =
-        provenance.joineryChangeCount > 0
-          ? `Joinery changed this part ${provenance.joineryChangeCount} time${provenance.joineryChangeCount === 1 ? "" : "s"}.`
-          : "No joinery rule has changed this part's finished dimensions.";
-      const glueSummary = derived.glueUpPlan.applicable
-        ? `Glue-up strips: ${derived.glueUpPlan.stripCount}; board width source: ${derived.glueUpPlan.boardWidthSource}.`
-        : "Glue-up not applicable.";
-      return (
-        `${roughSummary} ` +
-        `Displayed: ${formatShopImperial(part.finished.t)}→${formatShopImperial(part.rough.t)}, ` +
-        `${formatShopImperial(part.finished.w)}→${formatShopImperial(part.rough.w)}, ` +
-        `${formatShopImperial(part.finished.l)}→${formatShopImperial(part.rough.l)}. ` +
-        `${joinerySummary} ${glueSummary}`
-      );
-    },
-    [part, millingAllowanceInches, provenance, derived]
+    [draft, joints, maxPurchasableBoardWidthInches, stockWidthByMaterialGroup]
   );
 
-  return (
-    <>
-      <tr id={`part-row-${part.id}`} tabIndex={-1} className="bg-[var(--gl-surface-inset)] align-top">
-        <td className="px-2 py-2">
-          <input
-            className="input-wood max-w-[140px] py-1.5 text-xs"
-            value={part.name}
-            onChange={(e) => onUpdate(part.id, { name: e.target.value })}
-          />
-        </td>
-        <td className="px-2 py-2">
-          <select
-            className="input-wood max-w-[100px] py-1.5 text-xs"
-            value={part.assembly}
-            onChange={(e) => onUpdate(part.id, { assembly: e.target.value as AssemblyId })}
-          >
-            {ASSEMBLY_IDS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </td>
-        <td className="px-2 py-2">
-          <input
-            type="number"
-            min={1}
-            className="input-wood w-14 py-1.5 text-xs"
-            value={part.quantity}
-            onChange={(e) => onUpdate(part.id, { quantity: Math.max(1, Number(e.target.value) || 1) })}
-          />
-        </td>
-        <td className="px-2 py-2">
-          <Dim3Inputs
-            dim={part.finished}
-            onChange={(d) => {
-              const nextFin = d;
-              const rough = part.rough.manual
-                ? part.rough
-                : { ...deriveRough(nextFin, millingAllowanceInches), manual: false };
-              onUpdate(part.id, { finished: nextFin, rough });
-            }}
-          />
-        </td>
-        <td className="px-2 py-2">
-          <Dim3Inputs
-            dim={part.rough}
-            onChange={(d) => onUpdate(part.id, { rough: { ...d, manual: true } })}
-          />
-        </td>
-        <td className="px-2 py-2">
-          <input
-            type="checkbox"
-            checked={part.rough.manual}
-            onChange={(e) => {
-              const manual = e.target.checked;
-              if (!manual) {
-                onUpdate(part.id, {
-                  rough: { ...deriveRough(part.finished, millingAllowanceInches), manual: false },
-                });
-              } else {
-                onUpdate(part.id, { rough: { ...part.rough, manual: true } });
-              }
-            }}
-            aria-label="Manual rough dimensions"
-          />
-        </td>
-        <td className="px-2 py-2">
-          <input
-            className="input-wood max-w-[100px] py-1.5 text-xs"
-            value={part.material.label}
-            onChange={(e) =>
-              onUpdate(part.id, { material: { ...part.material, label: e.target.value } })
-            }
-          />
-        </td>
-        <td className="px-2 py-2">
-          <input
-            className="input-wood max-w-[72px] py-1.5 text-xs"
-            value={part.material.thicknessCategory}
-            onChange={(e) =>
-              onUpdate(part.id, { material: { ...part.material, thicknessCategory: e.target.value } })
-            }
-          />
-        </td>
-        <td className="px-2 py-2">
-          <input
-            className="input-wood max-w-[100px] py-1.5 text-xs"
-            value={part.grainNote}
-            onChange={(e) => onUpdate(part.id, { grainNote: e.target.value })}
-          />
-        </td>
-        <td className="px-2 py-2">
-          <select
-            className="input-wood max-w-[110px] py-1.5 text-xs"
-            value={part.status}
-            onChange={(e) => onUpdate(part.id, { status: e.target.value as PartStatus })}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </td>
-        <td className="px-2 py-2">
-          <div className="max-w-[220px] space-y-1 text-xs leading-snug text-[var(--gl-muted)]">
-            <p>{assumptions.joinery}</p>
-            <p>{assumptions.glueUp}</p>
-          </div>
-        </td>
-        <td className="px-2 py-2">
-          <div className="flex max-w-[130px] flex-wrap gap-1">
-            <ProvenancePill
-              title={
-                provenance.roughSource === "manual"
-                  ? "Rough dimensions are manually controlled."
-                  : "Rough dimensions auto-track finished size and milling allowance."
-              }
-            >
-              {provenance.roughSource === "manual" ? "Rough: manual" : "Rough: derived"}
-            </ProvenancePill>
-            <ProvenancePill
-              title={
-                provenance.joineryChangeCount > 0
-                  ? `Joinery adjusted this part ${provenance.joineryChangeCount} time(s).`
-                  : "No joinery dimension changes recorded for this part."
-              }
-            >
-              {provenance.joineryChangeCount > 0 ? `Joinery: ${provenance.joineryChangeCount}` : "Joinery: none"}
-            </ProvenancePill>
-            {provenance.joineryReferenceCount > 0 ? (
-              <ProvenancePill title="This part was selected as a mate in joinery history.">
-                Mate refs: {provenance.joineryReferenceCount}
-              </ProvenancePill>
-            ) : null}
-          </div>
-        </td>
-        <td className="px-2 py-2">
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              className="text-xs text-[var(--gl-copper-bright)] hover:underline"
-              onClick={onToggleExplain}
-            >
-              {openExplain ? "Hide why" : "Why?"}
-            </button>
-            <button
-              type="button"
-              className="text-xs text-[var(--gl-muted)] hover:text-[var(--gl-danger)]"
-              onClick={onRemove}
-            >
-              Remove
-            </button>
-          </div>
-        </td>
-      </tr>
-      {openExplain ? (
-        <tr className="bg-[var(--gl-surface-muted)]">
-          <td colSpan={13} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
-            {summary}
-          </td>
-        </tr>
-      ) : null}
-    </>
-  );
-}
+  const whySummary = useMemo(() => {
+    const prov = derived.provenance;
+    const roughSummary =
+      prov.roughSource === "manual"
+        ? "Rough dims are manually overridden for this part."
+        : `Rough dims are derived from finished + ${formatShopImperial(millingAllowanceInches)} allowance on T, W, and L.`;
+    const joinerySummary =
+      prov.joineryChangeCount > 0
+        ? `Joinery changed this part ${prov.joineryChangeCount} time(s) (labs only on current product path).`
+        : "No joinery dimension changes apply on the main cut list.";
+    const glueSummary = derived.glueUpPlan.applicable
+      ? `Glue-up: ${derived.glueUpPlan.stripCount} strip(s); board width source: ${derived.glueUpPlan.boardWidthSource}.`
+      : "Glue-up not applicable.";
+    return `${roughSummary} ${joinerySummary} ${glueSummary}`;
+  }, [derived, millingAllowanceInches]);
 
-function ProvenancePill({ title, children }: { title: string; children: ReactNode }) {
+  function applyFinished(nextFin: { t: number; w: number; l: number }) {
+    const rough = draft.rough.manual
+      ? draft.rough
+      : { ...deriveRough(nextFin, millingAllowanceInches), manual: false };
+    setDraft((d) => ({ ...d, finished: nextFin, rough }));
+  }
+
   return (
-    <span
-      className="rounded-full border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-2 py-0.5 text-xs text-[var(--gl-cream-soft)]"
-      title={title}
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      {children}
-    </span>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="part-edit-title"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-5 shadow-xl"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 id="part-edit-title" className="font-display text-lg text-[var(--gl-cream)]">
+            Edit part
+          </h2>
+          <button
+            type="button"
+            className="rounded-md px-2 py-1 text-sm text-[var(--gl-muted)] hover:bg-[var(--gl-surface-inset)] hover:text-[var(--gl-cream)]"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-[var(--gl-muted)]">Changes apply when you press Save.</p>
+
+        <div className="mt-4 space-y-3">
+          <label className="block text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Name</span>
+            <input
+              className="input-wood mt-1 w-full"
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Assembly</span>
+            <select
+              className="input-wood mt-1 w-full"
+              value={draft.assembly}
+              onChange={(e) => setDraft((d) => ({ ...d, assembly: e.target.value as AssemblyId }))}
+            >
+              {ASSEMBLY_IDS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Quantity</span>
+            <input
+              type="number"
+              min={1}
+              className="input-wood mt-1 w-full"
+              value={draft.quantity}
+              onChange={(e) => setDraft((d) => ({ ...d, quantity: Math.max(1, Number(e.target.value) || 1) }))}
+            />
+          </label>
+
+          <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] p-3">
+            <p className="text-xs font-medium text-[var(--gl-muted)] uppercase">Finished T×W×L</p>
+            <Dim3Inputs dim={draft.finished} onChange={applyFinished} />
+          </div>
+          <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] p-3">
+            <p className="text-xs font-medium text-[var(--gl-muted)] uppercase">Rough T×W×L</p>
+            <Dim3Inputs
+              dim={draft.rough}
+              onChange={(d) => setDraft((p) => ({ ...p, rough: { ...d, manual: true } }))}
+            />
+            <label className="mt-2 flex items-center gap-2 text-xs text-[var(--gl-muted)]">
+              <input
+                type="checkbox"
+                checked={draft.rough.manual}
+                onChange={(e) => {
+                  const manual = e.target.checked;
+                  if (!manual) {
+                    setDraft((p) => ({
+                      ...p,
+                      rough: { ...deriveRough(p.finished, millingAllowanceInches), manual: false },
+                    }));
+                  } else {
+                    setDraft((p) => ({ ...p, rough: { ...p.rough, manual: true } }));
+                  }
+                }}
+              />
+              Manual rough (do not auto-follow finished + allowance)
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="text-[var(--gl-cream-soft)]">Material</span>
+              <input
+                className="input-wood mt-1 w-full"
+                value={draft.material.label}
+                onChange={(e) => setDraft((d) => ({ ...d, material: { ...d.material, label: e.target.value } }))}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-[var(--gl-cream-soft)]">Thickness category</span>
+              <input
+                className="input-wood mt-1 w-full"
+                value={draft.material.thicknessCategory}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, material: { ...d.material, thicknessCategory: e.target.value } }))
+                }
+              />
+            </label>
+          </div>
+          <label className="block text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Grain note</span>
+            <input
+              className="input-wood mt-1 w-full"
+              value={draft.grainNote}
+              onChange={(e) => setDraft((d) => ({ ...d, grainNote: e.target.value }))}
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Status</span>
+            <select
+              className="input-wood mt-1 w-full"
+              value={draft.status}
+              onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value as PartStatus }))}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <details className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] p-3 text-xs">
+            <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">Why these numbers?</summary>
+            <p className="mt-2 leading-relaxed text-[var(--gl-muted)]">{whySummary}</p>
+            <p className="mt-2 text-[var(--gl-muted)]">{derived.assumptions.joinery}</p>
+            <p className="mt-1 text-[var(--gl-muted)]">{derived.assumptions.glueUp}</p>
+          </details>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--gl-border)] pt-4">
+          <button
+            type="button"
+            className="text-sm text-[var(--gl-danger)] hover:underline"
+            onClick={() => {
+              if (confirm(`Remove “${draft.name}”?`)) onRemove();
+            }}
+          >
+            Remove part
+          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-[var(--gl-border)] px-4 py-2 text-sm text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-[var(--gl-copper-bright)]/50 bg-[var(--gl-copper)]/20 px-4 py-2 text-sm font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/30"
+              onClick={() =>
+                onSave({
+                  name: draft.name,
+                  assembly: draft.assembly,
+                  quantity: draft.quantity,
+                  finished: draft.finished,
+                  rough: draft.rough,
+                  material: draft.material,
+                  grainNote: draft.grainNote,
+                  status: draft.status,
+                })
+              }
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -436,30 +522,26 @@ function Dim3Inputs({
   onChange: (d: { t: number; w: number; l: number }) => void;
 }) {
   const field = (key: "t" | "w" | "l", label: string): ReactNode => (
-    <label className="flex items-center gap-1 text-xs text-[var(--gl-muted)]">
-      <span>{label}</span>
+    <label className="flex items-center gap-2 text-xs text-[var(--gl-muted)]">
+      <span className="w-3 shrink-0">{label}</span>
       <input
         type="number"
         step="any"
-        className="input-wood w-[4.25rem] py-1 text-xs"
+        className="input-wood min-w-0 flex-1 py-1.5 text-xs"
         value={Number.isFinite(dim[key]) ? dim[key] : 0}
         onChange={(e) => {
           const v = Number.parseFloat(e.target.value);
           onChange({ ...dim, [key]: Number.isFinite(v) ? v : 0 });
         }}
       />
+      <span className="shrink-0 text-[var(--gl-cream-soft)]">{formatShopImperial(dim[key])}</span>
     </label>
   );
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap gap-1">
-        {field("t", "T")}
-        {field("w", "W")}
-        {field("l", "L")}
-      </div>
-      <span className="text-xs text-[var(--gl-muted)]">
-        {formatShopImperial(dim.t)} × {formatShopImperial(dim.w)} × {formatShopImperial(dim.l)}
-      </span>
+    <div className="mt-2 flex flex-col gap-2">
+      {field("t", "T")}
+      {field("w", "W")}
+      {field("l", "L")}
     </div>
   );
 }
