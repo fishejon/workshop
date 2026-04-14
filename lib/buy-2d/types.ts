@@ -1,5 +1,5 @@
 /**
- * 2D buy estimate (width × length) — companion to 1D stick packing in `purchase-scenarios.ts`.
+ * 2D buy estimate (width × length) for purchase scenarios.
  *
  * Pipeline:
  * 1. `board-feet.groupPartsByMaterial` — same groups as BF/LF.
@@ -27,10 +27,8 @@ export type TwoDimensionalGroupEstimate = {
   thicknessCategory: string;
   /** Stock width used for rip math (group override or project default). */
   stockWidthAssumedInches: number;
-  /** Boards after width expansion + length FFD (same scenario mode as 1D plan). */
+  /** Boards after width expansion + length FFD (scenario-dependent objective). */
   estimatedBoards2d: number;
-  /** Length-only stick count for the same group (existing 1D model). */
-  estimatedSticks1d: number;
   recommendedStockLengthInches: number;
   flags: string[];
   detail: string;

@@ -1,10 +1,5 @@
 import type { BoardFootGroup } from "../board-feet";
 import { groupPartsByMaterial, materialGroupKey } from "../board-feet";
-import {
-  bestPackGroupParts,
-  tryPackGroupParts,
-  type PackMetrics,
-} from "../purchase-pack";
 import type { Part } from "../project-types";
 import { demandPiecesForParts } from "./demand";
 import { packDemandForScenario, type PurchaseScenarioPackMode } from "./pack-boards-v1";
@@ -42,23 +37,8 @@ function partsInGroup(parts: Part[], g: BoardFootGroup): Part[] {
   return parts.filter((p) => materialGroupKey(p.material.label, p.material.thicknessCategory) === g.key);
 }
 
-function pack1dForScenario(
-  groupParts: Part[],
-  scenario: PurchaseScenarioPackMode,
-  maxTransport: number,
-  kerf: number
-): PackMetrics | null {
-  if (scenario === "fitTransport" || scenario === "simpleTrip") {
-    return tryPackGroupParts(groupParts, maxTransport, kerf);
-  }
-  if (scenario === "minWaste") {
-    return bestPackGroupParts(groupParts, maxTransport, kerf, "minWaste");
-  }
-  return bestPackGroupParts(groupParts, maxTransport, kerf, "minBoardCount");
-}
-
 /**
- * Width×length board estimate for the same scenario as the active 1D purchase plan.
+ * Width×length board estimate for the requested optimization scenario.
  */
 export function computeTwoDimensionalBoardEstimate(input: TwoDimensionalEstimateInput): TwoDimensionalBoardEstimate {
   const projectMax = effectiveProjectMaxWidth(input.maxPurchasableBoardWidthInches);
@@ -76,7 +56,6 @@ export function computeTwoDimensionalBoardEstimate(input: TwoDimensionalEstimate
     const stockW = stockWidthForGroup(g.key, projectMax, overrides);
     const demand = demandPiecesForParts(gp, glueMax);
     const pack2d = packDemandForScenario(demand, stockW, maxTransport, kerf, input.scenario);
-    const pack1d = pack1dForScenario(gp, input.scenario, maxTransport, kerf);
 
     const flags: string[] = [];
     if (demand.some((row) => row.widthInches > stockW + 1e-6)) {
@@ -85,14 +64,10 @@ export function computeTwoDimensionalBoardEstimate(input: TwoDimensionalEstimate
       );
     }
 
-    const sticks1d = pack1d?.stickCount ?? 0;
     const boards2d = pack2d?.stickCount ?? 0;
     total2d += boards2d;
 
-    const detail =
-      sticks1d === boards2d
-        ? `Matches length-only stick count (${boards2d}) for this group.`
-        : `Length-only plan: ${sticks1d} stick(s); 2D model (panels as strips + width rips): ~${boards2d} board(s).`;
+    const detail = `Scenario-estimated boards for this group: ~${boards2d} (panels expanded into strips; width-lane multipliers applied).`;
 
     groupEstimates.push({
       key: g.key,
@@ -100,8 +75,7 @@ export function computeTwoDimensionalBoardEstimate(input: TwoDimensionalEstimate
       thicknessCategory: g.thicknessCategory,
       stockWidthAssumedInches: stockW,
       estimatedBoards2d: boards2d,
-      estimatedSticks1d: sticks1d,
-      recommendedStockLengthInches: pack2d?.stockLength ?? pack1d?.stockLength ?? maxTransport,
+      recommendedStockLengthInches: pack2d?.stockLength ?? maxTransport,
       flags: Array.from(new Set(flags)),
       detail,
     });
@@ -121,7 +95,7 @@ export function computeTwoDimensionalBoardEstimate(input: TwoDimensionalEstimate
   const detail =
     groupEstimates.length === 0
       ? ""
-      : "Compare “length-only sticks” in the purchase plan above; larger gaps mean glue-ups or wide rips dominate.";
+      : "Interpret as a constrained planning estimate (not full 2D nesting with defect/grain optimization).";
 
   return {
     headline,
