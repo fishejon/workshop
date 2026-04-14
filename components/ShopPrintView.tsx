@@ -18,6 +18,11 @@ import {
 } from "@/lib/project-utils";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { evaluatePurchaseScenario } from "@/lib/purchase-scenarios";
+import {
+  canExportOrPrintProject,
+  getBlockingValidationIssues,
+  validateProject,
+} from "@/lib/validation";
 
 function formatTxWxL(d: Dimension3): string {
   return `${formatImperial(d.t)} × ${formatImperial(d.w)} × ${formatImperial(d.l)}`;
@@ -47,9 +52,15 @@ export function ShopPrintView() {
   const adjustedBf = useMemo(() => totalAdjustedBoardFeet(groups), [groups]);
   const subtotalLf = useMemo(() => totalLinearFeet(groups), [groups]);
   const adjustedLf = useMemo(() => totalAdjustedLinearFeet(groups), [groups]);
+  const validationIssues = useMemo(() => (project ? validateProject(project) : []), [project]);
   const canPrint = Boolean(
-    project?.checkpoints.materialAssumptionsReviewed && project?.checkpoints.joineryReviewed
+    project &&
+      canExportOrPrintProject(
+        project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed,
+        validationIssues
+      )
   );
+  const blockingIssues = useMemo(() => getBlockingValidationIssues(validationIssues), [validationIssues]);
 
   const purchasePreview = useMemo(() => {
     if (!project) return null;
@@ -86,7 +97,7 @@ export function ShopPrintView() {
           <section className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5">
             <h1 className="font-display text-2xl text-[var(--gl-ink)]">Print locked pending review checkpoints</h1>
             <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
-              Go to the Review step and acknowledge both checkpoints before printing/exporting.
+              Go to the Review step and resolve blocking checks before printing/exporting.
             </p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
@@ -100,6 +111,16 @@ export function ShopPrintView() {
                 <strong>{project.checkpoints.joineryReviewed ? "Acknowledged" : "Not acknowledged"}</strong>
               </li>
             </ul>
+            {blockingIssues.length > 0 ? (
+              <>
+                <p className="mt-4 text-sm font-medium text-[var(--gl-ink)]">Blocking validation reasons</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                  {blockingIssues.map((issue) => (
+                    <li key={issue.id}>{issue.message}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </section>
         </div>
       </div>

@@ -12,7 +12,7 @@ function parsePositive(s: string): number | null {
 }
 
 /**
- * Minimal TV-console / open-shelf shell: top, pair of sides, one fixed shelf.
+ * Experimental TV-console / open-shelf shell: top, pair of sides, one fixed shelf.
  * Rough sizes follow project milling allowance via addParts (non-manual rough).
  */
 export function TvConsoleStub() {
@@ -48,12 +48,11 @@ export function TvConsoleStub() {
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
-      <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">TV console (stub)</h2>
+      <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">TV console (experimental)</h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--gl-muted)]">
-        Placeholder shell: overall box with a top, two sides, and one fixed shelf sized to inside width. Wire
-        openings, partitions, and joinery are not modeled yet — use the{" "}
-        <strong className="font-medium text-[var(--gl-cream-soft)]">Dresser</strong> preset for a fuller case
-        workflow, or edit parts manually in <strong className="font-medium text-[var(--gl-cream-soft)]">Shop</strong>.
+        Early-access shell: overall box with a top, two sides, and one fixed shelf sized to inside width. Wire
+        openings, partitions, and joinery are not modeled yet. Use this for quick concept sizing, then verify details
+        in <strong className="font-medium text-[var(--gl-cream-soft)]">Shop</strong>.
       </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

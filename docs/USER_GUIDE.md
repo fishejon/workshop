@@ -9,7 +9,7 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 | Tab | Purpose |
 |-----|--------|
 | **Setup** | Project name, milling allowance, max transport length, waste %, **Print shop sheet** link, **Reset project**. |
-| **Build** | Choose a **preset** (dresser, board cuts, TV console, …). The preset’s planner is on the left; **Shop** panels stay on the right. |
+| **Build** | Choose a **preset** (dresser, board cuts, …). The preset’s planner is on the left; **Shop** panels stay on the right. TV console is available only when you enable **Show experimental presets**. |
 | **Shop** | Same **Shop** column as Build, full width—parts list, buy list, joinery, rough-stick layout. |
 | **About** | Short product blurb. |
 
@@ -42,9 +42,9 @@ Enter overall case dimensions, columns, drawer rows, kick, top/bottom stack, rai
 
 1D stick packing: kerf, stock length, and a list of cuts. Separate from the **parts table** rough-stick packer (which uses your project parts).
 
-### TV console (stub)
+### TV console (experimental opt-in)
 
-Minimal shell parts from W×H×D. Joinery is not fully modeled—treat as a starting point.
+Enable **Show experimental presets** in Build to access TV console. It generates a minimal shell from W×H×D. Joinery is not fully modeled, so treat it as early-access concept sizing.
 
 ---
 

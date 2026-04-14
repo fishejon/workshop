@@ -39,7 +39,7 @@ function formatTxWxL(t: number, w: number, l: number): string {
 }
 
 export function JoineryPanel() {
-  const { project, updatePart, addJointRecord, addConnectionRecord } = useProject();
+  const { project, validationIssues, updatePart, addJointRecord, addConnectionRecord } = useProject();
   const [open, setOpen] = useState(true);
   const [presetId, setPresetId] = useState<ConstructionPresetId>("frame_and_panel");
   const [ruleId, setRuleId] = useState<JointRuleId>("groove_quarter_back");
@@ -441,6 +441,21 @@ export function JoineryPanel() {
 
       {open ? (
         <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+          {validationIssues.some((issue) => issue.source === "joinery") ? (
+            <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 p-3">
+              <p className="text-xs font-medium text-amber-100">Joinery validation issues</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-100/90">
+                {validationIssues
+                  .filter((issue) => issue.source === "joinery")
+                  .slice(0, 5)
+                  .map((issue) => (
+                    <li key={issue.id}>
+                      [{issue.severity}] {issue.message}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
           {groupedHistory.length > 0 ? (
             <div className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-xs font-medium text-[var(--gl-cream)]">

@@ -13,6 +13,7 @@ import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
 import { formatImperial } from "@/lib/imperial";
+import { canExportOrPrintProject } from "@/lib/validation";
 
 const PRESETS = [
   {
@@ -36,8 +37,9 @@ const PRESETS = [
   {
     id: "tv-console" as const,
     title: "TV console",
-    tag: "Stub shell",
-    blurb: "Open shelf shell: top, sides, and a fixed shelf from overall W × H × D (joinery not modeled yet).",
+    tag: "Experimental",
+    blurb: "Experimental open-shelf shell: top, sides, and a fixed shelf from overall W × H × D.",
+    experimental: true,
   },
   {
     id: "soon-cab" as const,
@@ -53,10 +55,19 @@ type PresetId = (typeof PRESETS)[number]["id"];
 export function GrainlineApp() {
   const [preset, setPreset] = useState<PresetId>("dresser");
   const [appTab, setAppTab] = useState<AppShellTabId>("build");
-  const { project, setCheckpointReviewed } = useProject();
+  const [showExperimentalPresets, setShowExperimentalPresets] = useState(false);
+  const {
+    project,
+    blockingValidationIssues,
+    warningValidationIssues,
+    validationIssues,
+    setCheckpointReviewed,
+  } = useProject();
   const active = PRESETS.find((p) => p.id === preset);
-  const canExportOrPrint =
+  const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
+  const checkpointsReady =
     project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const canExportOrPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
 
   const explainAllowance = `Project milling allowance: ${formatImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
@@ -77,7 +88,7 @@ export function GrainlineApp() {
       {preset === "sideboard-console" ? <SideboardPlanner /> : null}
       {preset === "tv-console" ? <TvConsoleStub /> : null}
       {preset === "soon-cab" ? (
-        <p className="text-[var(--gl-muted)]">This preset is queued—use Dresser, TV console stub, or Board cuts for now.</p>
+        <p className="text-[var(--gl-muted)]">This preset is queued. Use Dresser or Board cuts for now.</p>
       ) : null}
     </>
   );
@@ -123,8 +134,25 @@ export function GrainlineApp() {
       >
         {canExportOrPrint
           ? "Export and print are unlocked."
-          : "Export and print stay locked until both checkpoints are acknowledged."}
+          : checkpointsReady
+            ? "Export and print are blocked by high-severity validation issues."
+            : "Export and print stay locked until both checkpoints are acknowledged."}
       </p>
+      {blockingValidationIssues.length > 0 ? (
+        <div className="rounded-xl border border-red-300/30 bg-red-500/10 p-3 text-xs text-red-100">
+          <p className="font-medium">Blocking issues ({blockingValidationIssues.length})</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {blockingValidationIssues.slice(0, 5).map((issue) => (
+              <li key={issue.id}>{issue.message}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {warningValidationIssues.length > 0 ? (
+        <p className="text-xs text-amber-200/90">
+          Warnings: {warningValidationIssues.length} (visible in Materials and Joinery; they do not block print/export).
+        </p>
+      ) : null}
       <p>
         Checkpoints auto-reset when relevant data changes so each export reflects current assumptions.
       </p>
@@ -159,7 +187,7 @@ export function GrainlineApp() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {PRESETS.map((p) => (
+            {visiblePresets.map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -176,6 +204,24 @@ export function GrainlineApp() {
               </button>
             ))}
           </div>
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs text-[var(--gl-cream-soft)]">
+            <input
+              id="show-experimental-presets"
+              type="checkbox"
+              className="mt-0.5"
+              checked={showExperimentalPresets}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setShowExperimentalPresets(checked);
+                if (!checked && preset === "tv-console") {
+                  setPreset("dresser");
+                }
+              }}
+            />
+            <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
+              Show experimental presets (early access, not production-ready).
+            </label>
+          </div>
         </header>
 
         <AppShellTabs
@@ -187,6 +233,7 @@ export function GrainlineApp() {
           shopMaterialsRight={shopMaterialsRight}
           aboutPanel={aboutPanel}
           canExportOrPrint={canExportOrPrint}
+          blockingValidationIssues={blockingValidationIssues}
         />
       </div>
     </div>

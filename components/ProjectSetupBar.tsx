@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useProject } from "@/components/ProjectContext";
 import { formatImperial } from "@/lib/imperial";
 import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type ProjectTemplate } from "@/lib/project-types";
-import { PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
+import { MAX_PROJECT_LIBRARY_RECORDS, PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
+import { canExportOrPrintProject } from "@/lib/validation";
 
 const OFFCUT_MODE_LABELS: Record<OffcutModeId, string> = {
   none: "Do not preserve offcuts",
@@ -15,6 +16,8 @@ const OFFCUT_MODE_LABELS: Record<OffcutModeId, string> = {
 export function ProjectSetupBar() {
   const {
     project,
+    validationIssues,
+    blockingValidationIssues,
     setProjectName,
     setMillingAllowanceInches,
     setMaxTransportLengthInches,
@@ -33,7 +36,8 @@ export function ProjectSetupBar() {
     setLibraryArchived,
     resetProject,
   } = useProject();
-  const canPrint = project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const checkpointsReady = project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const canPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
   const [duplicateName, setDuplicateName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<ProjectTemplate[]>(() => {
@@ -49,6 +53,7 @@ export function ProjectSetupBar() {
   });
   const [projectNameFromTemplate, setProjectNameFromTemplate] = useState("");
   const [transferStatus, setTransferStatus] = useState("");
+  const [transferMeta, setTransferMeta] = useState<string[]>([]);
   const [showAllBackups, setShowAllBackups] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const activeBackups = useMemo(() => projectLibrary.filter((row) => !row.archived), [projectLibrary]);
@@ -90,7 +95,27 @@ export function ProjectSetupBar() {
     if (!file) return;
     const text = await file.text();
     const imported = importProjectJson(text);
-    setTransferStatus(imported.ok ? "Imported project file." : imported.reason);
+    if (!imported.ok) {
+      const detail = imported.details?.length ? ` Details: ${imported.details.join(" ")}` : "";
+      setTransferStatus(`${imported.reason}${detail}`);
+      setTransferMeta([]);
+    } else {
+      const sourceLabel = imported.source === "envelope" ? "export envelope" : "legacy/plain project JSON";
+      const summaryBits = [
+        imported.summary.nameChanged ? "name changed" : "name unchanged",
+        `parts ${imported.summary.partsDelta >= 0 ? "+" : ""}${imported.summary.partsDelta}`,
+        `joints ${imported.summary.jointsDelta >= 0 ? "+" : ""}${imported.summary.jointsDelta}`,
+        `connections ${imported.summary.connectionsDelta >= 0 ? "+" : ""}${imported.summary.connectionsDelta}`,
+      ];
+      setTransferStatus("Imported project file.");
+      setTransferMeta([
+        `Source: ${sourceLabel}`,
+        `Imported: ${new Date(imported.importedAtIso).toLocaleString()}`,
+        imported.exportedAtIso ? `Exported: ${new Date(imported.exportedAtIso).toLocaleString()}` : "Exported: unknown",
+        `Changed: ${summaryBits.join(", ")}`,
+        ...imported.warnings,
+      ]);
+    }
     if (importInputRef.current) importInputRef.current.value = "";
   }
 
@@ -219,7 +244,18 @@ export function ProjectSetupBar() {
           <button
             type="button"
             className="rounded-lg border border-[var(--gl-copper-bright)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/60 hover:text-[var(--gl-cream)]"
-            onClick={() => backupCurrentProject()}
+            onClick={() => {
+              const backup = backupCurrentProject();
+              const retention = backup.droppedOldest
+                ? "Oldest backup was pruned to maintain retention cap."
+                : "Retention cap not reached.";
+              setTransferStatus("Created local backup.");
+              setTransferMeta([
+                `Created: ${new Date(backup.createdAtIso).toLocaleString()}`,
+                `Retention: ${backup.retainedCount}/${backup.retentionCap}`,
+                retention,
+              ]);
+            }}
           >
             Backup current
           </button>
@@ -246,7 +282,9 @@ export function ProjectSetupBar() {
             <span className="text-center text-[10px] text-[var(--gl-muted)]">
               {canPrint
                 ? "PDF: print dialog -> Save as PDF"
-                : "Locked until Review checkpoints are acknowledged"}
+                : checkpointsReady
+                  ? "Blocked by high-severity validation issues"
+                  : "Locked until Review checkpoints are acknowledged"}
             </span>
           </div>
           <button
@@ -261,17 +299,32 @@ export function ProjectSetupBar() {
         </div>
       </div>
       {transferStatus ? (
-        <p
+        <div
           role="status"
           aria-live="polite"
           className={`mt-2 text-xs ${
-            /could not parse|import file was empty/i.test(transferStatus)
+            /could not parse|import file was empty|invalid json|schema|integrity/i.test(transferStatus)
               ? "text-amber-200/90"
               : "text-[var(--gl-cream-soft)]"
           }`}
         >
-          {transferStatus}
-        </p>
+          <p>{transferStatus}</p>
+          {transferMeta.map((line) => (
+            <p key={line} className="mt-0.5 text-[10px]">
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {blockingValidationIssues.length > 0 ? (
+        <div className="mt-3 rounded-lg border border-red-300/30 bg-red-500/10 p-3">
+          <p className="text-xs font-medium text-red-100">Print/Export blocking issues</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-100/90">
+            {blockingValidationIssues.slice(0, 5).map((issue) => (
+              <li key={issue.id}>{issue.message}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
       <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 lg:grid-cols-2">
         <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
@@ -356,6 +409,9 @@ export function ProjectSetupBar() {
         <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
           Local backups ({activeBackups.length} active / {projectLibrary.length - activeBackups.length} archived)
         </p>
+        <p className="text-[10px] text-[var(--gl-muted)]">
+          Retention policy: latest {MAX_PROJECT_LIBRARY_RECORDS} backups are kept locally; older backups are automatically removed.
+        </p>
         {projectLibrary.length === 0 ? (
           <p className="text-xs text-[var(--gl-muted)]">No backups yet. Use &quot;Backup current&quot; to create restore points.</p>
         ) : (
@@ -372,7 +428,27 @@ export function ProjectSetupBar() {
                   <button
                     type="button"
                     className="rounded border border-white/15 px-2 py-1 hover:text-[var(--gl-cream)]"
-                    onClick={() => restoreFromLibrary(entry.id)}
+                    onClick={() => {
+                      const restored = restoreFromLibrary(entry.id);
+                      if (!restored.ok) {
+                        setTransferStatus(restored.reason);
+                        setTransferMeta([]);
+                        return;
+                      }
+                      const summaryBits = [
+                        restored.summary.nameChanged ? "name changed" : "name unchanged",
+                        `parts ${restored.summary.partsDelta >= 0 ? "+" : ""}${restored.summary.partsDelta}`,
+                        `joints ${restored.summary.jointsDelta >= 0 ? "+" : ""}${restored.summary.jointsDelta}`,
+                        `connections ${restored.summary.connectionsDelta >= 0 ? "+" : ""}${restored.summary.connectionsDelta}`,
+                      ];
+                      setTransferStatus(`Restored backup: ${restored.backupName}.`);
+                      setTransferMeta([
+                        `Source: local backup library`,
+                        `Backup timestamp: ${new Date(restored.backupUpdatedAtIso).toLocaleString()}`,
+                        `Restored: ${new Date(restored.restoredAtIso).toLocaleString()}`,
+                        `Changed: ${summaryBits.join(", ")}`,
+                      ]);
+                    }}
                   >
                     Restore
                   </button>

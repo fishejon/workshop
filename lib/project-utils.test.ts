@@ -4,6 +4,7 @@ import {
   cloneProject,
   createEmptyProject,
   duplicateAssemblyGroup,
+  importProjectFromJson,
   normalizeProjectJsonInput,
   parseProject,
   parseProjectLibrary,
@@ -316,5 +317,67 @@ describe("parseProject BOM handling", () => {
     const out = parseProject(withBom);
     expect(out).not.toBeNull();
     expect(out?.name).toBe(p.name);
+  });
+});
+
+describe("importProjectFromJson", () => {
+  it("returns invalid_json for malformed JSON", () => {
+    const out = importProjectFromJson("{");
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("invalid_json");
+  });
+
+  it("returns shape details for partial schema input", () => {
+    const out = importProjectFromJson(JSON.stringify({ version: 1, name: "Partial", parts: [] }));
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("invalid_shape");
+    expect((out.details ?? []).length).toBeGreaterThan(0);
+  });
+
+  it("accepts legacy plain project JSON for backward compatibility", () => {
+    const project = createEmptyProject();
+    const out = importProjectFromJson(JSON.stringify(project));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.source).toBe("direct");
+    expect(out.project.id).toBe(project.id);
+  });
+
+  it("accepts enveloped export with matching checksum", () => {
+    const project = createEmptyProject();
+    const payload = JSON.stringify(project);
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < payload.length; i += 1) {
+      hash ^= payload.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    const checksum = (hash >>> 0).toString(16).padStart(8, "0");
+    const envelope = {
+      format: "grainline-project-export-v1",
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      integrity: { algorithm: "fnv1a-32", checksum },
+      project,
+    };
+    const out = importProjectFromJson(JSON.stringify(envelope));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.source).toBe("envelope");
+    expect(out.exportedAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("fails safely when envelope checksum does not match", () => {
+    const project = createEmptyProject();
+    const out = importProjectFromJson(
+      JSON.stringify({
+        format: "grainline-project-export-v1",
+        integrity: { algorithm: "fnv1a-32", checksum: "deadbeef" },
+        project,
+      })
+    );
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("integrity_mismatch");
   });
 });

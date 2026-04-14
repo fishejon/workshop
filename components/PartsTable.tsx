@@ -13,15 +13,27 @@ import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
 import { partsToCsv } from "@/lib/parts-csv";
 import { formatImperial } from "@/lib/imperial";
+import { canExportOrPrintProject } from "@/lib/validation";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
 
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
-  const { project, addPart, updatePart, removePart, clearParts, duplicateAssemblyGroup } = useProject();
+  const {
+    project,
+    validationIssues,
+    blockingValidationIssues,
+    warningValidationIssues,
+    addPart,
+    updatePart,
+    removePart,
+    clearParts,
+    duplicateAssemblyGroup,
+  } = useProject();
   const [openExplain, setOpenExplain] = useState<string | null>(null);
   const [selectedAssemblyToDuplicate, setSelectedAssemblyToDuplicate] = useState<AssemblyId>(ASSEMBLY_IDS[0]);
-  const canExport =
+  const checkpointsReady =
     project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const canExport = canExportOrPrintProject(checkpointsReady, validationIssues);
 
   function downloadCsv() {
     const blob = new Blob([partsToCsv(project.parts, project.joints, project)], { type: "text/csv;charset=utf-8" });
@@ -111,7 +123,21 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       <p className="mt-2 text-xs text-[var(--gl-muted)]">{explainAllowanceText}</p>
       {!canExport ? (
         <p className="mt-2 text-xs text-[var(--gl-muted)]">
-          Export is locked until you acknowledge material assumptions and joinery review in the Review step.
+          {checkpointsReady
+            ? "Export is blocked by high-severity validation issues."
+            : "Export is locked until you acknowledge material assumptions and joinery review in the Review step."}
+        </p>
+      ) : null}
+      {blockingValidationIssues.length > 0 ? (
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-200/90">
+          {blockingValidationIssues.slice(0, 4).map((issue) => (
+            <li key={issue.id}>{issue.message}</li>
+          ))}
+        </ul>
+      ) : null}
+      {warningValidationIssues.length > 0 ? (
+        <p className="mt-2 text-xs text-amber-200/90">
+          {warningValidationIssues.length} warning{warningValidationIssues.length === 1 ? "" : "s"} detected. Review before handoff.
         </p>
       ) : null}
 

@@ -6,7 +6,7 @@ Working title for a **hobbyist hardwood** planning app: **furniture presets** wi
 
 - **Dresser** — Overall W×H×D, **1–3 columns**, **row count** with **weight-based row heights** (e.g. `2, 2, 1` = two taller rows + one shorter). Enter kick, top assembly, bottom panel, rails between drawers, back, rear clearance, and **slide preset / clearances**. Outputs **opening size** and **drawer box W×H×D** per cell (R1C1, …), with a **front schematic**. **Back-solve overall height** from target opening heights when you know row sizes but not the case height. Includes dresser handoff controls for appending or replacing dresser assemblies in the parts list.
 - **Board cut list** — Kerf, stock length vs vehicle max, parts → packed boards (1/4″ display).
-- **TV console** — Stub shell from W×H×D. **Standing cabinet** — queued.
+- **TV console (experimental)** — Opt-in early-access shell from W×H×D. **Standing cabinet** — queued.
 
 **Important:** Slide numbers are **rules of thumb**. Confirm every clearance against your **slide manufacturer’s** worksheet (especially undermount).
 

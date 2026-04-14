@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { ValidationIssue } from "@/lib/validation/types";
 
 export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
 export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
@@ -25,6 +26,7 @@ export function AppShellTabs({
   shopMaterialsRight,
   aboutPanel,
   canExportOrPrint,
+  blockingValidationIssues,
 }: {
   active: AppShellTabId;
   onChange: (id: AppShellTabId) => void;
@@ -34,6 +36,7 @@ export function AppShellTabs({
   shopMaterialsRight: ReactNode;
   aboutPanel: ReactNode;
   canExportOrPrint: boolean;
+  blockingValidationIssues: ValidationIssue[];
 }) {
   const activeStepIndex = APP_SHELL_TAB_IDS.indexOf(active);
   const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_LABELS[id]);
@@ -129,15 +132,19 @@ export function AppShellTabs({
                     shop print
                   </a>
                 ) : (
-                  <span
-                    className="font-medium text-[var(--gl-muted)]"
-                    aria-label="Shop print locked until review checkpoints are acknowledged"
-                  >
-                    shop print (locked until Review)
+                  <span className="font-medium text-[var(--gl-muted)]" aria-label="Shop print locked">
+                    shop print (locked)
                   </span>
                 )}{" "}
                 for a paper-friendly sheet.
               </p>
+              {!canExportOrPrint && blockingValidationIssues.length > 0 ? (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-200/90">
+                  {blockingValidationIssues.slice(0, 3).map((issue) => (
+                    <li key={issue.id}>{issue.message}</li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,380px)] lg:items-start">
               <div className="min-w-0 space-y-6">{shopMaterialsLeft}</div>
