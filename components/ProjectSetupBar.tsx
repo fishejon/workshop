@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useProject } from "@/components/ProjectContext";
-import { formatImperial } from "@/lib/imperial";
+import { formatShopImperial } from "@/lib/imperial";
 import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type ProjectTemplate } from "@/lib/project-types";
 import { MAX_PROJECT_LIBRARY_RECORDS, PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
 import { canExportOrPrintProject } from "@/lib/validation";
@@ -155,7 +155,7 @@ export function ProjectSetupBar() {
               onChange={(e) => setMillingAllowanceInches(Math.max(0, Number.parseFloat(e.target.value) || 0))}
             />
             <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
-              Default rough = finished + {formatImperial(project.millingAllowanceInches)} per axis
+              Default rough = finished + {formatShopImperial(project.millingAllowanceInches)} per axis
             </span>
           </label>
           <label className="text-sm">

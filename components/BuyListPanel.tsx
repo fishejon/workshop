@@ -9,7 +9,7 @@ import {
   totalBoardFeet,
   totalLinearFeet,
 } from "@/lib/board-feet";
-import { formatImperial } from "@/lib/imperial";
+import { formatShopImperial } from "@/lib/imperial";
 import {
   evaluateAllPurchaseScenarios,
   PURCHASE_SCENARIO_META,
@@ -98,7 +98,7 @@ export function BuyListPanel() {
       </p>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Default max board face width is{" "}
-        <strong className="text-[var(--gl-cream)]">{formatImperial(project.maxPurchasableBoardWidthInches)}</strong>;
+        <strong className="text-[var(--gl-cream)]">{formatShopImperial(project.maxPurchasableBoardWidthInches)}</strong>;
         waste factor is <strong className="text-[var(--gl-cream)]">{project.wasteFactorPercent}%</strong>.
       </p>
 
@@ -206,7 +206,7 @@ export function BuyListPanel() {
                 <div className="mt-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3 text-xs text-[var(--gl-muted)]">
                   <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Assumptions</p>
                   <p className="mt-1">
-                    Stock width assumed: {formatImperial(stockWidthAssumed)}{" "}
+                    Stock width assumed: {formatShopImperial(stockWidthAssumed)}{" "}
                     {hasCustomStockWidth ? "(group override)" : "(project default)"}
                   </p>
                   {(twoDGroup?.flags ?? []).map((f) => (
@@ -255,7 +255,7 @@ export function BuyListPanel() {
                     <strong>{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
                   </p>
                   <p className="mt-0.5">
-                    Solver stock length cap: {formatImperial(project.maxTransportLengthInches)}.
+                    Solver stock length cap: {formatShopImperial(project.maxTransportLengthInches)}.
                   </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     <label className="text-xs text-[var(--gl-muted)]">

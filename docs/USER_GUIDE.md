@@ -2,6 +2,14 @@
 
 How to use the planner in the browser: projects, presets, shop outputs, and print/export.
 
+## Workshop journey (happy path)
+
+1. **Setup** — Name the project and set milling allowance, max transport length, and waste % on the **Setup** tab (plus reset or open **Print shop sheet** when you are ready for paper).
+2. **Build** — Pick a preset and enter target geometry on the **Build** tab, then use each planner’s handoffs so parts land in the shared project (dresser case/drawers, board pack, sideboard shell, etc.).
+3. **Materials** — Switch to **Materials** to validate the **parts table** (finished vs rough), **buy list**, and—when needed—joinery and rough-stick tools under **Advanced materials tools**.
+4. **Review** — On **Review**, clear blocking validation issues if any, acknowledge both release checkpoints, and confirm you are comfortable shipping the current assumptions to the floor.
+5. **Print / CSV** — When export is unlocked, download **Export CSV** from the parts header on **Materials** and/or open **shop print** from **Setup** or **Materials** (browser **Save as PDF** if you want a file).
+
 ---
 
 ## Main navigation (tabs)
@@ -9,8 +17,8 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 | Tab | Purpose |
 |-----|--------|
 | **Setup** | Project name, milling allowance, max transport length, waste %, **Print shop sheet** link, **Reset project**. |
-| **Build** | **Define intent**. Choose a preset (dresser, board cuts, …) and shape target geometry. Materials panels stay visible on the right with a decision strip and next-step CTA. TV console is available only when you enable **Show experimental presets**. |
-| **Materials** | **Validate procurement**. Full-width materials workflow (parts list, buy list, joinery, rough-stick layout) with the same persistent decision strip and release guidance. |
+| **Build** | **Define intent** only: single-column presets and planners (dresser, board cuts, sideboard shell, …) plus the shared **decision strip** and next-step CTA—no parts table or buy list here. TV console is available only when you enable **Show experimental presets**. |
+| **Materials** | **Validate procurement**. Parts list and buy list; **Advanced materials tools** expands joinery + rough-stick layout. Same decision strip and release guidance. |
 | **Review** | **Release to shop**. Confirm both checkpoints before export/print handoff. |
 
 Your data is **one shared project** across tabs: switching tabs does not start a new project.
@@ -50,7 +58,7 @@ Enable **Show experimental presets** in Build to access TV console. It generates
 
 ## Parts table (Materials / Validate procurement)
 
-- **Finished** vs **rough** T×W×L in inches (decimal storage; UI shows friendly fractions where relevant).
+- **Finished** vs **rough** T×W×L in inches (decimal storage). Shop-facing dimensions in this table, buy list, joinery summaries, and print use **nearest 1/16″** strings (`formatShopImperial`); internal values stay decimal.
 - **Rough manual** — When on, rough no longer auto-follows finished + allowance until you edit again.
 - **Prov column** — Quick provenance signals: rough source (derived/manual), joinery change count, and mate references.
 - **Assembly** — Case, Drawers, Base, Back, Doors, Other (used for filtering in some joinery flows).

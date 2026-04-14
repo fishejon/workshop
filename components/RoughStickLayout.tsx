@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { formatShopImperial, parseInches } from "@/lib/imperial";
 import { packUniformStock, totalWaste, type CutPiece } from "@/lib/optimize-cuts";
 import { roughCutsFromParts } from "@/lib/rough-sticks";
 
@@ -86,7 +86,7 @@ export function RoughStickLayout() {
                 inputMode="decimal"
               />
               <span className="text-xs text-[var(--gl-muted)]">
-                Default from max transport ({formatImperial(project.maxTransportLengthInches)})
+                Default from max transport ({formatShopImperial(project.maxTransportLengthInches)})
               </span>
             </label>
           </div>
@@ -106,7 +106,7 @@ export function RoughStickLayout() {
                 <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>
                 <p className="text-sm text-[var(--gl-muted)]">
                   {packed.boards.length} board{packed.boards.length === 1 ? "" : "s"} ×{" "}
-                  {formatImperial(parsed.stockN)} — combined waste ≈ {formatImperial(packed.waste)} (after kerf)
+                  {formatShopImperial(parsed.stockN)} — combined waste ≈ {formatShopImperial(packed.waste)} (after kerf)
                 </p>
               </div>
 
@@ -119,7 +119,7 @@ export function RoughStickLayout() {
                     <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
                       <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
                       <span>
-                        Waste ~ <span className="text-[var(--gl-cream)]">{formatImperial(board.wasteInches)}</span>
+                        Waste ~ <span className="text-[var(--gl-cream)]">{formatShopImperial(board.wasteInches)}</span>
                       </span>
                     </div>
 
@@ -131,10 +131,10 @@ export function RoughStickLayout() {
                             key={`${board.index}-${i}-${cut.lengthInches}-${cut.label ?? ""}`}
                             className="flex min-w-[2.5rem] flex-col justify-center border-r border-[var(--gl-copper)]/20 bg-gradient-to-b from-[var(--gl-copper)]/35 to-[var(--gl-copper)]/15 px-1 text-center last:border-r-0"
                             style={{ width: `${pct}%` }}
-                            title={cut.label ?? formatImperial(cut.lengthInches)}
+                            title={cut.label ?? formatShopImperial(cut.lengthInches)}
                           >
                             <span className="text-xs font-medium leading-tight text-[var(--gl-cream)]">
-                              {formatImperial(cut.lengthInches)}
+                              {formatShopImperial(cut.lengthInches)}
                             </span>
                             {cut.label ? (
                               <span className="hidden truncate text-xs leading-tight text-[var(--gl-muted)] sm:block">
@@ -148,7 +148,7 @@ export function RoughStickLayout() {
                     <ol className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--gl-muted)]">
                       {board.cuts.map((cut, i) => (
                         <li key={`${board.index}-list-${i}`}>
-                          {i + 1}. {formatImperial(cut.lengthInches)}
+                          {i + 1}. {formatShopImperial(cut.lengthInches)}
                           {cut.label ? ` — ${cut.label}` : ""}
                         </li>
                       ))}

@@ -18,7 +18,7 @@ import {
 } from "@/lib/joinery/recommended-params";
 import type { JointRuleId } from "@/lib/joinery/types";
 import { formatJointRuleLabel } from "@/lib/part-provenance";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { formatShopImperial, parseInches } from "@/lib/imperial";
 import { newPartId } from "@/lib/project-utils";
 
 const RULE_OPTIONS: { id: JointRuleId; label: string }[] = [
@@ -35,7 +35,7 @@ const PRESET_OPTIONS: { id: ConstructionPresetId; label: string }[] = [
 ];
 
 function formatTxWxL(t: number, w: number, l: number): string {
-  return `${formatImperial(t)} × ${formatImperial(w)} × ${formatImperial(l)}`;
+  return `${formatShopImperial(t)} × ${formatShopImperial(w)} × ${formatShopImperial(l)}`;
 }
 
 export function JoineryPanel() {
@@ -639,7 +639,7 @@ export function JoineryPanel() {
             ) : null}
             {drawerPresetPreview ? (
               <p className="mt-2 text-xs text-[var(--gl-cream-soft)]">
-                Width allowance {formatImperial(drawerPresetPreview.widthAllowance)}; formula{" "}
+                Width allowance {formatShopImperial(drawerPresetPreview.widthAllowance)}; formula{" "}
                 <span className="font-mono">{drawerPresetPreview.formulaId}</span>; provenance{" "}
                 {drawerPresetPreview.provenance}
               </p>
@@ -861,8 +861,8 @@ export function JoineryPanel() {
               </div>
               {recommendedHypo && panelThickness !== null ? (
                 <p className="mt-2 text-sm text-[var(--gl-copper-bright)]">
-                  T {formatImperial(recommendedHypo.t)} × W {formatImperial(recommendedHypo.w)} × L{" "}
-                  {formatImperial(recommendedHypo.l)}
+                  T {formatShopImperial(recommendedHypo.t)} × W {formatShopImperial(recommendedHypo.w)} × L{" "}
+                  {formatShopImperial(recommendedHypo.l)}
                 </p>
               ) : (
                 <p className="mt-2 text-xs text-[var(--gl-muted)]">Enter positive W and L to see a recommendation.</p>
@@ -893,7 +893,7 @@ export function JoineryPanel() {
                   <option value="">Select part…</option>
                   {selectableParts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name.trim() || "Unnamed"} ({p.assembly}) — L {formatImperial(p.finished.l)}
+                      {p.name.trim() || "Unnamed"} ({p.assembly}) — L {formatShopImperial(p.finished.l)}
                     </option>
                   ))}
                 </select>

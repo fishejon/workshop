@@ -2,7 +2,7 @@
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- manual memo deps are intentional; React Compiler rule misfires here */
 import { useMemo, useState } from "react";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { formatShopImperial, parseInches } from "@/lib/imperial";
 import { packUniformStock, totalWaste, type CutPiece } from "@/lib/optimize-cuts";
 
 type PartRow = { id: string; label: string; length: string; qty: string };
@@ -34,7 +34,7 @@ export function CutPlanner() {
     if (stockN > carryN + 1e-6) {
       return {
         ok: false as const,
-        reason: `Stock board (${formatImperial(stockN)}) is longer than max carry (${formatImperial(carryN)}).`,
+        reason: `Stock board (${formatShopImperial(stockN)}) is longer than max carry (${formatShopImperial(carryN)}).`,
       };
     }
 
@@ -223,7 +223,7 @@ export function CutPlanner() {
             <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Cut layout</h3>
             <p className="text-sm text-[var(--gl-muted)]">
               {result.boards.length} board{result.boards.length === 1 ? "" : "s"} ×{" "}
-              {formatImperial(parsed.stockN)} — combined waste ≈ {formatImperial(result.waste)} (after kerf)
+              {formatShopImperial(parsed.stockN)} — combined waste ≈ {formatShopImperial(result.waste)} (after kerf)
             </p>
           </div>
 
@@ -236,7 +236,7 @@ export function CutPlanner() {
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
                   <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
                   <span>
-                    Waste ~ <span className="text-[var(--gl-cream)]">{formatImperial(board.wasteInches)}</span>
+                    Waste ~ <span className="text-[var(--gl-cream)]">{formatShopImperial(board.wasteInches)}</span>
                   </span>
                 </div>
 
@@ -248,10 +248,10 @@ export function CutPlanner() {
                         key={`${board.index}-${i}-${cut.lengthInches}`}
                         className="flex min-w-[2.5rem] flex-col justify-center border-r border-[var(--gl-copper)]/20 bg-gradient-to-b from-[var(--gl-copper)]/35 to-[var(--gl-copper)]/15 px-1 text-center last:border-r-0"
                         style={{ width: `${pct}%` }}
-                        title={cut.label ?? formatImperial(cut.lengthInches)}
+                        title={cut.label ?? formatShopImperial(cut.lengthInches)}
                       >
                         <span className="text-xs font-medium leading-tight text-[var(--gl-cream)]">
-                          {formatImperial(cut.lengthInches)}
+                          {formatShopImperial(cut.lengthInches)}
                         </span>
                         {cut.label ? (
                           <span className="hidden truncate text-xs leading-tight text-[var(--gl-muted)] sm:block">
@@ -265,7 +265,7 @@ export function CutPlanner() {
                 <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--gl-muted)]">
                   {board.cuts.map((cut, i) => (
                     <li key={`${board.index}-list-${i}`}>
-                      {i + 1}. {formatImperial(cut.lengthInches)}
+                      {i + 1}. {formatShopImperial(cut.lengthInches)}
                       {cut.label ? ` — ${cut.label}` : ""}
                     </li>
                   ))}

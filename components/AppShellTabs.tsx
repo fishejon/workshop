@@ -7,9 +7,9 @@ export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
 export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
 
 const TAB_META: Record<AppShellTabId, { label: string; task: string }> = {
-  setup: { label: "Setup", task: "Set project defaults" },
+  setup: { label: "Setup", task: "Project & shop defaults" },
   build: { label: "Build", task: "Define intent" },
-  shop: { label: "Materials", task: "Validate procurement" },
+  shop: { label: "Materials", task: "Parts & buy list" },
   about: { label: "Review", task: "Release to shop" },
 };
 
@@ -18,8 +18,8 @@ function focusTabButton(id: AppShellTabId) {
 }
 
 /**
- * IA shell: Setup (project + transport), Build (planners only), Materials (two-column shop), About.
- * `shopMaterialsLeft` / `shopMaterialsRight` are the same panels as the Build aside, split for Materials’ wide grid.
+ * IA shell: Setup, Build (planners only), Materials (parts + buy + optional right column), Review.
+ * On Materials, `shopMaterialsLeft` / `shopMaterialsRight` split the wide layout (parts vs buy/advanced tools).
  */
 export function AppShellTabs({
   active,

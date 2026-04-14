@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { buildConsoleShellCasework } from "@/lib/archetypes/casework";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { formatShopImperial, parseInches } from "@/lib/imperial";
 
 function parsePositive(s: string): number | null {
   const n = parseInches(s);
@@ -72,7 +72,7 @@ export function SideboardPlanner() {
     if (!buildResult || !buildResult.ok) return;
     addParts(buildResult.parts);
     setLastExplain(
-      `Added ${buildResult.parts.length} sideboard shell part rows using ${formatImperial(parsePositive(materialT) ?? 0)} stock.`
+      `Added ${buildResult.parts.length} sideboard shell part rows using ${formatShopImperial(parsePositive(materialT) ?? 0)} stock.`
     );
   }
 

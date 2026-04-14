@@ -12,7 +12,7 @@ import {
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
 import { partsToCsv } from "@/lib/parts-csv";
-import { formatImperial } from "@/lib/imperial";
+import { formatShopImperial } from "@/lib/imperial";
 import { canExportOrPrintProject } from "@/lib/validation";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
@@ -231,7 +231,7 @@ function PartRow({
       const roughSummary =
         provenance.roughSource === "manual"
           ? "Rough dims are manually overridden for this part."
-          : `Rough dims are derived from finished + ${formatImperial(millingAllowanceInches)} allowance on T, W, and L.`;
+          : `Rough dims are derived from finished + ${formatShopImperial(millingAllowanceInches)} allowance on T, W, and L.`;
       const joinerySummary =
         provenance.joineryChangeCount > 0
           ? `Joinery changed this part ${provenance.joineryChangeCount} time${provenance.joineryChangeCount === 1 ? "" : "s"}.`
@@ -241,9 +241,9 @@ function PartRow({
         : "Glue-up not applicable.";
       return (
         `${roughSummary} ` +
-        `Displayed: ${formatImperial(part.finished.t)}→${formatImperial(part.rough.t)}, ` +
-        `${formatImperial(part.finished.w)}→${formatImperial(part.rough.w)}, ` +
-        `${formatImperial(part.finished.l)}→${formatImperial(part.rough.l)}. ` +
+        `Displayed: ${formatShopImperial(part.finished.t)}→${formatShopImperial(part.rough.t)}, ` +
+        `${formatShopImperial(part.finished.w)}→${formatShopImperial(part.rough.w)}, ` +
+        `${formatShopImperial(part.finished.l)}→${formatShopImperial(part.rough.l)}. ` +
         `${joinerySummary} ${glueSummary}`
       );
     },
@@ -459,7 +459,7 @@ function Dim3Inputs({
         {field("l", "L")}
       </div>
       <span className="text-xs text-[var(--gl-muted)]">
-        {formatImperial(dim.t)} × {formatImperial(dim.w)} × {formatImperial(dim.l)}
+        {formatShopImperial(dim.t)} × {formatShopImperial(dim.w)} × {formatShopImperial(dim.l)}
       </span>
     </div>
   );

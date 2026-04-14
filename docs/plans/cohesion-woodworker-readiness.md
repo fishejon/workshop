@@ -22,33 +22,33 @@
 
 ### Phase A — Cohesion & clarity (1–2 weeks)
 
-- [ ] **A1 — User journey map (1 page)** — Write a single diagram or numbered flow: Setup → Build (preset) → Generate parts → Materials → Review → Print/CSV. List what screen owns each step. **Verify:** you can read it aloud in &lt; 60s; no orphan panels. **Files:** new section in `docs/USER_GUIDE.md` or short `docs/FLOW.md`.
+- [x] **A1 — User journey map (1 page)** — Write a single diagram or numbered flow: Setup → Build (preset) → Generate parts → Materials → Review → Print/CSV. List what screen owns each step. **Verify:** you can read it aloud in &lt; 60s; no orphan panels. **Files:** new section in `docs/USER_GUIDE.md` or short `docs/FLOW.md`.
 
-- [ ] **A2 — Strategy merge** — Add a “Vision alignment” section to `docs/PRODUCT_STRATEGY.md` (or `docs/PRD.md`) that absorbs DIY/calculator language from the Woodworker’s strategy *without* contradicting joinery/material pillars. Mark obsolete dates OKRs as historical or rewrite for “current phase.” **Verify:** no conflicting north-star statements across docs.
+- [x] **A2 — Strategy merge** — Add a “Vision alignment” section to `docs/PRODUCT_STRATEGY.md` (or `docs/PRD.md`) that absorbs DIY/calculator language from the Woodworker’s strategy *without* contradicting joinery/material pillars. Mark obsolete dates OKRs as historical or rewrite for “current phase.” **Verify:** no conflicting north-star statements across docs.
 
-- [ ] **A3 — In-app orientation** — First-run or persistent strip: “You are here” + link to Materials/Review; tie **DecisionStrip** copy to the same journey. **Verify:** new user reaches “generate parts” and “print” without tab hunting. **Files:** `components/GrainlineApp.tsx`, `components/DecisionStrip.tsx`, maybe `app/page.tsx`.
+- [x] **A3 — In-app orientation** — Workshop flow guide + **DecisionStrip** copy/CTA now follows Setup → Build → Materials → Review. **Files:** `components/GrainlineApp.tsx`, `components/WorkshopFlowGuide.tsx`.
 
-- [ ] **A4 — Naming pass (UI + docs)** — Replace mixed “shop / materials / build” confusion in tab subtitles if needed; align headers with journey verbs (Define / Validate / Release). **Verify:** 5-minute usability self-test. **Files:** `components/AppShellTabs.tsx`, headers in major panels.
+- [x] **A4 — Naming pass (UI + docs)** — Replace mixed “shop / materials / build” confusion in tab subtitles if needed; align headers with journey verbs (Define / Validate / Release). **Verify:** 5-minute usability self-test. **Files:** `components/AppShellTabs.tsx`, headers in major panels.
 
 ### Phase B — “Woodworker complete” definition (1 week)
 
-- [ ] **B1 — Checklist doc** — Create `docs/WOODWORKER_COMPLETE.md` (or section in PRD) with pass/fail: e.g. cut list per piece, rough vs finished, material grouping, **yard-purchasable language** (nominal + actual where relevant), transport limit reflected, print layout, what happens when validation blocks export. **Verify:** you can tick boxes on current app; unchecked = backlog.
+- [x] **B1 — Checklist doc** — Covered by **`docs/WOODWORKER_CHECKLIST.md`** plus in-app readiness checklist in `WorkshopFlowGuide` (same pass/fail intent as planned “WOODWORKER_COMPLETE”).
 
-- [ ] **B2 — Gap list from checklist** — For each failed/partial item, file a one-line “must / should / could.” Examples to evaluate: hardware schedule, sheet goods, dados vs construction presets, asymmetric layouts, project templates discoverability. **Verify:** prioritized backlog ≤ 10 items.
+- [x] **B2 — Gap list from checklist** — For each failed/partial item, file a one-line “must / should / could.” Examples to evaluate: hardware schedule, sheet goods, dados vs construction presets, asymmetric layouts, project templates discoverability. **Verify:** prioritized backlog ≤ 10 items.
 
-- [ ] **B3 — PM / Eng-manager acceptance** — For **dresser + board pack** (MVP slice), write Definition of Done: N golden projects, print preview, CSV spot-check, no blocking issues. **Verify:** `npm test` + manual print once per release candidate.
+- [x] **B3 — PM / Eng-manager acceptance** — See **Release slice (dresser + board pack)** in `docs/plans/woodworker-gaps.md`.
 
 ### Phase C — Display & output contract (1–2 weeks)
 
-- [ ] **C1 — Centralize `SHOP_DENOMINATOR = 16`** — Export from `lib/imperial.ts` (or small `lib/shop-formatting.ts`) and use for user-visible dimensions in Parts, Print, Buy list summaries, Joinery deltas where shown. **Verify:** visual scan + `lib/imperial.test.ts` extended. **Rejected alternative:** mixed 4th and 16th without labeling.
+- [x] **C1 — Centralize `SHOP_DENOMINATOR = 16`** — Export from `lib/imperial.ts` (or small `lib/shop-formatting.ts`) and use for user-visible dimensions in Parts, Print, Buy list summaries, Joinery deltas where shown. **Verify:** visual scan + `lib/imperial.test.ts` extended. **Rejected alternative:** mixed 4th and 16th without labeling.
 
-- [ ] **C2 — “Why this number” consistency** — Ensure Dresser-generated parts + joinery-adjusted parts use the same provenance pattern in table + print + CSV. **Verify:** one part with glue-up + joinery looks consistent across surfaces.
+- [x] **C2 — “Why this number” consistency** — Parts table, `/print`, and CSV all call `derivePartAssumptionsDetailed` for assumption copy; **`lib/parts-csv.test.ts`** asserts CSV columns match that helper for a glue-up + joinery fixture row (locks parity with print/Parts).
 
 ### Phase D — Agent rules + team alignment (few days)
 
-- [ ] **D1 — Rewrite rule frontmatter + first paragraphs** — Point agents at Grainline + `docs/PRODUCT_STRATEGY.md`; remove Q2 2024 etc.; align backend rule with **decimal + tested rounding** OR schedule fraction work explicitly. **Files:** `.cursor/rules/agent-*.mdc`, `.cursor/rules/README.md`.
+- [x] **D1 — Rewrite rule frontmatter + first paragraphs** — Point agents at Grainline + `docs/PRODUCT_STRATEGY.md`; remove Q2 2024 etc.; align backend rule with **decimal + tested rounding** OR schedule fraction work explicitly. **Files:** `.cursor/rules/agent-*.mdc`, `.cursor/rules/README.md`.
 
-- [ ] **D2 — “When to invoke which agent”** — Add a 10-line table: e.g. cohesion/IA → UX+PM; tokens/print → UI+FE; data model → Architect+Backend. **File:** `.cursor/rules/README.md`.
+- [x] **D2 — “When to invoke which agent”** — Add a 10-line table: e.g. cohesion/IA → UX+PM; tokens/print → UI+FE; data model → Architect+Backend. **File:** `.cursor/rules/README.md`.
 
 ## Risks & rollback
 

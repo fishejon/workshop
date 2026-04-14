@@ -9,7 +9,7 @@ import {
   totalBoardFeet,
   totalLinearFeet,
 } from "@/lib/board-feet";
-import { formatImperial } from "@/lib/imperial";
+import { formatShopImperial } from "@/lib/imperial";
 import type { Dimension3, Project } from "@/lib/project-types";
 import {
   STORAGE_KEY,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/validation";
 
 function formatTxWxL(d: Dimension3): string {
-  return `${formatImperial(d.t)} × ${formatImperial(d.w)} × ${formatImperial(d.l)}`;
+  return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
 }
 
 export function ShopPrintView() {
@@ -172,11 +172,11 @@ export function ShopPrintView() {
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex gap-2">
               <dt className="shop-print-muted">Milling allowance</dt>
-              <dd className="font-medium">{formatImperial(project.millingAllowanceInches)} per axis</dd>
+              <dd className="font-medium">{formatShopImperial(project.millingAllowanceInches)} per axis</dd>
             </div>
             <div className="flex gap-2">
               <dt className="shop-print-muted">Max transport</dt>
-              <dd className="font-medium">{formatImperial(project.maxTransportLengthInches)}</dd>
+              <dd className="font-medium">{formatShopImperial(project.maxTransportLengthInches)}</dd>
             </div>
             <div className="flex gap-2">
               <dt className="shop-print-muted">Waste factor</dt>
@@ -184,7 +184,7 @@ export function ShopPrintView() {
             </div>
             <div className="flex gap-2">
               <dt className="shop-print-muted">Max purchasable board width</dt>
-              <dd className="font-medium">{formatImperial(project.maxPurchasableBoardWidthInches)}</dd>
+              <dd className="font-medium">{formatShopImperial(project.maxPurchasableBoardWidthInches)}</dd>
             </div>
           </dl>
         </header>
@@ -195,7 +195,7 @@ export function ShopPrintView() {
           </h2>
           <p className="mb-2 text-xs shop-print-muted">
             Assumptions column calls out joinery sizing provenance and panel glue-up checks (max single-board panel
-            width: {formatImperial(project.maxPurchasableBoardWidthInches)}).
+            width: {formatShopImperial(project.maxPurchasableBoardWidthInches)}).
           </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
@@ -248,9 +248,9 @@ export function ShopPrintView() {
               Thickness category
             </strong>{" "}
             is nominal yard language—pricing often still uses nominal thickness after surfacing. Waste ({project.wasteFactorPercent}%)
-            applies to those rough subtotals; transport cap {formatImperial(project.maxTransportLengthInches)} is for
+            applies to those rough subtotals; transport cap {formatShopImperial(project.maxTransportLengthInches)} is for
             planning only. Board-count estimation uses width-lane expansion with max purchasable width{" "}
-            {formatImperial(project.maxPurchasableBoardWidthInches)} (solids on rough width; panels via glue-up strip
+            {formatShopImperial(project.maxPurchasableBoardWidthInches)} (solids on rough width; panels via glue-up strip
             expansion) plus constrained length packing. Verify surfaced vs rough and actual stock widths/lengths before
             procurement.
           </p>
@@ -309,7 +309,7 @@ export function ShopPrintView() {
                       <p className="font-semibold text-[var(--gl-ink)]">Assumptions</p>
                       <p className="mt-0.5">
                         Stock width assumed:{" "}
-                        {formatImperial(
+                        {formatShopImperial(
                           twoDGroup?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches
                         )}
                       </p>

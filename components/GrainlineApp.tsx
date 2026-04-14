@@ -15,7 +15,7 @@ import { ProjectSetupBar } from "@/components/ProjectSetupBar";
 import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
-import { formatImperial } from "@/lib/imperial";
+import { formatShopImperial } from "@/lib/imperial";
 import { canExportOrPrintProject } from "@/lib/validation";
 
 const PRESETS = [
@@ -74,45 +74,78 @@ export function GrainlineApp() {
   const hasBlockingIssues = blockingValidationIssues.length > 0;
   const hasWarnings = warningValidationIssues.length > 0;
 
-  const decisionStrip = (
-    <DecisionStrip
-      health={
-        hasBlockingIssues
-          ? "Blocked by validation issues"
-          : !checkpointsReady
-            ? "Awaiting release review"
-            : hasWarnings
-              ? "Warnings need review"
-              : "Ready for release"
-      }
-      recommendation={
-        hasBlockingIssues
-          ? "Resolve blocking issues before releasing to shop."
-          : !checkpointsReady
-            ? "Finish procurement validation, then acknowledge Review checkpoints."
-            : hasWarnings
-              ? "Review warnings in Materials and Joinery before release."
-              : "Procurement is validated; release to shop when ready."
-      }
-      ctaLabel={
-        appTab === "build"
-          ? "Next: Validate procurement"
-          : !checkpointsReady || hasBlockingIssues || hasWarnings
-            ? "Next: Release to shop"
-            : "Open release checklist"
-      }
-      onCta={() => {
-        if (appTab === "build") {
-          setAppTab("shop");
-          return;
-        }
-        setAppTab("about");
-      }}
-      tone={hasBlockingIssues ? "blocked" : !checkpointsReady || hasWarnings ? "warning" : "ready"}
-    />
-  );
+  const decisionStrip = (() => {
+    const health = hasBlockingIssues
+      ? "Blocked by validation issues"
+      : !checkpointsReady
+        ? "Awaiting release review"
+        : hasWarnings
+          ? "Warnings need review"
+          : "Ready for release";
 
-  const explainAllowance = `Project milling allowance: ${formatImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
+    let recommendation: string;
+    if (hasBlockingIssues) {
+      recommendation =
+        "Fix blocking issues first (open Materials → Show validation issues, or Review). Exports stay locked until those clear.";
+    } else if (appTab === "setup") {
+      recommendation =
+        "You are on Setup: project and shop defaults. Next, use Build to describe the piece and generate parts into the shared project.";
+    } else if (appTab === "build") {
+      recommendation =
+        "You are on Build: intent and presets. When numbers look right, use Generate / handoff so parts appear on Materials, then validate procurement there.";
+    } else if (appTab === "shop") {
+      recommendation = !checkpointsReady
+        ? "You are on Materials: parts and buy guidance. When this looks right, go to Review and check both handoff boxes before print or CSV."
+        : hasWarnings
+          ? "You are on Materials: resolve or accept warnings, then finish Review before treating outputs as final."
+          : "Materials look consistent; use Review for checkpoints and shop print when you are ready to hand off.";
+    } else {
+      recommendation = !checkpointsReady
+        ? "You are on Review: confirm checkpoints when Materials assumptions and joinery match your intent."
+        : hasWarnings
+          ? "Review tab: warnings still need a pass before shop handoff."
+          : "Review tab: checkpoints satisfied and no blockers—export or print from Materials when ready.";
+    }
+
+    const ctaLabel =
+      appTab === "setup"
+        ? "Next: Build"
+        : appTab === "build"
+          ? "Next: Materials"
+          : appTab === "shop"
+            ? "Next: Review"
+            : !checkpointsReady || hasBlockingIssues || hasWarnings
+              ? "Back to Materials"
+              : "Open Materials";
+
+    function handleDecisionCta() {
+      if (appTab === "setup") {
+        setAppTab("build");
+        return;
+      }
+      if (appTab === "build") {
+        setAppTab("shop");
+        return;
+      }
+      if (appTab === "shop") {
+        setAppTab("about");
+        return;
+      }
+      setAppTab("shop");
+    }
+
+    return (
+      <DecisionStrip
+        health={health}
+        recommendation={recommendation}
+        ctaLabel={ctaLabel}
+        onCta={handleDecisionCta}
+        tone={hasBlockingIssues ? "blocked" : !checkpointsReady || hasWarnings ? "warning" : "ready"}
+      />
+    );
+  })();
+
+  const explainAllowance = `Project milling allowance: ${formatShopImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
   const shopMaterialsLeft = <PartsTable explainAllowanceText={explainAllowance} />;
   const shopMaterialsRight = (
