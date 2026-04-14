@@ -9,7 +9,7 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 - `lib/optimize-cuts.ts` + `components/CutPlanner.tsx` — 1D stick packing, kerf, max carry  
 - `lib/imperial.ts` — parse/format imperial (¼″ display bias)  
 
-**Gaps vs PRD:** no unified **project** model, no **finished vs rough** layers, no **joinery engine**, no **board-foot buy list**, no **multi-screen IA**, limited **explainability** and **export**.
+**Gaps vs PRD (historical note):** this section reflected the pre-implementation baseline. Most listed gaps are now implemented; treat remaining unchecked or partial phase items as the active delta.
 
 ---
 

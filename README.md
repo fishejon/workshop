@@ -1,6 +1,6 @@
 # Grainline
 
-Working title for a **hobbyist hardwood** planning app: **furniture presets** with shop math, plus a **1D board packer** for stick layouts.
+Working title for a **hobbyist hardwood** planning app: **furniture presets** with shop math and a **2D purchase estimator** (width-lane + length packing).
 
 ## Presets
 
@@ -13,12 +13,12 @@ Working title for a **hobbyist hardwood** planning app: **furniture presets** wi
 ## Project / outputs (PRD path)
 
 - **Tabs** — **Setup** (project name, milling allowance, max transport length, waste %, print link, reset), **Build** (presets + shop column), **Shop** (parts, buy list, joinery, rough sticks), **About**. State persists in `localStorage` (`grainline-project-v1`).
-- **Parts table** — finished vs rough T×W×L (in), manual rough toggle, provenance pills (derived/manual rough + joinery counts), explicit **joinery + glue-up assumptions** per row, **Why?** explainer, **CSV export** (includes BF/LF + assumptions columns).
-- **Buy list** — board feet and **lineal feet** from **rough** dims, grouped by material + thickness category, waste multiplier, transport cap called out.
-- **Joinery** — Groove/back, dado shelf width, simplified M&T rail/stile; optional mate + edge labels; history with before/after sizes.
+- **Parts table** — finished vs rough T×W×L (in), manual rough toggle, provenance pills, explicit **joinery + glue-up assumptions** per row, **Why?** explainer, **CSV export** (includes BF/LF + detailed provenance columns).
+- **Buy list** — board feet and **lineal feet** from **rough** dims, grouped by material + thickness category, plus **2D board estimate** (width-lane expansion + constrained length packing) with per-group stock width overrides.
+- **Joinery** — Groove/back, dado shelf width, M&T rail/stile, and **thickness-aware drawer joinery presets** with formula/provenance labeling.
 - **Print** — `/print` shop sheet; PDF via browser **Save as PDF**.
 
-Glue-up assumptions now use the shared panel glue-up planner with a documented max single-board width assumption, so parts/print/CSV stay in sync.
+Glue-up assumptions use a shared panel glue-up planner with project/per-group board-width sources, so table/print/CSV stay in sync.
 
 ## Documentation
 

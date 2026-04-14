@@ -35,9 +35,13 @@ lib/
   board-feet.ts      # BF + LF grouping for buy list
   part-provenance.ts # Part provenance summary + joinery rule label formatting
   part-assumptions.ts # Joinery + glue-up assumption summaries for UI/CSV/print
+  parts-csv.ts       # Canonical CSV rows with assumptions/provenance fields
   dresser-engine.ts  # Dresser openings / drawer grid math
   dresser-carcass.ts # Case part specs from outer dims
-  optimize-cuts.ts   # 1D bin packing (board cuts + rough sticks)
+  optimize-cuts.ts   # Core FFD 1D length packer (reused by board list + 2D estimator)
+  purchase-pack.ts   # Shared purchase packing helpers
+  purchase-scenarios.ts # Scenario orchestrator + 2D estimate integration
+  buy-2d/            # 2D purchase estimate pipeline (demand, width-fit, packing, summary)
   rough-sticks.ts    # Rough lengths derived from parts list
   joinery/
     types.ts         # JointRuleId, JointSpec, …
@@ -61,12 +65,12 @@ vitest.config.ts     # Vitest + `@/*` path alias
 
 - **`ProjectProvider`** (`components/ProjectContext.tsx`) holds the live `Project`.
 - **`useEffect`** writes `serializeProject(project)` to `localStorage` after hydration.
-- **`Project`** includes `parts[]` and **`joints[]`** (`ProjectJoint`: rule id, part ids, optional mate/edge labels, params, explanation, finished before/after).
+- **`Project`** includes `parts[]`, **`joints[]`**, and **`connections[]`** (connection graph + joint linkage), plus purchasing assumptions such as `maxPurchasableBoardWidthInches` and optional `stockWidthByMaterialGroup`.
 
 Mutators of note:
 
-- **`clearParts`** — Clears `parts` and **`joints`**.
-- **`removePart`** — Drops joints whose `primaryPartId` or `matePartId` matches the removed part.
+- **`clearParts`** — Clears `parts`, `joints`, and `connections`.
+- **`removePart`** — Drops joints/connections referencing the removed part.
 - **`replacePartsInAssemblies`** — Replaces parts only within selected assemblies (used by dresser handoff), preserving other project parts and cleaning affected joints.
 
 ---
@@ -90,12 +94,12 @@ Mutators of note:
 
 ---
 
-## Buy list and CSV
+## Buy list, 2D estimate, and CSV
 
 - **`groupPartsByMaterial`** (`lib/board-feet.ts`) produces groups with BF and LF subtotals and waste-adjusted totals.
-- **CSV** (`components/PartsTable.tsx`) includes `board_feet_*` and `linear_feet_*` columns using `boardFeetForPart` / `linearFeetForPart`.
-- **Assumptions propagation** (`lib/part-assumptions.ts`) feeds joinery/glue-up text into parts table, CSV, and print output.
-- Glue-up assumption is powered by `planPanelGlueUp` with a shared max-board-width constant so UI/print/export agree on strip-count expectations.
+- **2D estimator** (`lib/buy-2d/*`) builds demand rows (including panel glue-up strips), applies width-lane multipliers, then runs constrained length packing.
+- **CSV** uses `lib/parts-csv.ts` as the canonical export mapping (BF/LF + joinery/glue-up provenance columns).
+- **Assumptions propagation** (`lib/part-assumptions.ts`) feeds table, CSV, and print consistently (joinery + glue-up + provenance summary).
 
 ---
 

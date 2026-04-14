@@ -64,7 +64,8 @@ Minimal shell parts from W×H×D. Joinery is not fully modeled—treat as a star
 ## Buy list
 
 - **Exact BF/LF inputs** — From **rough T×W×L + quantity** (BF: 144 cu in = 1 BF; LF: quantity × rough L ÷ 12), grouped by material + thickness category.
-- **Estimate layer** — Waste % inflates BF/LF for purchasing cushion; transport cap helps filter practical stick lengths.
+- **Estimate layer** — Waste % inflates BF/LF for purchasing cushion; transport cap and stock-width assumptions feed the 2D board estimator.
+- **2D board estimate** — Uses width-lane expansion (including panel glue-up strips) plus constrained length packing. Per-material stock width overrides are optional in the group card.
 - **Yard checkout** — Confirm nominal thickness, available stock lengths, and final board count with your supplier.
 
 ---
@@ -80,9 +81,9 @@ Rules adjust **finished** T×W×L on a chosen part; **rough** updates automatica
 | **M&T — rail** | Increase **L** by 2× tenon length per end. |
 | **M&T — stile** | Decrease **L** by 2× tenon length (shoulder seats). |
 
-Optional **mate part** and **edge labels** are stored for your notes (audit trail).
+Optional **mate part** and **edge labels** are stored for connection audit traceability.
 
-**Applied connections** — Expand an entry to see explanation and **before / after** finished sizes.
+**Applied connections** — Expand an entry to see engineering explanation, formula/preset provenance, and **before / after** finished sizes.
 
 ---
 
@@ -100,7 +101,7 @@ Packs **rough L × quantity** from the parts list into boards of a given stock l
 - Treat the printout as a lumber-yard handoff: material + thickness category + adjusted BF/LF, then finalize board counts from what is in stock.
 - For a **PDF**, use the browser’s print dialog and choose **Save as PDF** (or “Microsoft Print to PDF”). No server-side PDF is required.
 
-Current glue-up notes use the panel glue-up planner with a fixed max single-board width assumption; update that setting in code if your shop/yard limits differ.
+Glue-up notes use the panel glue-up planner with project-level max purchasable width plus optional material-group overrides.
 
 ---
 
