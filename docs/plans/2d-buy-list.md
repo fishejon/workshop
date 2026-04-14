@@ -78,3 +78,4 @@
 - **`PurchaseScenarioResult.twoDimensional`:** always present; mirrors selected scenario’s length packing mode.
 - **Project:** optional `stockWidthByMaterialGroup`; `BuyListPanel` per-group override input + `setMaterialGroupStockWidth` in `ProjectContext`.
 - **Verify:** `npm run test` (78+), `npm run lint`, `npm run build`; Materials buy list shows 2D block; print view includes 2D summary when checkpoints pass.
+- **Follow-up executed:** removed legacy 1D stick-count outputs from `PurchaseScenarioResult` and user-facing copy; scenario summaries now use engineering-language objective/constraint framing and 2D estimate only.

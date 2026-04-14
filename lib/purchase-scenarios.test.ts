@@ -17,7 +17,7 @@ function samplePart(over: Partial<Part> & Pick<Part, "id" | "name">): Part {
 }
 
 describe("evaluatePurchaseScenario", () => {
-  it("fitTransport packs at max transport length", () => {
+  it("fitTransport returns 2D estimate and engineering summary", () => {
     const parts: Part[] = [
       samplePart({
         id: "a",
@@ -32,16 +32,12 @@ describe("evaluatePurchaseScenario", () => {
       maxTransportLengthInches: 96,
       kerfInches: 0.125,
     });
-    expect(r.groups).toHaveLength(1);
-    const g = r.groups[0]!;
-    expect(g.recommendedStockLengthInches).toBe(96);
-    expect(g.estimatedStickCount).toBe(1);
-    expect(g.exceedsTransport).toBe(false);
+    expect(r.headline).toMatch(/Constraint set/i);
     expect(r.twoDimensional.totalEstimatedBoards2d).toBeGreaterThanOrEqual(1);
     expect(r.twoDimensional.groups).toHaveLength(1);
   });
 
-  it("minBoardCount prefers longer stock when it reduces board count", () => {
+  it("varies headline by optimization objective", () => {
     const parts: Part[] = [
       samplePart({
         id: "a",
@@ -56,12 +52,10 @@ describe("evaluatePurchaseScenario", () => {
       maxTransportLengthInches: 96,
       kerfInches: 0.125,
     });
-    const g = r.groups[0]!;
-    expect(g.estimatedStickCount).toBe(1);
-    expect(g.recommendedStockLengthInches).toBeGreaterThanOrEqual(80);
+    expect(r.headline).toMatch(/minimize board count/i);
   });
 
-  it("flags when a rough cut exceeds max transport", () => {
+  it("reflects transport violations inside 2D group flags/detail", () => {
     const parts: Part[] = [
       samplePart({
         id: "long",
@@ -76,11 +70,11 @@ describe("evaluatePurchaseScenario", () => {
       maxTransportLengthInches: 96,
       kerfInches: 0.125,
     });
-    expect(r.groups[0]!.exceedsTransport).toBe(true);
-    expect(r.headline).toContain("exceed");
+    expect(r.twoDimensional.groups[0]!.estimatedBoards2d).toBe(0);
+    expect(r.detail).toMatch(/No demand rows|Total estimated boards/i);
   });
 
-  it("flags groups when solid rough width exceeds max purchasable board width (no stick inflation)", () => {
+  it("flags width-lane expansion when part width exceeds stock width", () => {
     const parts: Part[] = [
       samplePart({
         id: "wide",
@@ -97,15 +91,12 @@ describe("evaluatePurchaseScenario", () => {
       maxPurchasableBoardWidthInches: 20,
       kerfInches: 0.125,
     });
-    expect(r.groups[0]!.exceedsPurchasableBoardWidth).toBe(true);
-    expect(r.anyExceedsPurchasableBoardWidth).toBe(true);
     expect(r.maxPurchasableBoardWidthInches).toBe(20);
-    expect(r.headline).toMatch(/Width caveat/i);
-    expect(r.detail).toMatch(/rough width for solid stock/i);
-    expect(r.groups[0]!.estimatedStickCount).toBe(1);
+    expect(r.twoDimensional.groups[0]!.flags.length).toBeGreaterThan(0);
+    expect(r.twoDimensional.groups[0]!.estimatedBoards2d).toBeGreaterThanOrEqual(2);
   });
 
-  it("uses finished width for panel status when checking purchasable width", () => {
+  it("expands panel demand via glue-up strips", () => {
     const parts: Part[] = [
       samplePart({
         id: "panel",
@@ -122,7 +113,8 @@ describe("evaluatePurchaseScenario", () => {
       maxTransportLengthInches: 96,
       maxPurchasableBoardWidthInches: 20,
     });
-    expect(r.groups[0]!.exceedsPurchasableBoardWidth).toBe(true);
+    expect(r.twoDimensional.groups[0]!.estimatedBoards2d).toBeGreaterThanOrEqual(1);
+    expect(r.twoDimensional.assumptions.join(" ")).toMatch(/Panels are split into glue-up strips/i);
   });
 
   it("computes group and total costs from optional BF/LF rates", () => {

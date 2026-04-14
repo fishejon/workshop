@@ -198,14 +198,14 @@ export function ShopPrintView() {
             </strong>{" "}
             is nominal yard language—pricing often still uses nominal thickness after surfacing. Waste ({project.wasteFactorPercent}%)
             applies to those rough subtotals; transport cap {formatImperial(project.maxTransportLengthInches)} is for
-            planning only. Stick-count scenarios (if you use them in the app) pack on rough length only and assume board
-            width is already available up to {formatImperial(project.maxPurchasableBoardWidthInches)} for solid stock
-            (rough width) and panels (finished width)—wider spans need rips or glue-ups and are called out there, not by
-            inflating stick totals. Verify surfaced vs rough and real stock sizes before you buy.
+            planning only. Board-count estimation uses width-lane expansion with max purchasable width{" "}
+            {formatImperial(project.maxPurchasableBoardWidthInches)} (solids on rough width; panels via glue-up strip
+            expansion) plus constrained length packing. Verify surfaced vs rough and actual stock widths/lengths before
+            procurement.
           </p>
           {purchasePreview ? (
             <div className="mb-4 rounded-lg border border-[var(--gl-ink)]/25 bg-white/70 p-3 text-xs shop-print-muted">
-              <p className="font-semibold text-[var(--gl-ink)]">2D board estimate (companion to length-only sticks)</p>
+              <p className="font-semibold text-[var(--gl-ink)]">2D board estimate (engineering model)</p>
               <p className="mt-1 text-[var(--gl-ink)]/90">{purchasePreview.twoDimensional.headline}</p>
               <p className="mt-1">{purchasePreview.twoDimensional.detail}</p>
               <ul className="mt-2 list-inside list-disc">
