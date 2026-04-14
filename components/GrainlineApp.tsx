@@ -117,8 +117,18 @@ export function GrainlineApp() {
   const shopMaterialsRight = (
     <>
       <BuyListPanel />
-      <JoineryPanel />
-      <RoughStickLayout />
+      <details className="gl-panel p-5">
+        <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
+          Advanced materials tools
+        </summary>
+        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+          Open when needed for joinery rule history and rough stick nesting diagnostics.
+        </p>
+        <div className="mt-4 space-y-4">
+          <JoineryPanel />
+          <RoughStickLayout />
+        </div>
+      </details>
     </>
   );
 

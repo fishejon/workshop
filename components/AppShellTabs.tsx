@@ -181,10 +181,15 @@ export function AppShellTabs({
                 </ul>
               ) : null}
             </div>
-            {issuesPanel}
-            <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,380px)] lg:items-start">
-              <div className="min-w-0 space-y-6">{shopMaterialsLeft}</div>
-              <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">{shopMaterialsRight}</aside>
+            <details className="gl-panel-muted p-4">
+              <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
+                Show validation issues
+              </summary>
+              <div className="mt-3">{issuesPanel}</div>
+            </details>
+            <div className="min-w-0 space-y-6">
+              {shopMaterialsLeft}
+              {shopMaterialsRight}
             </div>
           </div>
         )}

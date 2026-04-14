@@ -94,21 +94,12 @@ export function BuyListPanel() {
     <section className="gl-panel p-5">
       <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
-        Totals are <strong className="text-[var(--gl-cream)]">rough T×W×L × qty</strong>—finished sizes stay in the parts
-        table. <strong className="text-[var(--gl-cream)]">Thickness category</strong> (e.g. 4/4) is nominal yard naming; BF
-        still often assumes nominal thickness even after surfacing. Waste ({project.wasteFactorPercent}%) scales those rough
-        totals. Scenario solver uses max carry {formatImperial(project.maxTransportLengthInches)} and {plan.kerfInches}″ kerf
-        in the longitudinal packing stage—confirm surfaced vs rough and actual stock dimensions at procurement.
+        Start with scenario + total board footage, then tune stock width per material only if needed.
       </p>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
-        Width assumption for 2D estimator: boards up to{" "}
-        <strong className="text-[var(--gl-cream)]">{formatImperial(project.maxPurchasableBoardWidthInches)}</strong> wide
-        by default (panels expanded as glue-up strips; solids use rough width). Per-group overrides apply below.
-      </p>
-      <p className="mt-1 text-xs text-[var(--gl-muted)]">
-        Workshop memory: lumber profile <strong className="text-[var(--gl-cream)]">{project.workshop.lumberProfile.replaceAll("_", " ")}</strong>
-        {" · "}
-        offcut mode <strong className="text-[var(--gl-cream)]">{project.workshop.offcutMode.replaceAll("_", " ")}</strong>.
+        Default max board face width is{" "}
+        <strong className="text-[var(--gl-cream)]">{formatImperial(project.maxPurchasableBoardWidthInches)}</strong>;
+        waste factor is <strong className="text-[var(--gl-cream)]">{project.wasteFactorPercent}%</strong>.
       </p>
 
       {groups.length === 0 ? (
@@ -252,74 +243,72 @@ export function BuyListPanel() {
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3 text-xs text-[var(--gl-muted)]">
-                  <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-                    BF / LF / cost diagnostics
-                  </p>
-                  <p className="mt-1">
-                    Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
-                    sizes/qty.
+                <details className="mt-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3 text-xs text-[var(--gl-muted)]">
+                  <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">
+                    Advanced diagnostics and costing
+                  </summary>
+                  <p className="mt-2">
+                    Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough sizes/qty.
                   </p>
                   <p className="mt-0.5">
                     Yard estimate with waste: <strong>{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
                     <strong>{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
                   </p>
                   <p className="mt-0.5">
-                    Solver constraint: stock length ≤ {formatImperial(project.maxTransportLengthInches)}; verify stock dimensions
-                    and bench-side cut sequence.
+                    Solver stock length cap: {formatImperial(project.maxTransportLengthInches)}.
                   </p>
-                </div>
-                <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                  <label className="text-xs text-[var(--gl-muted)]">
-                    Cost / BF
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      inputMode="decimal"
-                      className="input-wood mt-1 text-xs"
-                      value={project.costRatesByGroup[g.key]?.perBoardFoot ?? ""}
-                      placeholder="0.00"
-                      onChange={(e) =>
-                        setMaterialGroupCostRate(g.key, {
-                          perBoardFoot: parseOptionalRate(e.target.value),
-                          perLinearFoot: project.costRatesByGroup[g.key]?.perLinearFoot,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="text-xs text-[var(--gl-muted)]">
-                    Cost / LF
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      inputMode="decimal"
-                      className="input-wood mt-1 text-xs"
-                      value={project.costRatesByGroup[g.key]?.perLinearFoot ?? ""}
-                      placeholder="0.00"
-                      onChange={(e) =>
-                        setMaterialGroupCostRate(g.key, {
-                          perBoardFoot: project.costRatesByGroup[g.key]?.perBoardFoot,
-                          perLinearFoot: parseOptionalRate(e.target.value),
-                        })
-                      }
-                    />
-                  </label>
-                  <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-2 py-1 text-xs text-[var(--gl-muted)]">
-                    Estimated group cost:{" "}
-                    <strong className="text-[var(--gl-cream)]">
-                      {formatMoney(groupCostMap.get(g.key)?.totalCost ?? 0)}
-                    </strong>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <label className="text-xs text-[var(--gl-muted)]">
+                      Cost / BF
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        inputMode="decimal"
+                        className="input-wood mt-1 text-xs"
+                        value={project.costRatesByGroup[g.key]?.perBoardFoot ?? ""}
+                        placeholder="0.00"
+                        onChange={(e) =>
+                          setMaterialGroupCostRate(g.key, {
+                            perBoardFoot: parseOptionalRate(e.target.value),
+                            perLinearFoot: project.costRatesByGroup[g.key]?.perLinearFoot,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="text-xs text-[var(--gl-muted)]">
+                      Cost / LF
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        inputMode="decimal"
+                        className="input-wood mt-1 text-xs"
+                        value={project.costRatesByGroup[g.key]?.perLinearFoot ?? ""}
+                        placeholder="0.00"
+                        onChange={(e) =>
+                          setMaterialGroupCostRate(g.key, {
+                            perBoardFoot: project.costRatesByGroup[g.key]?.perBoardFoot,
+                            perLinearFoot: parseOptionalRate(e.target.value),
+                          })
+                        }
+                      />
+                    </label>
+                    <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-2 py-1 text-xs text-[var(--gl-muted)]">
+                      Estimated group cost:{" "}
+                      <strong className="text-[var(--gl-cream)]">
+                        {formatMoney(groupCostMap.get(g.key)?.totalCost ?? 0)}
+                      </strong>
+                    </div>
                   </div>
-                </div>
-                <ul className="mt-2 space-y-0.5 text-xs text-[var(--gl-muted)]">
-                  {g.lines.map((ln) => (
-                    <li key={ln.partId}>
-                      {ln.partName} ×{ln.quantity} — {ln.boardFeetTotal.toFixed(2)} BF, {ln.linearFeetTotal.toFixed(2)} LF
-                    </li>
-                  ))}
-                </ul>
+                  <ul className="mt-2 space-y-0.5 text-xs text-[var(--gl-muted)]">
+                    {g.lines.map((ln) => (
+                      <li key={ln.partId}>
+                        {ln.partName} ×{ln.quantity} — {ln.boardFeetTotal.toFixed(2)} BF, {ln.linearFeetTotal.toFixed(2)} LF
+                      </li>
+                    ))}
+                  </ul>
+                </details>
                 </li>
               );
             })}
