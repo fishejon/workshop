@@ -6,6 +6,19 @@ import { formatLinearFeetShop, formatShopImperial } from "@/lib/imperial";
 import { linearFeetForPart } from "@/lib/board-feet";
 import type { LumberVehicleRow } from "@/lib/lumber-vehicle-summary";
 
+function boardsToBuyForRow(row: LumberVehicleRow): { display: string; title?: string } {
+  if (row.totalLinealInches <= 0) {
+    return { display: "0" };
+  }
+  if (row.packError) {
+    return { display: "—", title: row.packError };
+  }
+  if (row.packedBoards) {
+    return { display: String(row.packedBoards.length) };
+  }
+  return { display: "0" };
+}
+
 function BoardCutStrip({
   stockLengthInches,
   boardIndex,
@@ -62,74 +75,68 @@ export function DimensionalLumberPurchaseTable({
   if (rows.length === 0) return null;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
-      <table className="gl-numeric w-full min-w-[720px] text-left text-xs text-[var(--gl-cream)]">
-        <thead className="border-b border-[var(--gl-border)] bg-[var(--gl-surface-inset)] text-[var(--gl-muted)] uppercase tracking-wide">
+    <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
+      <div className="border-b border-[var(--gl-border)] px-4 py-3">
+        <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Boards to buy</h3>
+        <p className="mt-1 text-xs text-[var(--gl-muted)]">
+          Read-only from your cut list: one row per lumber type, count = sticks needed at{" "}
+          <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
+          <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts. Nothing here is editable.
+        </p>
+      </div>
+      <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
+        <thead className="bg-[var(--gl-surface-inset)] text-xs text-[var(--gl-muted)] uppercase tracking-wide">
           <tr>
-            <th className="px-3 py-2 font-medium">Dimensional lumber</th>
-            <th className="px-3 py-2 font-medium">Total lineal (incl. waste)</th>
-            <th className="px-3 py-2 font-medium">Max per board (vehicle)</th>
-            <th className="px-3 py-2 font-medium">Boards ÷ length</th>
-            <th className="px-3 py-2 font-medium">Packed boards (⅛″ kerf)</th>
+            <th className="px-4 py-2.5 font-medium">Lumber type</th>
+            <th className="px-4 py-2.5 text-right font-medium">Boards</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--gl-border)]">
-          {rows.map((row) => (
-            <tr key={row.key} className="align-top">
-              <td className="px-3 py-3">
-                <span className="font-medium text-[var(--gl-cream-soft)]">{row.lumberTypeLabel}</span>
-              </td>
-              <td className="px-3 py-3 text-[var(--gl-cream)]">{formatLinearFeetShop(row.adjustedLinearFeet)}</td>
-              <td className="px-3 py-3">{formatShopImperial(row.vehicleMaxInches)}</td>
-              <td className="px-3 py-3 tabular-nums">{row.boardsByVehicleLength}</td>
-              <td className="px-3 py-3">
-                {row.packError ? (
-                  <span className="text-[var(--gl-warning)]">{row.packError}</span>
-                ) : row.packedBoards ? (
-                  <span className="tabular-nums">
-                    {row.packedBoards.length}
-                    {row.packWasteInches != null ? (
-                      <span className="mt-1 block text-xs font-normal text-[var(--gl-muted)]">
-                        Offcut ≈ {formatShopImperial(row.packWasteInches)} total
-                      </span>
-                    ) : null}
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const { display, title } = boardsToBuyForRow(row);
+            return (
+              <tr key={row.key}>
+                <td className="px-4 py-3 font-medium text-[var(--gl-cream-soft)]">{row.lumberTypeLabel}</td>
+                <td
+                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-[var(--gl-cream)]"
+                  title={title}
+                >
+                  {display}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      <p className="border-t border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-        “Boards ÷ length” is <strong className="text-[var(--gl-cream-soft)]">total lineal ÷ {formatShopImperial(vehicleMaxInches)}</strong> (rounded up). Packed boards runs a 1D cut layout at that same stick length with{" "}
-        <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same board.
-      </p>
-      <div className="space-y-4 border-t border-[var(--gl-border)] p-4">
-        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout by lumber type</p>
-        {rows.map((row) => (
-          <div key={`vis-${row.key}`} className="space-y-2">
-            <p className="text-sm font-medium text-[var(--gl-cream)]">{row.lumberTypeLabel}</p>
-            {row.packError ? (
-              <p className="text-xs text-[var(--gl-warning)]">{row.packError}</p>
-            ) : row.packedBoards && row.packedBoards.length > 0 ? (
-              <ul className="space-y-2">
-                {row.packedBoards.map((board) => (
-                  <BoardCutStrip
-                    key={board.index}
-                    boardIndex={board.index}
-                    stockLengthInches={board.stockLengthInches}
-                    cuts={board.cuts}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-[var(--gl-muted)]">No rough lengths to pack for this type.</p>
-            )}
-          </div>
-        ))}
-      </div>
+
+      <details className="group border-t border-[var(--gl-border)]">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-[var(--gl-copper-bright)] marker:content-none [&::-webkit-details-marker]:hidden hover:underline">
+          Show cut layout (how each board is used)
+        </summary>
+        <div className="space-y-4 border-t border-[var(--gl-border)] border-dashed p-4 pt-4">
+          {rows.map((row) => (
+            <div key={`vis-${row.key}`} className="space-y-2">
+              <p className="text-sm font-medium text-[var(--gl-cream)]">{row.lumberTypeLabel}</p>
+              {row.packError ? (
+                <p className="text-xs text-[var(--gl-warning)]">{row.packError}</p>
+              ) : row.packedBoards && row.packedBoards.length > 0 ? (
+                <ul className="space-y-2">
+                  {row.packedBoards.map((board) => (
+                    <BoardCutStrip
+                      key={board.index}
+                      boardIndex={board.index}
+                      stockLengthInches={board.stockLengthInches}
+                      cuts={board.cuts}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-[var(--gl-muted)]">No rough lengths to pack for this type.</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
