@@ -125,7 +125,7 @@ export function ProjectSetupBar() {
   return (
     <section
       id="project-setup-section"
-      className="mb-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
+      className="gl-panel mb-8 p-5"
       aria-labelledby="project-setup-title"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -154,7 +154,7 @@ export function ProjectSetupBar() {
               value={project.millingAllowanceInches}
               onChange={(e) => setMillingAllowanceInches(Math.max(0, Number.parseFloat(e.target.value) || 0))}
             />
-            <span className="mt-0.5 block text-[10px] text-[var(--gl-muted)]">
+            <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
               Default rough = finished + {formatImperial(project.millingAllowanceInches)} per axis
             </span>
           </label>
@@ -176,7 +176,7 @@ export function ProjectSetupBar() {
                 <button
                   key={preset}
                   type="button"
-                  className="rounded border border-white/15 px-2 py-1 text-[10px] text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  className="rounded border border-white/15 px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
                   onClick={() => setMaxTransportLengthInches(preset)}
                 >
                   {preset}&quot;
@@ -204,14 +204,14 @@ export function ProjectSetupBar() {
                 <button
                   key={preset}
                   type="button"
-                  className="rounded border border-white/15 px-2 py-1 text-[10px] text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  className="rounded border border-white/15 px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
                   onClick={() => setMaxPurchasableBoardWidthInches(preset)}
                 >
                   {preset}&quot;
                 </button>
               ))}
             </div>
-            <span className="mt-0.5 block text-[10px] text-[var(--gl-muted)]">
+            <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
               Panel glue-up copy and buy-list width caveat (widest single board you shop for)
             </span>
           </label>
@@ -233,7 +233,7 @@ export function ProjectSetupBar() {
                 <button
                   key={preset}
                   type="button"
-                  className="rounded border border-white/15 px-2 py-1 text-[10px] text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  className="rounded border border-white/15 px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
                   onClick={() => setWasteFactorPercent(preset)}
                 >
                   {preset}%
@@ -329,7 +329,7 @@ export function ProjectSetupBar() {
                 Print shop sheet (locked)
               </button>
             )}
-            <span id="print-lock-helper" className="text-center text-[10px] text-[var(--gl-muted)]" role="status">
+            <span id="print-lock-helper" className="text-center text-xs text-[var(--gl-muted)]" role="status">
               {canPrint
                 ? "PDF: print dialog -> Save as PDF"
                 : checkpointsReady
@@ -360,7 +360,7 @@ export function ProjectSetupBar() {
         >
           <p>{transferStatus}</p>
           {transferMeta.map((line) => (
-            <p key={line} className="mt-0.5 text-[10px]">
+            <p key={line} className="mt-0.5 text-xs">
               {line}
             </p>
           ))}
@@ -462,7 +462,7 @@ export function ProjectSetupBar() {
         <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
           Local backups ({activeBackups.length} active / {projectLibrary.length - activeBackups.length} archived)
         </p>
-        <p className="text-[10px] text-[var(--gl-muted)]">
+        <p className="text-xs text-[var(--gl-muted)]">
           Retention policy: latest {MAX_PROJECT_LIBRARY_RECORDS} backups are kept locally; older backups are automatically removed.
         </p>
         {projectLibrary.length === 0 ? (
@@ -475,7 +475,7 @@ export function ProjectSetupBar() {
                   <span className="min-w-0 flex-1 truncate">
                     {entry.name} · {new Date(entry.updatedAt).toLocaleString()}
                     {entry.archived ? (
-                      <span className="ml-1 text-[10px] uppercase tracking-wide text-[var(--gl-muted)]">archived</span>
+                      <span className="ml-1 text-xs uppercase tracking-wide text-[var(--gl-muted)]">archived</span>
                     ) : null}
                   </span>
                   <button
@@ -518,7 +518,7 @@ export function ProjectSetupBar() {
             {projectLibrary.length > 8 ? (
               <button
                 type="button"
-                className="mt-2 text-[10px] font-medium tracking-wide text-[var(--gl-muted)] uppercase hover:text-[var(--gl-cream-soft)]"
+                className="mt-2 text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase hover:text-[var(--gl-cream-soft)]"
                 onClick={() => setShowAllBackups((v) => !v)}
               >
                 {showAllBackups ? "Show fewer" : `Show all ${projectLibrary.length} backups`}

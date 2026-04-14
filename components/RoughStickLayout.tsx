@@ -41,7 +41,7 @@ export function RoughStickLayout() {
 
   if (project.parts.length === 0) {
     return (
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+      <section className="gl-panel p-5">
         <h2 className="text-sm font-semibold text-[var(--gl-cream)]">Rough stick layout (from parts list)</h2>
         <p className="mt-3 text-sm text-[var(--gl-muted)]">Add parts to see a 1D pack of rough lengths (L axis).</p>
       </section>
@@ -58,7 +58,7 @@ export function RoughStickLayout() {
       : null;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+    <section className="gl-panel p-5">
       <h2 className="text-sm font-semibold text-[var(--gl-cream)]">Rough stick layout (from parts list)</h2>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Each part instance uses <strong className="text-[var(--gl-cream-soft)]">rough L</strong> as the stick length;
@@ -130,11 +130,13 @@ export function RoughStickLayout() {
                             style={{ width: `${pct}%` }}
                             title={cut.label ?? formatImperial(cut.lengthInches)}
                           >
-                            <span className="text-[10px] font-medium leading-tight text-[var(--gl-cream)] sm:text-xs">
+                            <span className="text-xs font-medium leading-tight text-[var(--gl-cream)]">
                               {formatImperial(cut.lengthInches)}
                             </span>
                             {cut.label ? (
-                              <span className="hidden truncate text-[9px] text-[var(--gl-muted)] sm:block">{cut.label}</span>
+                              <span className="hidden truncate text-xs leading-tight text-[var(--gl-muted)] sm:block">
+                                {cut.label}
+                              </span>
                             ) : null}
                           </div>
                         );

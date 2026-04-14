@@ -20,10 +20,113 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--gl-bg);
   color: var(--gl-cream);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/*
+  Grainline surface kit — outer panels use 2xl radius, nested groups xl.
+  See docs/plans/ui-design-system-polish.md
+*/
+.gl-panel {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.gl-panel-muted {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.gl-panel-nested {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/** Guided step sequence — visually lighter than main tabs/panels */
+.gl-stepper-shell {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.5rem 0.625rem;
+}
+
+.gl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.gl-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gl-copper-bright) 90%, transparent);
+  outline-offset: 2px;
+}
+
+.gl-btn-primary {
+  border: 1px solid color-mix(in srgb, var(--gl-copper-bright) 55%, transparent);
+  background: color-mix(in srgb, var(--gl-copper) 80%, #0a0908);
+  color: var(--gl-cream);
+  padding: 0.5rem 0.75rem;
+}
+
+.gl-btn-primary:hover {
+  background: color-mix(in srgb, var(--gl-copper-bright) 35%, var(--gl-copper));
+  border-color: color-mix(in srgb, var(--gl-copper-bright) 75%, transparent);
+}
+
+.gl-btn-primary:active {
+  background: color-mix(in srgb, var(--gl-copper) 90%, #000);
+}
+
+.gl-btn-ghost {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gl-cream);
+  padding: 0.5rem 0.75rem;
+}
+
+.gl-btn-ghost:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/** Tabular figures for dimension columns and shop data */
+.gl-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Decorative layers — toned down when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  .gl-noise {
+    opacity: 0 !important;
+  }
+
+  .gl-glow {
+    display: none !important;
+  }
 }
 
 .font-display {

@@ -91,7 +91,7 @@ export function BuyListPanel() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+    <section className="gl-panel p-5">
       <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
         Totals are <strong className="text-[var(--gl-cream)]">rough T×W×L × qty</strong>—finished sizes stay in the parts
@@ -148,7 +148,7 @@ export function BuyListPanel() {
               {plan.twoDimensional.detail ? (
                 <p className="mt-1 text-xs text-[var(--gl-muted)]">{plan.twoDimensional.detail}</p>
               ) : null}
-              <ul className="mt-2 list-inside list-disc text-[11px] text-[var(--gl-muted)]">
+              <ul className="mt-2 list-inside list-disc text-xs text-[var(--gl-muted)]">
                 {plan.twoDimensional.assumptions.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
@@ -163,7 +163,7 @@ export function BuyListPanel() {
                   <button
                     key={id}
                     type="button"
-                    className={`rounded-md border px-2 py-1 text-[11px] ${
+                    className={`rounded-md border px-2 py-1 text-xs ${
                       selected
                         ? "border-[var(--gl-copper-bright)]/60 bg-[var(--gl-copper)]/20 text-[var(--gl-cream)]"
                         : "border-white/10 bg-black/20 text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
@@ -204,7 +204,7 @@ export function BuyListPanel() {
                   <span className="text-xs text-[var(--gl-muted)]">{g.thicknessCategory}</span>
                 </div>
                 <div className="mt-2 rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-[var(--gl-muted)]">
-                  <p className="text-[11px] font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                  <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
                     2D estimate (decision)
                   </p>
                   <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">
@@ -213,7 +213,7 @@ export function BuyListPanel() {
                   <p className="mt-1">{twoDGroup?.detail}</p>
                 </div>
                 <div className="mt-2 rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-[var(--gl-muted)]">
-                  <p className="text-[11px] font-medium tracking-widest text-[var(--gl-muted)] uppercase">Assumptions</p>
+                  <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Assumptions</p>
                   <p className="mt-1">
                     Stock width assumed: {formatImperial(stockWidthAssumed)}{" "}
                     {hasCustomStockWidth ? "(group override)" : "(project default)"}
@@ -248,7 +248,7 @@ export function BuyListPanel() {
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <button
                       type="button"
-                      className="rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-[11px] text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]"
+                      className="rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-xs text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]"
                       onClick={() => setMaterialGroupStockWidth(g.key, null)}
                     >
                       Use default
@@ -257,7 +257,7 @@ export function BuyListPanel() {
                       <button
                         key={widthIn}
                         type="button"
-                        className="rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-[11px] text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]"
+                        className="rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-xs text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]"
                         onClick={() => setMaterialGroupStockWidth(g.key, widthIn)}
                       >
                         {widthIn}&quot;
@@ -266,7 +266,7 @@ export function BuyListPanel() {
                   </div>
                 </div>
                 <div className="mt-2 rounded-lg border border-white/10 bg-black/25 p-3 text-xs text-[var(--gl-muted)]">
-                  <p className="text-[11px] font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                  <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
                     BF / LF / cost diagnostics
                   </p>
                   <p className="mt-1">

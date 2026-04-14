@@ -20,19 +20,15 @@ const TONE_STYLES: Record<DecisionStripTone, string> = {
 export function DecisionStrip({ health, recommendation, ctaLabel, onCta, tone = "neutral" }: DecisionStripProps) {
   return (
     <section
-      className={`rounded-xl border p-4 ${TONE_STYLES[tone]}`}
+      className={`rounded-2xl border p-4 ${TONE_STYLES[tone]}`}
       aria-label="Decision strip"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <p className="text-[10px] font-semibold tracking-[0.12em] uppercase">Project health: {health}</p>
-          <p className="text-sm">Recommendation: {recommendation}</p>
+          <p className="text-xs font-semibold tracking-wide uppercase opacity-95">{health}</p>
+          <p className="text-sm opacity-95">{recommendation}</p>
         </div>
-        <button
-          type="button"
-          onClick={onCta}
-          className="rounded-lg border border-white/25 bg-black/25 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:border-white/40"
-        >
+        <button type="button" onClick={onCta} className="gl-btn gl-btn-primary shrink-0">
           {ctaLabel}
         </button>
       </div>

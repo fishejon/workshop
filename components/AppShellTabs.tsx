@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useCallback, type KeyboardEvent, type ReactNode } from "react";
 import type { ValidationIssue } from "@/lib/validation/types";
 
 export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
@@ -12,6 +12,10 @@ const TAB_META: Record<AppShellTabId, { label: string; task: string }> = {
   shop: { label: "Materials", task: "Validate procurement" },
   about: { label: "Review", task: "Release to shop" },
 };
+
+function focusTabButton(id: AppShellTabId) {
+  document.getElementById(`tab-${id}`)?.focus();
+}
 
 /**
  * IA shell: Setup (project + transport), Build (planners + shop column), Shop (two-column shop), About.
@@ -45,25 +49,55 @@ export function AppShellTabs({
   const activeStepIndex = APP_SHELL_TAB_IDS.indexOf(active);
   const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_META[id].label);
 
+  const handleTabListKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      const el = document.activeElement;
+      if (!el || el.getAttribute("role") !== "tab" || !el.id.startsWith("tab-")) return;
+      const raw = el.id.slice("tab-".length);
+      if (!APP_SHELL_TAB_IDS.includes(raw as AppShellTabId)) return;
+      const currentId = raw as AppShellTabId;
+      const idx = APP_SHELL_TAB_IDS.indexOf(currentId);
+      let nextIdx = idx;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        nextIdx = (idx + 1) % APP_SHELL_TAB_IDS.length;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        nextIdx = (idx - 1 + APP_SHELL_TAB_IDS.length) % APP_SHELL_TAB_IDS.length;
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        nextIdx = 0;
+      } else if (e.key === "End") {
+        e.preventDefault();
+        nextIdx = APP_SHELL_TAB_IDS.length - 1;
+      }
+
+      if (nextIdx !== idx) {
+        const nextId = APP_SHELL_TAB_IDS[nextIdx];
+        onChange(nextId);
+        requestAnimationFrame(() => focusTabButton(nextId));
+      }
+    },
+    [onChange]
+  );
+
   return (
     <div className="space-y-6">
-      <div
-        className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
-        aria-label="Guided sequence progress"
-      >
-        <ol className="flex flex-wrap gap-2" aria-label="Guided sequence steps">
+      <div className="gl-stepper-shell" aria-label="Guided sequence progress">
+        <ol className="flex flex-wrap gap-1.5" aria-label="Guided sequence steps">
           {APP_SHELL_TAB_IDS.map((id, idx) => {
             const isCurrent = id === active;
             const isComplete = idx < activeStepIndex;
             return (
               <li
                 key={id}
-                className={`rounded-full border px-3 py-1 text-xs ${
+                className={`rounded-full border px-2.5 py-0.5 text-xs ${
                   isCurrent
-                    ? "border-[var(--gl-copper-bright)] bg-[var(--gl-copper)]/20 text-[var(--gl-cream)]"
+                    ? "border-[var(--gl-copper-bright)]/60 bg-[var(--gl-copper)]/15 text-[var(--gl-cream-soft)]"
                     : isComplete
-                      ? "border-white/20 bg-white/[0.06] text-[var(--gl-cream-soft)]"
-                      : "border-white/10 text-[var(--gl-muted)]"
+                      ? "border-white/12 bg-white/[0.04] text-[var(--gl-muted)]"
+                      : "border-white/[0.06] text-[var(--gl-muted)]/90"
                 }`}
                 aria-current={isCurrent ? "step" : undefined}
               >
@@ -72,7 +106,7 @@ export function AppShellTabs({
             );
           })}
         </ol>
-        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+        <p className="mt-1.5 text-xs text-[var(--gl-muted)]/90">
           {remaining.length > 0 ? `Remaining: ${remaining.join(" -> ")}` : "Final step reached."}
         </p>
       </div>
@@ -81,6 +115,7 @@ export function AppShellTabs({
         role="tablist"
         aria-label="Main sections"
         className="flex flex-wrap gap-2 border-b border-white/10 pb-4"
+        onKeyDown={handleTabListKeyDown}
       >
         {APP_SHELL_TAB_IDS.map((id) => {
           const selected = active === id;
@@ -101,7 +136,7 @@ export function AppShellTabs({
               }`}
             >
               <span className="block">{TAB_META[id].label}</span>
-              <span className="block text-[10px] font-normal text-[var(--gl-muted)]">{TAB_META[id].task}</span>
+              <span className="block text-xs font-normal text-[var(--gl-muted)]">{TAB_META[id].task}</span>
             </button>
           );
         })}
@@ -129,7 +164,7 @@ export function AppShellTabs({
         ) : (
           <div className="space-y-6">
             {decisionStrip}
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-[var(--gl-muted)]">
+            <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
               <p>
                 Validate procurement against your current parts assumptions before release. Export CSV from the parts
                 header, or open{" "}

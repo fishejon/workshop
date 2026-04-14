@@ -48,7 +48,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
   return (
     <section
       id="parts-table-section"
-      className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
+      className="gl-panel p-5"
       aria-labelledby="parts-table-title"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -154,8 +154,8 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
         <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Dresser results or manually.</p>
       ) : (
         <div className="mt-4 max-h-[min(60vh,640px)] overflow-auto rounded-xl border border-white/10">
-          <table className="w-full min-w-[880px] text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-[var(--gl-ink)]/98 text-[10px] tracking-wide text-[var(--gl-muted)] uppercase">
+          <table className="gl-numeric w-full min-w-[880px] text-left text-xs">
+            <thead className="sticky top-0 z-10 bg-[var(--gl-ink)]/98 text-xs tracking-wide text-[var(--gl-muted)] uppercase">
               <tr>
                 <th className="px-2 py-2 font-medium">Name</th>
                 <th className="px-2 py-2 font-medium">Asm</th>
@@ -356,7 +356,7 @@ function PartRow({
           </select>
         </td>
         <td className="px-2 py-2">
-          <div className="max-w-[220px] space-y-1 text-[10px] leading-snug text-[var(--gl-muted)]">
+          <div className="max-w-[220px] space-y-1 text-xs leading-snug text-[var(--gl-muted)]">
             <p>{assumptions.joinery}</p>
             <p>{assumptions.glueUp}</p>
           </div>
@@ -392,14 +392,14 @@ function PartRow({
           <div className="flex flex-col gap-1">
             <button
               type="button"
-              className="text-[10px] text-[var(--gl-copper-bright)] hover:underline"
+              className="text-xs text-[var(--gl-copper-bright)] hover:underline"
               onClick={onToggleExplain}
             >
               {openExplain ? "Hide why" : "Why?"}
             </button>
             <button
               type="button"
-              className="text-[10px] text-white/40 hover:text-red-300"
+              className="text-xs text-white/40 hover:text-red-300"
               onClick={onRemove}
             >
               Remove
@@ -421,7 +421,7 @@ function PartRow({
 function ProvenancePill({ title, children }: { title: string; children: ReactNode }) {
   return (
     <span
-      className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-[10px] text-[var(--gl-cream-soft)]"
+      className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-xs text-[var(--gl-cream-soft)]"
       title={title}
     >
       {children}
@@ -437,12 +437,12 @@ function Dim3Inputs({
   onChange: (d: { t: number; w: number; l: number }) => void;
 }) {
   const field = (key: "t" | "w" | "l", label: string): ReactNode => (
-    <label className="flex items-center gap-1 text-[10px] text-[var(--gl-muted)]">
+    <label className="flex items-center gap-1 text-xs text-[var(--gl-muted)]">
       <span>{label}</span>
       <input
         type="number"
         step="any"
-        className="input-wood w-[4.25rem] py-1 text-[10px]"
+        className="input-wood w-[4.25rem] py-1 text-xs"
         value={Number.isFinite(dim[key]) ? dim[key] : 0}
         onChange={(e) => {
           const v = Number.parseFloat(e.target.value);
@@ -458,7 +458,7 @@ function Dim3Inputs({
         {field("w", "W")}
         {field("l", "L")}
       </div>
-      <span className="text-[9px] text-[var(--gl-muted)]">
+      <span className="text-xs text-[var(--gl-muted)]">
         {formatImperial(dim.t)} × {formatImperial(dim.w)} × {formatImperial(dim.l)}
       </span>
     </div>

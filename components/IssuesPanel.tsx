@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useProject } from "@/components/ProjectContext";
+import { prefersReducedMotion } from "@/lib/motion-preference";
 import type { ValidationIssue } from "@/lib/validation/types";
 
 const ISSUE_FALLBACK_TARGETS: Record<ValidationIssue["source"], { anchorId: string; label: string }> = {
@@ -33,7 +34,10 @@ function jumpToAnchor(anchorId: string) {
   if (!target.hasAttribute("tabindex")) {
     target.setAttribute("tabindex", "-1");
   }
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.scrollIntoView({
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+    block: "center",
+  });
   target.focus({ preventScroll: true });
 }
 
@@ -52,7 +56,7 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
 
   return (
     <section
-      className="rounded-2xl border border-white/10 bg-black/20 p-4"
+      className="gl-panel-muted p-4"
       role="region"
       aria-labelledby="issues-panel-title"
       aria-live="polite"
@@ -69,7 +73,7 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
       ) : (
         <div className="mt-3 space-y-3">
           {blockingWithTargets.length > 0 ? (
-            <div className="rounded-lg border border-red-300/30 bg-red-500/10 p-3">
+            <div className="rounded-xl border border-red-300/30 bg-red-500/10 p-3">
               <p className="text-xs font-medium text-red-100">
                 Blocking issues ({blockingWithTargets.length})
               </p>
@@ -79,7 +83,7 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
                     <p className="text-xs text-red-100/95">{issue.message}</p>
                     <button
                       type="button"
-                      className="mt-1 text-[11px] font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
+                      className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
                       onClick={() => jumpToAnchor(target.anchorId)}
                       aria-label={`Jump to ${target.label} for blocking issue`}
                     >
@@ -100,7 +104,7 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
                     <p className="text-xs text-amber-100/95">{issue.message}</p>
                     <button
                       type="button"
-                      className="mt-1 text-[11px] font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
+                      className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
                       onClick={() => jumpToAnchor(target.anchorId)}
                       aria-label={`Jump to ${target.label} for warning`}
                     >

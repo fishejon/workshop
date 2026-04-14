@@ -1068,7 +1068,7 @@ export function DresserPlanner() {
                 .
               </p>
               <div className="max-h-[min(55vh,520px)] overflow-auto rounded-xl border border-white/10">
-                <table className="w-full text-left text-sm">
+                <table className="gl-numeric w-full text-left text-sm">
                   <thead className="sticky top-0 bg-[var(--gl-ink)]/95 text-xs tracking-wide text-[var(--gl-muted)] uppercase">
                     <tr>
                       <th className="px-3 py-2 font-medium">Cell</th>

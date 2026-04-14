@@ -244,11 +244,13 @@ export function CutPlanner() {
                         style={{ width: `${pct}%` }}
                         title={cut.label ?? formatImperial(cut.lengthInches)}
                       >
-                        <span className="text-[10px] font-medium leading-tight text-[var(--gl-cream)] sm:text-xs">
+                        <span className="text-xs font-medium leading-tight text-[var(--gl-cream)]">
                           {formatImperial(cut.lengthInches)}
                         </span>
                         {cut.label ? (
-                          <span className="hidden truncate text-[9px] text-[var(--gl-muted)] sm:block">{cut.label}</span>
+                          <span className="hidden truncate text-xs leading-tight text-[var(--gl-muted)] sm:block">
+                            {cut.label}
+                          </span>
                         ) : null}
                       </div>
                     );

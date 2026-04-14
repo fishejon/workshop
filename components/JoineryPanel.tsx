@@ -428,7 +428,7 @@ export function JoineryPanel() {
   return (
     <section
       id="joinery-panel-section"
-      className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
+      className="gl-panel p-5"
       aria-labelledby="joinery-panel-title"
     >
       <button
@@ -487,7 +487,7 @@ export function JoineryPanel() {
                         <div className="ml-2 mt-1 space-y-2 border-l border-white/10 pl-3">
                           {group.assemblyGroups.map(([assembly, joints]) => (
                             <div key={`${group.applicationId}-${assembly}`} className="rounded-lg border border-white/10 bg-black/20 p-2">
-                              <p className="text-[11px] font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
+                              <p className="text-xs font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
                                 {assembly}
                               </p>
                               <ul className="mt-1 space-y-1">
@@ -504,22 +504,22 @@ export function JoineryPanel() {
                                   const linkedConnections = group.connectionByJointId.get(j.id) ?? [];
                                   return (
                                     <li key={j.id} className="rounded border border-white/10 bg-black/20 p-2">
-                                      <p className="text-[11px] text-[var(--gl-cream-soft)]">
+                                      <p className="text-xs text-[var(--gl-cream-soft)]">
                                         {formatJointRuleLabel(j.ruleId)} → {(part?.name || "Part").trim()}
                                         {mate ? ` ↔ ${(mate.name || "Part").trim()}` : ""}
                                       </p>
-                                      <p className="mt-0.5 text-[11px] text-[var(--gl-muted)]">{j.explanation}</p>
-                                      <p className="mt-0.5 font-mono text-[11px] text-[var(--gl-cream)]">
+                                      <p className="mt-0.5 text-xs text-[var(--gl-muted)]">{j.explanation}</p>
+                                      <p className="mt-0.5 font-mono text-xs text-[var(--gl-cream)]">
                                         ΔT {d.t.toFixed(3)}&quot; · ΔW {d.w.toFixed(3)}&quot; · ΔL {d.l.toFixed(3)}&quot;
                                       </p>
-                                      <p className="font-mono text-[11px] text-[var(--gl-muted)]">
+                                      <p className="font-mono text-xs text-[var(--gl-muted)]">
                                         Before {formatTxWxL(j.finishedBefore.t, j.finishedBefore.w, j.finishedBefore.l)}
                                       </p>
-                                      <p className="font-mono text-[11px] text-[var(--gl-copper-bright)]">
+                                      <p className="font-mono text-xs text-[var(--gl-copper-bright)]">
                                         After {formatTxWxL(j.finishedAfter.t, j.finishedAfter.w, j.finishedAfter.l)}
                                       </p>
                                       {linkedConnections.length > 0 ? (
-                                        <p className="mt-0.5 text-[11px] text-[var(--gl-muted)]">
+                                        <p className="mt-0.5 text-xs text-[var(--gl-muted)]">
                                           Connection:{" "}
                                           {linkedConnections
                                             .map((conn) => {
@@ -692,7 +692,7 @@ export function JoineryPanel() {
               </button>
               {advancedParamsOpen ? (
                 <div className="space-y-3 border-t border-white/10 px-3 py-3">
-                  <p className="text-[11px] leading-relaxed text-[var(--gl-muted)]">
+                  <p className="text-xs leading-relaxed text-[var(--gl-muted)]">
                     Override groove, panel, dado, or tenon numbers. Rule changes reset to recommended values.
                   </p>
                   {ruleId === "groove_quarter_back" ? (
@@ -919,7 +919,7 @@ export function JoineryPanel() {
               </button>
               {edgeMetadataOpen ? (
                 <div className="space-y-2 border-t border-white/10 px-3 py-3">
-                  <p className="text-[11px] leading-relaxed text-[var(--gl-muted)]">
+                  <p className="text-xs leading-relaxed text-[var(--gl-muted)]">
                     Add mate/edge notes only when you need traceable edge-level provenance in the joint log.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
