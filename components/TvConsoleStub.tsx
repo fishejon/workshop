@@ -47,7 +47,7 @@ export function TvConsoleStub() {
   const canAdd = w !== null && h !== null && d !== null && t !== null && w > 2 * t;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
+    <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6 shadow-[0_0_0_1px_var(--gl-border)]">
       <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">TV console (experimental)</h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--gl-muted)]">
         Early-access shell: overall box with a top, two sides, and one fixed shelf sized to inside width. Wire
@@ -78,7 +78,7 @@ export function TvConsoleStub() {
         type="button"
         disabled={!canAdd}
         onClick={handleAddShell}
-        className="mt-6 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-6 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         Add shell parts to project
       </button>

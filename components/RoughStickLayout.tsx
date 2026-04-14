@@ -92,7 +92,10 @@ export function RoughStickLayout() {
           </div>
 
           {showError ? (
-            <p className="mt-4 rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-200" role="alert">
+            <p
+              className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] px-4 py-3 text-sm text-[var(--gl-danger)]"
+              role="alert"
+            >
               {showError}
             </p>
           ) : null}
@@ -111,7 +114,7 @@ export function RoughStickLayout() {
                 {packed.boards.map((board) => (
                   <li
                     key={board.index}
-                    className="rounded-xl border border-white/10 bg-black/20 p-4 backdrop-blur-sm"
+                    className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
                       <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
@@ -120,7 +123,7 @@ export function RoughStickLayout() {
                       </span>
                     </div>
 
-                    <div className="mt-3 flex h-12 w-full overflow-hidden rounded-lg bg-black/40 ring-1 ring-white/10">
+                    <div className="mt-3 flex h-12 w-full overflow-hidden rounded-lg bg-[var(--gl-surface-inset)] ring-1 ring-[var(--gl-border)]">
                       {board.cuts.map((cut, i) => {
                         const pct = Math.max(4, (cut.lengthInches / board.stockLengthInches) * 100);
                         return (

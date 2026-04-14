@@ -11,10 +11,10 @@ type DecisionStripProps = {
 };
 
 const TONE_STYLES: Record<DecisionStripTone, string> = {
-  neutral: "border-white/15 bg-white/[0.04] text-[var(--gl-cream-soft)]",
-  warning: "border-amber-300/35 bg-amber-300/10 text-amber-100",
-  blocked: "border-red-300/35 bg-red-500/10 text-red-100",
-  ready: "border-emerald-300/35 bg-emerald-500/10 text-emerald-100",
+  neutral: "border-[var(--gl-border)] bg-[var(--gl-surface-muted)] text-[var(--gl-text-soft)]",
+  warning: "border-[color-mix(in_srgb,var(--gl-warning)_35%,var(--gl-border))] bg-[var(--gl-warning-bg)] text-[var(--gl-warning)]",
+  blocked: "border-[color-mix(in_srgb,var(--gl-danger)_35%,var(--gl-border))] bg-[var(--gl-danger-bg)] text-[var(--gl-danger)]",
+  ready: "border-[color-mix(in_srgb,var(--gl-success)_35%,var(--gl-border))] bg-[var(--gl-success-bg)] text-[var(--gl-success)]",
 };
 
 export function DecisionStrip({ health, recommendation, ctaLabel, onCta, tone = "neutral" }: DecisionStripProps) {

@@ -180,7 +180,7 @@ export function GrainlineApp() {
       </div>
       <p
         className={`text-xs ${
-          canExportOrPrint ? "text-[var(--gl-copper-bright)]" : "text-[var(--gl-muted)]"
+          canExportOrPrint ? "text-[var(--gl-accent)]" : "text-[var(--gl-muted)]"
         }`}
         aria-live="polite"
       >
@@ -201,18 +201,8 @@ export function GrainlineApp() {
 
   return (
     <div className="relative min-h-full overflow-hidden">
-      <div
-        className="gl-noise pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        }}
-        aria-hidden
-      />
-      <div className="gl-glow pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-[var(--gl-copper)]/20 blur-[100px]" />
-      <div className="gl-glow pointer-events-none absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-[var(--gl-teal)]/15 blur-[90px]" />
-
       <div className="relative mx-auto max-w-[1600px] px-4 py-10 sm:px-6 lg:px-8">
-        <header className="mb-8 space-y-6 border-b border-white/10 pb-10">
+        <header className="mb-8 space-y-6 border-b border-[var(--gl-border)] pb-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-[var(--gl-copper-bright)] uppercase">
@@ -235,8 +225,8 @@ export function GrainlineApp() {
                   onClick={() => !p.disabled && setPreset(p.id)}
                   className={`rounded-full border px-4 py-2 text-left text-sm transition ${
                     preset === p.id
-                      ? "border-[var(--gl-copper-bright)] bg-[var(--gl-copper)]/20 text-[var(--gl-cream)]"
-                      : "border-white/15 bg-white/[0.04] text-[var(--gl-muted)] hover:border-white/25 hover:text-[var(--gl-cream-soft)]"
+                      ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text)]"
+                      : "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-text-soft)]"
                   } ${p.disabled ? "cursor-not-allowed opacity-40" : ""}`}
                 >
                   <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
@@ -245,8 +235,8 @@ export function GrainlineApp() {
               ))}
             </div>
           </div>
-          <div className="flex justify-end border-t border-white/10 pt-4">
-            <div className="flex max-w-xl items-start gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs text-[var(--gl-cream-soft)]">
+          <div className="flex justify-end border-t border-[var(--gl-border)] pt-4">
+            <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
               <input
                 id="show-experimental-presets"
                 type="checkbox"

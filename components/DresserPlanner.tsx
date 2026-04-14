@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
+import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 import {
   DRESSER_ASSEMBLIES,
   DRESSER_DEFAULT_ROW_COUNT,
@@ -66,14 +67,6 @@ export function DresserPlanner() {
   const [sideT, setSideT] = useState("0.75");
   const [centerSupportT, setCenterSupportT] = useState("0.75");
   const [topPanelT, setTopPanelT] = useState("0.75");
-  const [maxBoardDraft, setMaxBoardDraft] = useState(() =>
-    String(project.maxPurchasableBoardWidthInches)
-  );
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect -- sync draft when Setup (or other UI) changes project field */
-    setMaxBoardDraft(String(project.maxPurchasableBoardWidthInches));
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [project.maxPurchasableBoardWidthInches]);
   const [columns, setColumns] = useState<DresserColumnCount>(2);
   const [rows, setRows] = useState(String(DRESSER_DEFAULT_ROW_COUNT));
   /** Each drawer row opening height in inches (must sum to case budget — see hint below). */
@@ -589,13 +582,21 @@ export function DresserPlanner() {
   return (
     <div className="space-y-8">
       <div className="space-y-8">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
+        <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6 shadow-[0_0_0_1px_var(--gl-border)]">
           <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Intent-first case inputs</h2>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
             Define the cabinet by intent first: overall envelope, structural thicknesses, then target drawer
             opening heights by row. The planner computes what those choices imply for every opening and box.
           </p>
-          <details className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[var(--gl-muted)]">
+          <p className="mt-4 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
+            <strong className="text-[var(--gl-cream-soft)]">What you type vs what the app fills in:</strong> every
+            field in this intent section is yours to enter or choose. The{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Calculated outputs</strong> block below is read-only math
+            from those inputs. Cutlist parts do not change until you press{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Generate / replace dresser parts</strong> — see the
+            Materials tab for parts, buy list, and procurement.
+          </p>
+          <details className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-muted)]">
             <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">
               Quick glossary
             </summary>
@@ -621,45 +622,49 @@ export function DresserPlanner() {
               </li>
             </ul>
           </details>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <Field label="Overall width (outside)">
+          <p className="mt-5 text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Your inputs — case envelope &amp; stock
+          </p>
+          <div className="mt-2 grid gap-4 sm:grid-cols-3">
+            <Field label="Overall width (outside)" source="manual">
               <In value={outerW} onChange={setOuterW} />
             </Field>
-            <Field label="Overall height (outside)">
+            <Field label="Overall height (outside)" source="manual">
               <In value={outerH} onChange={setOuterH} />
             </Field>
-            <Field label="Overall depth (outside)">
+            <Field label="Overall depth (outside)" source="manual">
               <In value={outerD} onChange={setOuterD} />
             </Field>
-            <Field label="Case side thickness">
+            <Field label="Case side thickness" source="manual">
               <In value={sideT} onChange={setSideT} hint="Primary side stock thickness (e.g. 3/4)." />
             </Field>
-            <Field label="Center support / divider thickness">
+            <Field label="Center support / divider thickness" source="manual">
               <In
                 value={centerSupportT}
                 onChange={setCenterSupportT}
                 hint="Vertical column divider thickness used in opening-width math."
               />
             </Field>
-            <Field label="Top panel thickness">
+            <Field label="Top panel thickness" source="manual">
               <In
                 value={topPanelT}
                 onChange={setTopPanelT}
                 hint="Case top stock thickness for parts output (separate from top assembly height)."
               />
             </Field>
-            <Field label="Max purchasable board width">
-              <In
-                value={maxBoardDraft}
-                onChange={(v) => {
-                  setMaxBoardDraft(v);
-                  const parsed = parsePositive(v);
-                  if (parsed !== null) setMaxPurchasableBoardWidthInches(parsed);
-                }}
-                hint="Same as Project setup—glue-up planning for wide top/sides and materials assumptions."
+            <Field
+              label="Max purchasable board (nominal stock)"
+              source="manual"
+              hint="Pick the widest dressed board you actually buy (same setting as Project setup). Used for glue-up strip planning and buy-list width checks."
+            >
+              <NominalStockWidthSelect
+                valueInches={project.maxPurchasableBoardWidthInches}
+                onChangeInches={(n) => setMaxPurchasableBoardWidthInches(Math.max(0.0001, n))}
+                selectId="dresser-max-board-nominal"
+                customInputId="dresser-max-board-custom-in"
               />
             </Field>
-            <Field label="Columns (vertical stacks)">
+            <Field label="Columns (vertical stacks)" source="manual">
               <select
                 className="input-wood"
                 value={columns}
@@ -670,7 +675,7 @@ export function DresserPlanner() {
                 <option value={3}>Three columns</option>
               </select>
             </Field>
-            <Field label="Drawer rows (horizontal bands)">
+            <Field label="Drawer rows (horizontal bands)" source="manual">
               <input
                 className="input-wood"
                 type="number"
@@ -691,7 +696,7 @@ export function DresserPlanner() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">
-                  Drawer row opening heights
+                  Your inputs — drawer row opening heights
                 </p>
                 <p className="mt-1 text-sm text-[var(--gl-muted)]">
                   Enter the <strong className="text-[var(--gl-cream-soft)]">clear opening height</strong> you
@@ -702,7 +707,7 @@ export function DresserPlanner() {
               </div>
               <button
                 type="button"
-                className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
+                className="shrink-0 rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
                 onClick={fillEqualRowOpenings}
               >
                 Split target equally
@@ -722,6 +727,7 @@ export function DresserPlanner() {
                 <Field
                   key={`row-h-${i}`}
                   label={`Row ${i + 1} opening height`}
+                  source="manual"
                   hint="Inside height of the drawer opening for this band."
                 >
                   <In
@@ -735,39 +741,55 @@ export function DresserPlanner() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <p className="mt-6 text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Your inputs — layout, back, slides &amp; joinery
+          </p>
+          <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field
               label="Toe kick (optional)"
+              source="manual"
               hint="0 = none (e.g. legs/feet hold the box up). Otherwise recessed height under the front—no drawers in this band."
             >
               <In value={kick} onChange={setKick} placeholder="0" />
             </Field>
             <Field
               label="Top assembly height"
+              source="manual"
               hint="From the very top of the cabinet down to the top of the uppermost drawer opening (top, subtop, dust shelf, apron, intentional gap)."
             >
               <In value={topAsm} onChange={setTopAsm} />
             </Field>
-            <Field label="Bottom panel thickness" hint="Thickness of the bottom structure the lowest drawers sit on/above.">
+            <Field
+              label="Bottom panel thickness"
+              source="manual"
+              hint="Thickness of the bottom structure the lowest drawers sit on/above."
+            >
               <In value={bottomPanel} onChange={setBottomPanel} />
             </Field>
             <Field
               label="Rail between drawers"
+              source="manual"
               hint="Horizontal frame member between stacked drawer openings (subtracts from drawer stack height)."
             >
               <In value={rail} onChange={setRail} />
             </Field>
-            <Field label="Back panel thickness" hint="Thickness of the cabinet back (e.g. 1/4″ ply or shiplap).">
+            <Field
+              label="Back panel thickness"
+              source="manual"
+              hint="Thickness of the cabinet back (e.g. 1/4″ ply or shiplap)."
+            >
               <In value={backT} onChange={setBackT} />
             </Field>
             <Field
               label="Rear clearance (behind drawer box)"
+              source="manual"
               hint="Depth you reserve between the drawer box back and the cabinet back—slack for install, wiring, or wood movement."
             >
               <In value={rearClear} onChange={setRearClear} />
             </Field>
             <Field
               label="Case joinery style (reference)"
+              source="manual"
               hint="Reference only for now; use this to keep your case-part assumptions explicit."
             >
               <select
@@ -783,11 +805,11 @@ export function DresserPlanner() {
             </Field>
           </div>
           {carcassResult.ok === false ? (
-            <p className="mt-4 text-sm text-red-300/90">{carcassResult.message}</p>
+            <p className="mt-4 text-sm text-[var(--gl-danger)]">{carcassResult.message}</p>
           ) : null}
           <button
             type="button"
-            className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
             disabled={carcassResult.ok !== true}
             onClick={handleAddCaseParts}
           >
@@ -798,13 +820,13 @@ export function DresserPlanner() {
           </p>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+        <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6">
           <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Slide + joinery intent</h2>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
             Choose hardware style and joinery assumptions explicitly. Final drawer box dimensions are calculated from these allowances.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Slide style preset">
+            <Field label="Slide style preset" source="manual">
               <select
                 className="input-wood"
                 value={slidePreset}
@@ -817,24 +839,24 @@ export function DresserPlanner() {
                 ))}
               </select>
             </Field>
-            <Field label="Slide length (nominal)">
+            <Field label="Slide length (nominal)" source="manual">
               <In value={slideLen} onChange={setSlideLen} hint="Box depth = min(this, usable depth)" />
             </Field>
-            <Field label="Slide width clearance (opening -> box)">
+            <Field label="Slide width clearance (opening -> box)" source="manual">
               <In value={slideWClr} onChange={(v) => {
                 setSlideWClr(v);
                 setSlidePreset("custom");
               }}
               />
             </Field>
-            <Field label="Slide height clearance (opening -> box)">
+            <Field label="Slide height clearance (opening -> box)" source="manual">
               <In value={slideHClr} onChange={(v) => {
                 setSlideHClr(v);
                 setSlidePreset("custom");
               }}
               />
             </Field>
-            <Field label="Drawer joinery style preset">
+            <Field label="Drawer joinery style preset" source="manual">
               <select
                 className="input-wood"
                 value={drawerJoineryPreset}
@@ -848,19 +870,19 @@ export function DresserPlanner() {
                 <option value="custom">Custom joinery allowance</option>
               </select>
             </Field>
-            <Field label="Drawer side material thickness" hint="Preset formulas use this as t.">
+            <Field label="Drawer side material thickness" source="manual" hint="Preset formulas use this as t.">
               <In value={drawerJoineryMaterialThickness} onChange={setDrawerJoineryMaterialThickness} />
             </Field>
             {drawerJoineryPreset === "dovetail_half_lap" ? (
               <>
-                <Field label="Half-lap ratio (per side)">
+                <Field label="Half-lap ratio (per side)" source="manual">
                   <In
                     value={drawerJoineryHalfLapRatio}
                     onChange={setDrawerJoineryHalfLapRatio}
                     hint="Used when explicit depth is blank."
                   />
                 </Field>
-                <Field label="Half-lap depth per side (optional)">
+                <Field label="Half-lap depth per side (optional)" source="manual">
                   <In
                     value={drawerJoineryHalfLapDepth}
                     onChange={setDrawerJoineryHalfLapDepth}
@@ -869,7 +891,7 @@ export function DresserPlanner() {
                 </Field>
               </>
             ) : null}
-            <Field label="Joinery width allowance (total)">
+            <Field label="Joinery width allowance (total)" source="manual">
               <In
                 value={drawerJoineryW}
                 onChange={(v) => {
@@ -879,7 +901,7 @@ export function DresserPlanner() {
                 hint="Extra total width removed from opening beyond slide clearance."
               />
             </Field>
-            <Field label="Joinery height allowance (total)">
+            <Field label="Joinery height allowance (total)" source="manual">
               <In
                 value={drawerJoineryH}
                 onChange={(v) => {
@@ -890,7 +912,7 @@ export function DresserPlanner() {
               />
             </Field>
           </div>
-          <p className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-[var(--gl-muted)]">
+          <p className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
             Formula used: <strong className="text-[var(--gl-cream)]">box width = opening width − slide width clearance − joinery width allowance</strong> and{" "}
             <strong className="text-[var(--gl-cream)]">box height = opening height − slide height clearance − joinery height allowance</strong>.
           </p>
@@ -911,7 +933,7 @@ export function DresserPlanner() {
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {Array.from({ length: rowCount }, (_, i) => (
-              <Field key={`bs-${i}`} label={`Opening height row ${i + 1}`}>
+              <Field key={`bs-${i}`} label={`Opening height row ${i + 1}`} source="manual">
                 <In
                   value={backsolve[i] ?? ""}
                   onChange={(v) =>
@@ -923,7 +945,7 @@ export function DresserPlanner() {
             ))}
           </div>
           {backsolveResult && "error" in backsolveResult ? (
-            <p className="mt-3 text-sm text-red-300/90">{backsolveResult.error}</p>
+            <p className="mt-3 text-sm text-[var(--gl-danger)]">{backsolveResult.error}</p>
           ) : null}
           {backsolveResult && "suggested" in backsolveResult && typeof backsolveResult.suggested === "number" ? (
             <p className="mt-3 text-sm text-[var(--gl-cream)]">
@@ -938,7 +960,7 @@ export function DresserPlanner() {
       </div>
 
       <div className="space-y-6">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="rounded-2xl border border-[var(--gl-border)] bg-gradient-to-b from-[var(--gl-surface)] to-[var(--gl-bg)] p-5 shadow-[inset_0_1px_0_var(--gl-border)]">
           <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
             Visual preview only
           </p>
@@ -960,12 +982,16 @@ export function DresserPlanner() {
           />
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+        <div className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-5">
           <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
             Calculated outputs
           </p>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            These values are derived from the intent inputs above. They update live as you edit; they are not separate
+            fields to fill in.
+          </p>
           <div className="mt-4 space-y-4">
-            <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
+            <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
               <p className="font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
                 Intent-derived case outputs
               </p>
@@ -1013,7 +1039,7 @@ export function DresserPlanner() {
               </p>
             </div>
             {result.ok === false ? (
-              <p className="text-sm text-red-300/90">{result.message}</p>
+              <p className="text-sm text-[var(--gl-danger)]">{result.message}</p>
             ) : (
               <>
               <p className="text-sm text-[var(--gl-muted)]">
@@ -1031,7 +1057,7 @@ export function DresserPlanner() {
                 Drawer-zone height{" "}
                 <strong className="text-[var(--gl-cream)]">{fmtInches(result.drawerZoneHeight)}</strong>
               </p>
-              <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
+              <p className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
                 Final drawer formulas:
                 <span className="block mt-1">
                   box width = opening width - slide width clearance - joinery width allowance
@@ -1050,7 +1076,7 @@ export function DresserPlanner() {
                 {Math.max(columns - 1, 0)} × {fmtInches(parsePositive(centerSupportT) ?? 0)}) / {columns} ={" "}
                 {fmtInches(result.columnInnerWidth)}.
               </p>
-              <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
+              <p className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
                 Build-critical clearances: side clearance per side ≈{" "}
                 <strong className="text-[var(--gl-cream)]">
                   {fmtInches((parseInches(slideWClr) ?? 0) / 2)}
@@ -1067,7 +1093,7 @@ export function DresserPlanner() {
                 </strong>
                 .
               </p>
-              <div className="max-h-[min(55vh,520px)] overflow-auto rounded-xl border border-white/10">
+              <div className="max-h-[min(55vh,520px)] overflow-auto rounded-xl border border-[var(--gl-border)]">
                 <table className="gl-numeric w-full text-left text-sm">
                   <thead className="sticky top-0 bg-[var(--gl-ink)]/95 text-xs tracking-wide text-[var(--gl-muted)] uppercase">
                     <tr>
@@ -1076,9 +1102,9 @@ export function DresserPlanner() {
                       <th className="px-3 py-2 font-medium">Box W×H×D</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/10 text-[var(--gl-cream)]">
+                  <tbody className="divide-y divide-[var(--gl-border)] text-[var(--gl-cream)]">
                     {result.cells.map((c) => (
-                      <tr key={`${c.columnIndex}-${c.rowIndex}`} className="bg-white/[0.02]">
+                      <tr key={`${c.columnIndex}-${c.rowIndex}`} className="bg-[var(--gl-surface-inset)]">
                         <td className="px-3 py-2.5 font-medium">{c.label}</td>
                         <td className="px-3 py-2.5 text-[var(--gl-muted)]">
                           {fmtInches(c.openingWidth)} × {fmtInches(c.openingHeight)}
@@ -1099,7 +1125,7 @@ export function DresserPlanner() {
               </p>
               <button
                 type="button"
-                className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)]"
+                className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)]"
                 onClick={handleAddDrawerParts}
               >
                 2) Add drawer boxes (append)
@@ -1127,7 +1153,7 @@ export function DresserPlanner() {
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
               disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
               onClick={handleAppendAllDresserParts}
             >
@@ -1135,7 +1161,7 @@ export function DresserPlanner() {
             </button>
             <button
               type="button"
-              className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-[var(--gl-cream)] transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-cream)] transition hover:bg-[var(--gl-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
               disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
               onClick={handleReplaceDresserParts}
             >
@@ -1201,7 +1227,7 @@ function RowOpeningBudgetHint({
   const allValid = vals.every((v) => v !== null && v > 0);
   const currentSum = allValid ? vals.reduce<number>((a, b) => a + (b as number), 0) : null;
   return (
-    <p className="mt-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-[var(--gl-muted)]">
+    <p className="mt-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
       Opening heights must sum to{" "}
       <strong className="text-[var(--gl-cream)]">{fmtInches(bud)}</strong>
       {currentSum !== null ? (
@@ -1209,12 +1235,12 @@ function RowOpeningBudgetHint({
           {" "}
           · Current sum: <strong className="text-[var(--gl-cream)]">{fmtInches(currentSum)}</strong>
           {Math.abs(currentSum - bud) > 1 / 32 ? (
-            <span className="text-amber-200/90">
+            <span className="text-[var(--gl-warning)]">
               {" "}
               — off by {fmtInches(Math.abs(currentSum - bud))} (±{fmtInches(1 / 32)} allowed)
             </span>
           ) : (
-            <span className="text-emerald-200/80"> — balanced</span>
+            <span className="text-[var(--gl-success)]"> — balanced</span>
           )}
         </>
       ) : (
@@ -1228,14 +1254,24 @@ function Field({
   label,
   children,
   hint,
+  source,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  /** Marks fields the user edits (vs read-only calculated blocks elsewhere). */
+  source?: "manual";
 }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm">
-      <span className="font-medium text-[var(--gl-cream-soft)]">{label}</span>
+      <span className="flex flex-wrap items-center gap-2 font-medium text-[var(--gl-cream-soft)]">
+        {label}
+        {source === "manual" ? (
+          <span className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-1.5 py-0.5 text-[10px] font-normal tracking-wide text-[var(--gl-muted)] uppercase">
+            Your input
+          </span>
+        ) : null}
+      </span>
       {children}
       {hint ? <span className="text-xs leading-snug text-[var(--gl-muted)]">{hint}</span> : null}
     </label>

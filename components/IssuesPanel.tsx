@@ -69,18 +69,18 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
       </p>
 
       {!hasIssues ? (
-        <p className="mt-3 text-xs text-[var(--gl-copper-bright)]">No issues currently detected.</p>
+        <p className="mt-3 text-xs text-[var(--gl-accent)]">No issues currently detected.</p>
       ) : (
         <div className="mt-3 space-y-3">
           {blockingWithTargets.length > 0 ? (
-            <div className="rounded-xl border border-red-300/30 bg-red-500/10 p-3">
-              <p className="text-xs font-medium text-red-100">
+            <div className="rounded-xl border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] p-3">
+              <p className="text-xs font-medium text-[var(--gl-danger)]">
                 Blocking issues ({blockingWithTargets.length})
               </p>
               <ul className="mt-2 space-y-2" aria-label="Blocking issues list">
                 {blockingWithTargets.map(({ issue, target }) => (
-                  <li key={issue.id} className="rounded border border-white/10 bg-black/20 p-2">
-                    <p className="text-xs text-red-100/95">{issue.message}</p>
+                  <li key={issue.id} className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface)] p-2">
+                    <p className="text-xs text-[var(--gl-danger)]">{issue.message}</p>
                     <button
                       type="button"
                       className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
@@ -96,12 +96,12 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
           ) : null}
 
           {warningWithTargets.length > 0 ? (
-            <div className="rounded-lg border border-amber-300/30 bg-amber-500/10 p-3">
-              <p className="text-xs font-medium text-amber-100">Warnings ({warningWithTargets.length})</p>
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--gl-warning)_30%,var(--gl-border))] bg-[var(--gl-warning-bg)] p-3">
+              <p className="text-xs font-medium text-[var(--gl-warning)]">Warnings ({warningWithTargets.length})</p>
               <ul className="mt-2 space-y-2" aria-label="Warning issues list">
                 {warningWithTargets.map(({ issue, target }) => (
-                  <li key={issue.id} className="rounded border border-white/10 bg-black/20 p-2">
-                    <p className="text-xs text-amber-100/95">{issue.message}</p>
+                  <li key={issue.id} className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface)] p-2">
+                    <p className="text-xs text-[var(--gl-warning)]">{issue.message}</p>
                     <button
                       type="button"
                       className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"

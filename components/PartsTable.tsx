@@ -61,7 +61,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-2 py-1">
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-2 py-1">
             <select
               className="input-wood py-1.5 text-xs"
               value={selectedAssemblyToDuplicate}
@@ -75,7 +75,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             </select>
             <button
               type="button"
-              className="rounded-lg border border-white/20 px-2 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-white/10 disabled:opacity-40"
+              className="rounded-lg border border-[var(--gl-border-strong)] px-2 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)] disabled:opacity-40"
               disabled={!project.parts.some((part) => part.assembly === selectedAssemblyToDuplicate)}
               onClick={() => duplicateAssemblyGroup(selectedAssemblyToDuplicate)}
             >
@@ -84,7 +84,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           </div>
           <button
             type="button"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
+            className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
             onClick={() =>
               addPart({
                 name: "New part",
@@ -102,7 +102,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           </button>
           <button
             type="button"
-            className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
             onClick={() => {
               if (
                 confirm("Clear all parts? Joinery history for this project will also be removed.")
@@ -136,7 +136,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       ) : null}
       {blockingValidationIssues.length > 0 ? (
         <ul
-          className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-200/90"
+          className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--gl-danger)]"
           aria-label={`Blocking issues: ${blockingValidationIssues.length}`}
         >
           {blockingValidationIssues.slice(0, 4).map((issue) => (
@@ -145,7 +145,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
         </ul>
       ) : null}
       {warningValidationIssues.length > 0 ? (
-        <p className="mt-2 text-xs text-amber-200/90">
+        <p className="mt-2 text-xs text-[var(--gl-warning)]">
           {warningValidationIssues.length} warning{warningValidationIssues.length === 1 ? "" : "s"} detected. Review before handoff.
         </p>
       ) : null}
@@ -153,7 +153,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       {project.parts.length === 0 ? (
         <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Dresser results or manually.</p>
       ) : (
-        <div className="mt-4 max-h-[min(60vh,640px)] overflow-auto rounded-xl border border-white/10">
+        <div className="mt-4 max-h-[min(60vh,640px)] overflow-auto rounded-xl border border-[var(--gl-border)]">
           <table className="gl-numeric w-full min-w-[880px] text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[var(--gl-ink)]/98 text-xs tracking-wide text-[var(--gl-muted)] uppercase">
               <tr>
@@ -172,7 +172,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                 <th className="px-2 py-2 font-medium" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10 text-[var(--gl-cream)]">
+            <tbody className="divide-y divide-[var(--gl-border)] text-[var(--gl-cream)]">
               {project.parts.map((p) => (
                 <PartRow
                   key={p.id}
@@ -252,7 +252,7 @@ function PartRow({
 
   return (
     <>
-      <tr id={`part-row-${part.id}`} tabIndex={-1} className="bg-white/[0.02] align-top">
+      <tr id={`part-row-${part.id}`} tabIndex={-1} className="bg-[var(--gl-surface-inset)] align-top">
         <td className="px-2 py-2">
           <input
             className="input-wood max-w-[140px] py-1.5 text-xs"
@@ -399,7 +399,7 @@ function PartRow({
             </button>
             <button
               type="button"
-              className="text-xs text-white/40 hover:text-red-300"
+              className="text-xs text-[var(--gl-muted)] hover:text-[var(--gl-danger)]"
               onClick={onRemove}
             >
               Remove
@@ -408,7 +408,7 @@ function PartRow({
         </td>
       </tr>
       {openExplain ? (
-        <tr className="bg-black/25">
+        <tr className="bg-[var(--gl-surface-muted)]">
           <td colSpan={13} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
             {summary}
           </td>
@@ -421,7 +421,7 @@ function PartRow({
 function ProvenancePill({ title, children }: { title: string; children: ReactNode }) {
   return (
     <span
-      className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-xs text-[var(--gl-cream-soft)]"
+      className="rounded-full border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-2 py-0.5 text-xs text-[var(--gl-cream-soft)]"
       title={title}
     >
       {children}

@@ -101,7 +101,7 @@ export function CutPlanner() {
         </p>
       </header>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+      <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6">
         <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Shop setup</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">
@@ -127,12 +127,12 @@ export function CutPlanner() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+      <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Parts</h3>
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-[var(--gl-cream)] transition hover:bg-white/15"
+            className="inline-flex items-center justify-center rounded-xl border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm font-medium text-[var(--gl-cream)] transition hover:bg-[var(--gl-surface-muted)]"
             onClick={() => setParts((rows) => [...rows, { id: nextId(), label: "", length: "", qty: "1" }])}
           >
             Add part
@@ -178,7 +178,7 @@ export function CutPlanner() {
               />
               <button
                 type="button"
-                className="rounded-lg p-2 text-sm text-white/35 transition hover:bg-white/10 hover:text-[var(--gl-cream)]"
+                className="rounded-lg p-2 text-sm text-[var(--gl-muted)] transition hover:bg-[var(--gl-surface-muted)] hover:text-[var(--gl-cream)]"
                 aria-label="Remove part"
                 onClick={() => setParts((rows) => rows.filter((r) => r.id !== row.id))}
               >
@@ -191,7 +191,7 @@ export function CutPlanner() {
         <div className="mt-6">
           <button
             type="button"
-            className="rounded-xl bg-[var(--gl-copper)] px-5 py-3 text-sm font-semibold text-[var(--gl-bg)] shadow-lg shadow-black/30 transition hover:bg-[var(--gl-copper-bright)]"
+            className="rounded-xl bg-[var(--gl-copper)] px-5 py-3 text-sm font-semibold text-[var(--gl-on-accent)] shadow-md shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition hover:bg-[var(--gl-copper-bright)]"
             onClick={runPlan}
           >
             Layout cuts
@@ -200,13 +200,19 @@ export function CutPlanner() {
       </section>
 
       {showError ? (
-        <p className="rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-200" role="alert">
+        <p
+          className="rounded-xl border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] px-4 py-3 text-sm text-[var(--gl-danger)]"
+          role="alert"
+        >
           {showError}
         </p>
       ) : null}
 
       {parsed.ok && result && "error" in result ? (
-        <p className="rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-200" role="alert">
+        <p
+          className="rounded-xl border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] px-4 py-3 text-sm text-[var(--gl-danger)]"
+          role="alert"
+        >
           {result.error}
         </p>
       ) : null}
@@ -225,7 +231,7 @@ export function CutPlanner() {
             {result.boards.map((board) => (
               <li
                 key={board.index}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
+                className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
                   <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
@@ -234,7 +240,7 @@ export function CutPlanner() {
                   </span>
                 </div>
 
-                <div className="mt-4 flex h-14 w-full overflow-hidden rounded-lg bg-black/40 ring-1 ring-white/10">
+                <div className="mt-4 flex h-14 w-full overflow-hidden rounded-lg bg-[var(--gl-surface-inset)] ring-1 ring-[var(--gl-border)]">
                   {board.cuts.map((cut, i) => {
                     const pct = Math.max(4, (cut.lengthInches / board.stockLengthInches) * 100);
                     return (
@@ -270,7 +276,7 @@ export function CutPlanner() {
         </section>
       ) : null}
 
-      <footer className="border-t border-white/10 pt-8 text-xs leading-relaxed text-[var(--gl-muted)]">
+      <footer className="border-t border-[var(--gl-border)] pt-8 text-xs leading-relaxed text-[var(--gl-muted)]">
         <p>
           Sheet-good nesting and joinery allowances are still manual. Export from dresser cells into parts here when
           you want a stick layout.

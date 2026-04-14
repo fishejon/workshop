@@ -77,7 +77,7 @@ export function SideboardPlanner() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
+    <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6 shadow-[0_0_0_1px_var(--gl-border)]">
       <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Sideboard console</h2>
       <p className="mt-2 text-sm text-[var(--gl-muted)]">
         Archetype-backed shell planner using the shared casework pipeline (parts, joinery panel, buy list, print).
@@ -92,7 +92,7 @@ export function SideboardPlanner() {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
+          className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
           onClick={applyRecommendation}
         >
           Apply workshop defaults
@@ -100,15 +100,17 @@ export function SideboardPlanner() {
         <button
           type="button"
           disabled={!buildResult || buildResult.ok !== true}
-          className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={handleAdd}
         >
           Add sideboard shell parts
         </button>
       </div>
-      {buildResult && buildResult.ok === false ? <p className="mt-3 text-sm text-red-300/90">{buildResult.reason}</p> : null}
+      {buildResult && buildResult.ok === false ? (
+        <p className="mt-3 text-sm text-[var(--gl-danger)]">{buildResult.reason}</p>
+      ) : null}
       {warnings.length > 0 ? (
-        <ul className="mt-3 space-y-1 rounded-lg border border-amber-300/30 bg-amber-200/10 p-3 text-xs text-amber-100/90">
+        <ul className="mt-3 space-y-1 rounded-lg border border-[color-mix(in_srgb,var(--gl-warning)_30%,var(--gl-border))] bg-[var(--gl-warning-bg)] p-3 text-xs text-[var(--gl-warning)]">
           {warnings.map((warning) => (
             <li key={warning}>- {warning}</li>
           ))}

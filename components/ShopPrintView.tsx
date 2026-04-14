@@ -99,7 +99,7 @@ export function ShopPrintView() {
           </p>
           <section
             id="print-lock-section"
-            className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5"
+            className="rounded-xl border border-[var(--gl-border)] bg-white/80 p-5"
             aria-labelledby="print-lock-title"
           >
             <h1 id="print-lock-title" className="font-display text-2xl text-[var(--gl-ink)]">
@@ -167,7 +167,7 @@ export function ShopPrintView() {
           </Link>
         </p>
 
-        <header className="shop-print-section shop-print-avoid-break border-b border-[var(--gl-ink)]/20 pb-4">
+        <header className="shop-print-section shop-print-avoid-break border-b border-[var(--gl-border)] pb-4">
           <h1 className="font-display text-2xl tracking-tight text-[var(--gl-ink)]">{project.name}</h1>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex gap-2">
@@ -216,7 +216,7 @@ export function ShopPrintView() {
                   {project.parts.map((p) => {
                     const derived = derivePartAssumptionsDetailed(p, project.joints, project);
                     return (
-                      <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
+                      <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-border)]">
                         <td className="py-2 pr-3 align-top">{p.name}</td>
                         <td className="py-2 pr-3 align-top">{p.assembly}</td>
                         <td className="py-2 pr-3 align-top tabular-nums">{p.quantity}</td>
@@ -255,7 +255,7 @@ export function ShopPrintView() {
             procurement.
           </p>
           {purchasePreview ? (
-            <div className="mb-4 rounded-lg border border-[var(--gl-ink)]/25 bg-white/70 p-3 text-xs shop-print-muted">
+            <div className="mb-4 rounded-lg border border-[var(--gl-border)] bg-white/70 p-3 text-xs shop-print-muted">
               <p className="font-semibold text-[var(--gl-ink)]">2D board estimate (engineering model)</p>
               <p className="mt-1 text-[var(--gl-ink)]/90">{purchasePreview.twoDimensional.headline}</p>
               <p className="mt-1">{purchasePreview.twoDimensional.detail}</p>
@@ -292,20 +292,20 @@ export function ShopPrintView() {
                   return (
                     <li
                       key={g.key}
-                      className="shop-print-avoid-break rounded-lg border border-[var(--gl-ink)]/20 bg-white/60 p-4 text-sm"
+                      className="shop-print-avoid-break rounded-lg border border-[var(--gl-border)] bg-white/60 p-4 text-sm"
                     >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-semibold text-[var(--gl-ink)]">{g.materialLabel}</span>
                       <span className="text-xs shop-print-muted">{g.thicknessCategory}</span>
                     </div>
-                    <div className="mt-2 rounded border border-[var(--gl-ink)]/15 bg-white/70 p-2 text-xs shop-print-muted">
+                    <div className="mt-2 rounded border border-[var(--gl-border)] bg-white/70 p-2 text-xs shop-print-muted">
                       <p className="font-semibold text-[var(--gl-ink)]">2D estimate first</p>
                       <p className="mt-0.5 text-[var(--gl-ink)]/90">
                         ~{twoDGroup?.estimatedBoards2d ?? 0} board(s) by width + length packing
                       </p>
                       <p className="mt-0.5">{twoDGroup?.detail}</p>
                     </div>
-                    <div className="mt-2 rounded border border-[var(--gl-ink)]/15 bg-white/70 p-2 text-xs shop-print-muted">
+                    <div className="mt-2 rounded border border-[var(--gl-border)] bg-white/70 p-2 text-xs shop-print-muted">
                       <p className="font-semibold text-[var(--gl-ink)]">Assumptions</p>
                       <p className="mt-0.5">
                         Stock width assumed:{" "}
@@ -324,7 +324,7 @@ export function ShopPrintView() {
                         </p>
                       ))}
                     </div>
-                    <div className="mt-2 rounded border border-[var(--gl-ink)]/15 bg-white/70 p-2 text-xs shop-print-muted">
+                    <div className="mt-2 rounded border border-[var(--gl-border)] bg-white/70 p-2 text-xs shop-print-muted">
                       <p className="font-semibold text-[var(--gl-ink)]">BF / LF / cost diagnostics</p>
                       <p className="mt-0.5">
                         Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough

@@ -1,16 +1,48 @@
 @import "tailwindcss";
 
 :root {
-  --gl-bg: #141210;
-  --gl-ink: #1e1b18;
-  --gl-cream: #f4ede3;
-  --gl-cream-soft: #e8dfd2;
-  --gl-muted: #9c9185;
-  --gl-copper: #b87333;
-  --gl-copper-bright: #d4914d;
-  --gl-teal: #3d6b6b;
+  /* Page */
+  --gl-bg: #f0ebe3;
+
+  /* Surfaces */
+  --gl-surface: #ffffff;
+  --gl-surface-muted: #e8e2d8;
+  --gl-surface-inset: #f7f4ee;
+
+  /* Text */
+  --gl-text: #161412;
+  --gl-text-soft: #2a2724;
+  --gl-muted: #5e5952;
+
+  /* Accent — primary actions, focus, links, selected chrome */
+  --gl-accent: #2a5740;
+  --gl-accent-hover: #234a36;
+  --gl-accent-bright: #3d6f52;
+  --gl-accent-muted: #dfe8e2;
+  --gl-on-accent: #ffffff;
+
+  /* Semantic */
+  --gl-success: #166534;
+  --gl-success-bg: #dcfce7;
+  --gl-warning: #9a3412;
+  --gl-warning-bg: #ffedd5;
+  --gl-danger: #991b1b;
+  --gl-danger-bg: #fee2e2;
+
+  /* Borders */
+  --gl-border: #d4cdc2;
+  --gl-border-strong: #b8afa3;
+
+  /* Legacy names → new system (keep until call sites migrated) */
+  --gl-cream: var(--gl-text);
+  --gl-cream-soft: var(--gl-text-soft);
+  --gl-ink: #f4f1eb;
+  --gl-copper: var(--gl-accent);
+  --gl-copper-bright: var(--gl-accent-bright);
+  --gl-teal: var(--gl-accent);
+
   --background: var(--gl-bg);
-  --foreground: var(--gl-cream);
+  --foreground: var(--gl-text);
 }
 
 @theme inline {
@@ -26,39 +58,37 @@ html {
 
 body {
   background: var(--gl-bg);
-  color: var(--gl-cream);
+  color: var(--gl-text);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
 /*
-  Grainline surface kit — outer panels use 2xl radius, nested groups xl.
-  See docs/plans/ui-design-system-polish.md
+  Grainline surface kit — paper theme.
+  See docs/plans/theme-paper-ink-migration.md
 */
 .gl-panel {
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--gl-border);
+  background: var(--gl-surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
 
 .gl-panel-muted {
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--gl-border);
+  background: var(--gl-surface-muted);
 }
 
 .gl-panel-nested {
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--gl-border);
+  background: var(--gl-surface-inset);
 }
 
-/** Guided step sequence — visually lighter than main tabs/panels */
 .gl-stepper-shell {
   border-radius: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--gl-border);
+  background: color-mix(in srgb, var(--gl-surface) 92%, var(--gl-bg));
   padding: 0.5rem 0.625rem;
 }
 
@@ -77,44 +107,42 @@ body {
 }
 
 .gl-btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--gl-copper-bright) 90%, transparent);
+  outline: 2px solid var(--gl-accent);
   outline-offset: 2px;
 }
 
 .gl-btn-primary {
-  border: 1px solid color-mix(in srgb, var(--gl-copper-bright) 55%, transparent);
-  background: color-mix(in srgb, var(--gl-copper) 80%, #0a0908);
-  color: var(--gl-cream);
+  border: 1px solid color-mix(in srgb, var(--gl-accent-bright) 45%, var(--gl-accent));
+  background: var(--gl-accent);
+  color: var(--gl-on-accent);
   padding: 0.5rem 0.75rem;
 }
 
 .gl-btn-primary:hover {
-  background: color-mix(in srgb, var(--gl-copper-bright) 35%, var(--gl-copper));
-  border-color: color-mix(in srgb, var(--gl-copper-bright) 75%, transparent);
+  background: var(--gl-accent-hover);
+  border-color: var(--gl-accent-hover);
 }
 
 .gl-btn-primary:active {
-  background: color-mix(in srgb, var(--gl-copper) 90%, #000);
+  background: color-mix(in srgb, var(--gl-accent) 88%, #000);
 }
 
 .gl-btn-ghost {
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--gl-cream);
+  border: 1px solid var(--gl-border-strong);
+  background: var(--gl-surface-muted);
+  color: var(--gl-text);
   padding: 0.5rem 0.75rem;
 }
 
 .gl-btn-ghost:hover {
-  border-color: rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--gl-border);
+  background: color-mix(in srgb, var(--gl-surface-muted) 85%, var(--gl-border));
 }
 
-/** Tabular figures for dimension columns and shop data */
 .gl-numeric {
   font-variant-numeric: tabular-nums;
 }
 
-/* Decorative layers — toned down when user prefers reduced motion */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto !important;
@@ -136,21 +164,21 @@ body {
 .input-wood {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--gl-border-strong);
+  background: #fff;
   padding: 0.625rem 0.75rem;
-  color: var(--gl-cream);
+  color: var(--gl-text);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .input-wood::placeholder {
-  color: rgba(255, 255, 255, 0.25);
+  color: #9c958c;
 }
 
 .input-wood:focus {
-  border-color: color-mix(in srgb, var(--gl-copper-bright) 50%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gl-copper) 25%, transparent);
+  border-color: color-mix(in srgb, var(--gl-accent) 55%, var(--gl-border-strong));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gl-accent) 22%, transparent);
 }
 
 .shop-print-muted {

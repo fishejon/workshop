@@ -7,13 +7,13 @@ import { formatImperial } from "@/lib/imperial";
 import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type ProjectTemplate } from "@/lib/project-types";
 import { MAX_PROJECT_LIBRARY_RECORDS, PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
 import { canExportOrPrintProject } from "@/lib/validation";
+import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 
 const OFFCUT_MODE_LABELS: Record<OffcutModeId, string> = {
   none: "Do not preserve offcuts",
   keep_serviceable: "Preserve serviceable offcuts",
 };
 const TRANSPORT_LENGTH_PRESETS = [72, 96, 120];
-const BOARD_WIDTH_PRESETS = [8, 12, 16, 20];
 const WASTE_PERCENT_PRESETS = [10, 15, 20];
 
 export function ProjectSetupBar() {
@@ -176,7 +176,7 @@ export function ProjectSetupBar() {
                 <button
                   key={preset}
                   type="button"
-                  className="rounded border border-white/15 px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  className="rounded border border-[var(--gl-border)] px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
                   onClick={() => setMaxTransportLengthInches(preset)}
                 >
                   {preset}&quot;
@@ -184,37 +184,18 @@ export function ProjectSetupBar() {
               ))}
             </div>
           </label>
-          <label className="text-sm">
-            <span className="text-[var(--gl-cream-soft)]">Max purchasable board width (in)</span>
-            <input
-              type="number"
-              step="any"
-              min={0.0001}
-              inputMode="decimal"
-              className="input-wood mt-1"
-              value={project.maxPurchasableBoardWidthInches}
-              onChange={(e) =>
-                setMaxPurchasableBoardWidthInches(
-                  Math.max(0.0001, Number.parseFloat(e.target.value) || 20)
-                )
-              }
-            />
-            <div className="mt-1 flex flex-wrap gap-1">
-              {BOARD_WIDTH_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className="rounded border border-white/15 px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
-                  onClick={() => setMaxPurchasableBoardWidthInches(preset)}
-                >
-                  {preset}&quot;
-                </button>
-              ))}
+          <div className="text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Max purchasable board (nominal stock)</span>
+            <div className="mt-1">
+              <NominalStockWidthSelect
+                valueInches={project.maxPurchasableBoardWidthInches}
+                onChangeInches={(n) => setMaxPurchasableBoardWidthInches(Math.max(0.0001, n))}
+                selectId="setup-max-board-nominal"
+                customInputId="setup-max-board-custom-in"
+                helperText="Uses dressed (actual) face width — e.g. a 2×4 is 3½″ wide, not 4″. Used for glue-up strip math and buy-list width assumptions."
+              />
             </div>
-            <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
-              Panel glue-up copy and buy-list width caveat (widest single board you shop for)
-            </span>
-          </label>
+          </div>
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Waste factor (%)</span>
             <input
@@ -233,7 +214,7 @@ export function ProjectSetupBar() {
                 <button
                   key={preset}
                   type="button"
-                  className="rounded border border-white/15 px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                  className="rounded border border-[var(--gl-border)] px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
                   onClick={() => setWasteFactorPercent(preset)}
                 >
                   {preset}%
@@ -275,12 +256,12 @@ export function ProjectSetupBar() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
             onClick={handleExportProject}
           >
             Export JSON
           </button>
-          <label className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]">
+          <label className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]">
             Import JSON
             <input
               ref={importInputRef}
@@ -323,7 +304,7 @@ export function ProjectSetupBar() {
                 type="button"
                 aria-disabled={true}
                 aria-describedby="print-lock-helper"
-                className="cursor-not-allowed rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-medium text-[var(--gl-muted)]"
+                className="cursor-not-allowed rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-center text-xs font-medium text-[var(--gl-muted)]"
                 title="Complete both Review (Release to shop) checkpoints to unlock print/export."
               >
                 Print shop sheet (locked)
@@ -339,7 +320,7 @@ export function ProjectSetupBar() {
           </div>
           <button
             type="button"
-            className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
             onClick={() => {
               if (confirm("Reset project to defaults? Parts will be cleared.")) resetProject();
             }}
@@ -354,7 +335,7 @@ export function ProjectSetupBar() {
           aria-live="polite"
           className={`mt-2 text-xs ${
             /could not parse|import file was empty|invalid json|schema|integrity/i.test(transferStatus)
-              ? "text-amber-200/90"
+              ? "text-[var(--gl-warning)]"
               : "text-[var(--gl-cream-soft)]"
           }`}
         >
@@ -367,10 +348,10 @@ export function ProjectSetupBar() {
         </div>
       ) : null}
       {blockingValidationIssues.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-red-300/30 bg-red-500/10 p-3">
-          <p className="text-xs font-medium text-red-100">Print/Export blocking issues</p>
+        <div className="mt-3 rounded-lg border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] p-3">
+          <p className="text-xs font-medium text-[var(--gl-danger)]">Print/Export blocking issues</p>
           <ul
-            className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-100/90"
+            className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--gl-danger)]"
             aria-label={`Print or export blocking issues: ${blockingValidationIssues.length}`}
           >
             {blockingValidationIssues.slice(0, 5).map((issue) => (
@@ -379,8 +360,8 @@ export function ProjectSetupBar() {
           </ul>
         </div>
       ) : null}
-      <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 lg:grid-cols-2">
-        <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="mt-4 grid gap-3 border-t border-[var(--gl-border)] pt-4 lg:grid-cols-2">
+        <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
           <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Duplicate project</p>
           <input
             className="input-wood w-full text-sm"
@@ -390,7 +371,7 @@ export function ProjectSetupBar() {
           />
           <button
             type="button"
-            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
+            className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
             onClick={() => {
               const nextName = duplicateName.trim();
               duplicateProject(nextName || `${project.name} copy`);
@@ -399,7 +380,7 @@ export function ProjectSetupBar() {
             Duplicate current project
           </button>
         </div>
-        <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+        <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
           <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Templates</p>
           <div className="flex gap-2">
             <input
@@ -410,7 +391,7 @@ export function ProjectSetupBar() {
             />
             <button
               type="button"
-              className="rounded-lg border border-white/20 px-3 py-2 text-xs text-[var(--gl-cream)] hover:bg-white/10"
+              className="rounded-lg border border-[var(--gl-border-strong)] px-3 py-2 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
               onClick={() => {
                 const nextName = templateName.trim();
                 if (!nextName) return;
@@ -458,7 +439,7 @@ export function ProjectSetupBar() {
           </div>
         </div>
       </div>
-      <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="mt-3 space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
         <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
           Local backups ({activeBackups.length} active / {projectLibrary.length - activeBackups.length} archived)
         </p>
@@ -480,7 +461,7 @@ export function ProjectSetupBar() {
                   </span>
                   <button
                     type="button"
-                    className="rounded border border-white/15 px-2 py-1 hover:text-[var(--gl-cream)]"
+                    className="rounded border border-[var(--gl-border)] px-2 py-1 hover:text-[var(--gl-cream)]"
                     onClick={() => {
                       const restored = restoreFromLibrary(entry.id);
                       if (!restored.ok) {
@@ -507,7 +488,7 @@ export function ProjectSetupBar() {
                   </button>
                   <button
                     type="button"
-                    className="rounded border border-white/15 px-2 py-1 hover:text-[var(--gl-cream)]"
+                    className="rounded border border-[var(--gl-border)] px-2 py-1 hover:text-[var(--gl-cream)]"
                     onClick={() => setLibraryArchived(entry.id, !entry.archived)}
                   >
                     {entry.archived ? "Unarchive" : "Archive"}

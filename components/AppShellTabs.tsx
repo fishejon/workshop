@@ -18,7 +18,7 @@ function focusTabButton(id: AppShellTabId) {
 }
 
 /**
- * IA shell: Setup (project + transport), Build (planners + shop column), Shop (two-column shop), About.
+ * IA shell: Setup (project + transport), Build (planners only), Materials (two-column shop), About.
  * `shopMaterialsLeft` / `shopMaterialsRight` are the same panels as the Build aside, split for Materials’ wide grid.
  */
 export function AppShellTabs({
@@ -94,10 +94,10 @@ export function AppShellTabs({
                 key={id}
                 className={`rounded-full border px-2.5 py-0.5 text-xs ${
                   isCurrent
-                    ? "border-[var(--gl-copper-bright)]/60 bg-[var(--gl-copper)]/15 text-[var(--gl-cream-soft)]"
+                    ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text-soft)]"
                     : isComplete
-                      ? "border-white/12 bg-white/[0.04] text-[var(--gl-muted)]"
-                      : "border-white/[0.06] text-[var(--gl-muted)]/90"
+                      ? "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)]"
+                      : "border-[var(--gl-border)] text-[var(--gl-muted)]/90"
                 }`}
                 aria-current={isCurrent ? "step" : undefined}
               >
@@ -114,7 +114,7 @@ export function AppShellTabs({
       <div
         role="tablist"
         aria-label="Main sections"
-        className="flex flex-wrap gap-2 border-b border-white/10 pb-4"
+        className="flex flex-wrap gap-2 border-b border-[var(--gl-border)] pb-4"
         onKeyDown={handleTabListKeyDown}
       >
         {APP_SHELL_TAB_IDS.map((id) => {
@@ -131,8 +131,8 @@ export function AppShellTabs({
               onClick={() => onChange(id)}
               className={`rounded-t-lg border border-b-0 px-4 py-2.5 text-sm font-medium transition ${
                 selected
-                  ? "border-white/20 bg-white/[0.08] text-[var(--gl-cream)]"
-                  : "border-transparent bg-transparent text-[var(--gl-muted)] hover:border-white/10 hover:text-[var(--gl-cream-soft)]"
+                  ? "border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] text-[var(--gl-cream)]"
+                  : "border-transparent bg-transparent text-[var(--gl-muted)] hover:border-[var(--gl-border)] hover:text-[var(--gl-cream-soft)]"
               }`}
             >
               <span className="block">{TAB_META[id].label}</span>
@@ -150,16 +150,7 @@ export function AppShellTabs({
         ) : active === "build" ? (
           <div className="space-y-6">
             {decisionStrip}
-            <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
-              <div className="min-w-0 space-y-6">{buildLeft}</div>
-              <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
-                <div className="space-y-6">
-                  {issuesPanel}
-                  {shopMaterialsLeft}
-                  {shopMaterialsRight}
-                </div>
-              </aside>
-            </div>
+            <div className="min-w-0 space-y-6">{buildLeft}</div>
           </div>
         ) : (
           <div className="space-y-6">
@@ -183,7 +174,7 @@ export function AppShellTabs({
                 for a paper-friendly sheet.
               </p>
               {!canExportOrPrint && blockingValidationIssues.length > 0 ? (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-200/90">
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]">
                   {blockingValidationIssues.slice(0, 3).map((issue) => (
                     <li key={issue.id}>{issue.message}</li>
                   ))}
