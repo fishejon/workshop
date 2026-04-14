@@ -1,6 +1,5 @@
 import type { DresserCarcassInput } from "../dresser-carcass";
 import type { DresserEngineInput } from "../dresser-engine";
-import { computeDrawerJoineryAllowances } from "../joinery/drawer-allowances";
 import type { Part, Project } from "../project-types";
 
 export const DRESSER_REGRESSION_CARCASS_INPUT: DresserCarcassInput = {
@@ -99,27 +98,18 @@ export const DRESSER_REGRESSION_ENGINE_BASE: DresserEngineInput = {
 export const DRESSER_REGRESSION_ENGINE_VARIANTS = {
   fullOverlapDovetail: {
     ...DRESSER_REGRESSION_ENGINE_BASE,
-    drawerJoineryWidthAllowance: computeDrawerJoineryAllowances({
-      preset: "dovetail_full_overlap",
-      materialThickness: 0.5,
-    }).widthAllowance,
-    drawerJoineryHeightAllowance: computeDrawerJoineryAllowances({
-      preset: "dovetail_full_overlap",
-      materialThickness: 0.5,
-    }).heightAllowance,
+    drawerJoineryPreset: "dovetail_full_overlap",
+    drawerJoineryMaterialThickness: 0.5,
+    drawerJoineryWidthAllowance: 0,
+    drawerJoineryHeightAllowance: 0,
   } satisfies DresserEngineInput,
   halfLapDovetail: {
     ...DRESSER_REGRESSION_ENGINE_BASE,
-    drawerJoineryWidthAllowance: computeDrawerJoineryAllowances({
-      preset: "dovetail_half_lap",
-      materialThickness: 0.5,
-      halfLapDepth: 0.25,
-    }).widthAllowance,
-    drawerJoineryHeightAllowance: computeDrawerJoineryAllowances({
-      preset: "dovetail_half_lap",
-      materialThickness: 0.5,
-      halfLapDepth: 0.25,
-    }).heightAllowance,
+    drawerJoineryPreset: "dovetail_half_lap",
+    drawerJoineryMaterialThickness: 0.5,
+    drawerJoineryHalfLapDepth: 0.25,
+    drawerJoineryWidthAllowance: 0,
+    drawerJoineryHeightAllowance: 0,
   } satisfies DresserEngineInput,
   multiColumnSupportThickness: {
     ...DRESSER_REGRESSION_ENGINE_BASE,

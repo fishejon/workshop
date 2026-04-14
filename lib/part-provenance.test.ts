@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatJointRuleLabel, summarizePartProvenance } from "@/lib/part-provenance";
+import {
+  formatDrawerJoineryPresetLabel,
+  formatJointRuleLabel,
+  summarizePartProvenance,
+} from "@/lib/part-provenance";
 import type { Part, ProjectJoint } from "@/lib/project-types";
 
 function makePart(id: string, manual = false): Part {
@@ -54,5 +58,12 @@ describe("formatJointRuleLabel", () => {
   it("returns friendly known labels and fallback for unknown ids", () => {
     expect(formatJointRuleLabel("groove_quarter_back")).toBe("Groove / 1/4 back");
     expect(formatJointRuleLabel("custom_rule")).toBe("custom_rule");
+  });
+});
+
+describe("formatDrawerJoineryPresetLabel", () => {
+  it("returns engineering labels for drawer joinery presets", () => {
+    expect(formatDrawerJoineryPresetLabel("dovetail_full_overlap")).toBe("Drawer dovetail (full overlap)");
+    expect(formatDrawerJoineryPresetLabel("dovetail_half_lap")).toBe("Drawer dovetail (half-lap)");
   });
 });

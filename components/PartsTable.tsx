@@ -7,75 +7,14 @@ import {
   type AssemblyId,
   type Part,
   type PartStatus,
-  type Project,
   type ProjectJoint,
 } from "@/lib/project-types";
-import { formatJointRuleLabel, summarizePartProvenance } from "@/lib/part-provenance";
-import { derivePartAssumptions } from "@/lib/part-assumptions";
+import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
-import { boardFeetForPart, linearFeetForPart } from "@/lib/board-feet";
+import { partsToCsv } from "@/lib/parts-csv";
 import { formatImperial } from "@/lib/imperial";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
-
-function partsToCsv(parts: Part[], joints: ProjectJoint[], project: Pick<Project, "maxPurchasableBoardWidthInches">): string {
-  const headers = [
-    "name",
-    "assembly",
-    "quantity",
-    "finished_t_in",
-    "finished_w_in",
-    "finished_l_in",
-    "rough_t_in",
-    "rough_w_in",
-    "rough_l_in",
-    "rough_manual",
-    "board_feet_each",
-    "board_feet_total",
-    "linear_feet_each",
-    "linear_feet_total",
-    "material",
-    "thickness_category",
-    "grain_note",
-    "joinery_assumption",
-    "glue_up_assumption",
-    "status",
-  ];
-  const rows = parts.map((p) => {
-    const qty = Math.max(1, p.quantity);
-    const bfEach = boardFeetForPart(p);
-    const lfEach = linearFeetForPart(p);
-    const assumptions = derivePartAssumptions(p, joints, project);
-    return [
-      csvEscape(p.name),
-      p.assembly,
-      p.quantity,
-      p.finished.t,
-      p.finished.w,
-      p.finished.l,
-      p.rough.t,
-      p.rough.w,
-      p.rough.l,
-      p.rough.manual,
-      bfEach,
-      bfEach * qty,
-      lfEach,
-      lfEach * qty,
-      csvEscape(p.material.label),
-      csvEscape(p.material.thicknessCategory),
-      csvEscape(p.grainNote),
-      csvEscape(assumptions.joinery),
-      csvEscape(assumptions.glueUp),
-      p.status,
-    ].join(",");
-  });
-  return [headers.join(","), ...rows].join("\n");
-}
-
-function csvEscape(s: string): string {
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
 
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
   const { project, addPart, updatePart, removePart, clearParts, duplicateAssemblyGroup } = useProject();
@@ -205,6 +144,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                   part={p}
                   millingAllowanceInches={project.millingAllowanceInches}
                   maxPurchasableBoardWidthInches={project.maxPurchasableBoardWidthInches}
+                  stockWidthByMaterialGroup={project.stockWidthByMaterialGroup}
                   openExplain={openExplain === p.id}
                   onToggleExplain={() => setOpenExplain((x) => (x === p.id ? null : p.id))}
                   joints={project.joints}
@@ -224,6 +164,7 @@ function PartRow({
   part,
   millingAllowanceInches,
   maxPurchasableBoardWidthInches,
+  stockWidthByMaterialGroup,
   openExplain,
   onToggleExplain,
   joints,
@@ -233,17 +174,23 @@ function PartRow({
   part: Part;
   millingAllowanceInches: number;
   maxPurchasableBoardWidthInches: number;
+  stockWidthByMaterialGroup?: Record<string, number>;
   openExplain: boolean;
   onToggleExplain: () => void;
   joints: ProjectJoint[];
   onUpdate: (id: string, patch: Partial<Part>) => void;
   onRemove: () => void;
 }) {
-  const provenance = useMemo(() => summarizePartProvenance(part, joints), [part, joints]);
-  const assumptions = useMemo(
-    () => derivePartAssumptions(part, joints, { maxPurchasableBoardWidthInches }),
-    [part, joints, maxPurchasableBoardWidthInches]
+  const derived = useMemo(
+    () =>
+      derivePartAssumptionsDetailed(part, joints, {
+        maxPurchasableBoardWidthInches,
+        stockWidthByMaterialGroup,
+      }),
+    [part, joints, maxPurchasableBoardWidthInches, stockWidthByMaterialGroup]
   );
+  const provenance = derived.provenance;
+  const assumptions = derived.assumptions;
   const summary = useMemo(
     () => {
       const roughSummary =
@@ -252,17 +199,20 @@ function PartRow({
           : `Rough dims are derived from finished + ${formatImperial(millingAllowanceInches)} allowance on T, W, and L.`;
       const joinerySummary =
         provenance.joineryChangeCount > 0
-          ? `Joinery changed this part ${provenance.joineryChangeCount} time${provenance.joineryChangeCount === 1 ? "" : "s"}${provenance.lastJoineryRuleId ? ` (latest: ${formatJointRuleLabel(provenance.lastJoineryRuleId)}).` : "."}`
+          ? `Joinery changed this part ${provenance.joineryChangeCount} time${provenance.joineryChangeCount === 1 ? "" : "s"}.`
           : "No joinery rule has changed this part's finished dimensions.";
+      const glueSummary = derived.glueUpPlan.applicable
+        ? `Glue-up strips: ${derived.glueUpPlan.stripCount}; board width source: ${derived.glueUpPlan.boardWidthSource}.`
+        : "Glue-up not applicable.";
       return (
         `${roughSummary} ` +
         `Displayed: ${formatImperial(part.finished.t)}→${formatImperial(part.rough.t)}, ` +
         `${formatImperial(part.finished.w)}→${formatImperial(part.rough.w)}, ` +
         `${formatImperial(part.finished.l)}→${formatImperial(part.rough.l)}. ` +
-        joinerySummary
+        `${joinerySummary} ${glueSummary}`
       );
     },
-    [part, millingAllowanceInches, provenance]
+    [part, millingAllowanceInches, provenance, derived]
   );
 
   return (

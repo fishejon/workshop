@@ -1,4 +1,5 @@
 import type { JointRuleId } from "@/lib/joinery/types";
+import type { DrawerJoineryPresetId } from "@/lib/joinery/drawer-allowances";
 import type { Part, ProjectJoint } from "@/lib/project-types";
 
 const JOINT_RULE_LABELS: Record<JointRuleId, string> = {
@@ -6,6 +7,13 @@ const JOINT_RULE_LABELS: Record<JointRuleId, string> = {
   dado_shelf_width: "Dado shelf",
   mortise_tenon_rail: "M&T rail",
   mortise_tenon_stile: "M&T stile",
+};
+
+const DRAWER_JOINERY_PRESET_LABELS: Record<DrawerJoineryPresetId, string> = {
+  butt: "Drawer butt baseline",
+  rabbet: "Drawer rabbet",
+  dovetail_full_overlap: "Drawer dovetail (full overlap)",
+  dovetail_half_lap: "Drawer dovetail (half-lap)",
 };
 
 export type PartProvenance = {
@@ -41,4 +49,8 @@ export function summarizePartProvenance(part: Part, joints: ProjectJoint[]): Par
 
 export function formatJointRuleLabel(ruleId: string): string {
   return JOINT_RULE_LABELS[ruleId as JointRuleId] ?? ruleId;
+}
+
+export function formatDrawerJoineryPresetLabel(presetId: DrawerJoineryPresetId): string {
+  return DRAWER_JOINERY_PRESET_LABELS[presetId] ?? presetId;
 }

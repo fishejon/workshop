@@ -9,7 +9,7 @@ import {
 } from "./fixtures/dresser-regression.fixture";
 import { applyDadoShelfWidth } from "./joinery/dado-shelf";
 import { applyGrooveForQuarterBackPanel } from "./joinery/groove-back";
-import { derivePartAssumptions } from "./part-assumptions";
+import { derivePartAssumptionsDetailed } from "./part-assumptions";
 
 describe("dresser regression fixture", () => {
   it("keeps dresser carcass core outputs stable", () => {
@@ -98,6 +98,9 @@ describe("dresser regression fixture", () => {
     expect(halfLap.cells[0]?.boxWidth).toBeCloseTo((fullOverlap.cells[0]?.boxWidth ?? 0) + 0.5, 5);
     expect(fullOverlap.cells[0]?.boxHeight).toBeCloseTo(8.25, 5);
     expect(halfLap.cells[0]?.boxHeight).toBeCloseTo(8.25, 5);
+    expect(fullOverlap.drawerJoineryApplied.formulaId).toBe("width=2*t");
+    expect(halfLap.drawerJoineryApplied.formulaId).toBe("width=2*half_lap_depth");
+    expect(halfLap.drawerJoineryApplied.provenance).toMatch(/halfLapDepthSide=0.250in/);
   });
 
   it("keeps multi-column support thickness behavior stable", () => {
@@ -115,9 +118,16 @@ describe("dresser regression fixture", () => {
     expect(back).toBeDefined();
     if (!back) return;
 
-    const assumptions = derivePartAssumptions(back, DRESSER_REGRESSION_PROJECT.joints, DRESSER_REGRESSION_PROJECT);
-    expect(assumptions.glueUp).toMatch(/Glue-up required assumption/);
-    expect(assumptions.glueUp).toMatch(/70\.500"/);
-    expect(assumptions.glueUp).toMatch(/max board width/);
+    const assumptions = derivePartAssumptionsDetailed(
+      back,
+      DRESSER_REGRESSION_PROJECT.joints,
+      DRESSER_REGRESSION_PROJECT
+    );
+    expect(assumptions.assumptions.glueUp).toMatch(/Glue-up required assumption/);
+    expect(assumptions.assumptions.glueUp).toMatch(/70\.500"/);
+    expect(assumptions.assumptions.glueUp).toMatch(/max board width/);
+    expect(assumptions.provenanceSummary).toMatch(/Rough source/);
+    expect(assumptions.glueUpPlan.required).toBe(true);
+    expect(assumptions.glueUpPlan.boardWidthSource).toBe("project_setting");
   });
 });

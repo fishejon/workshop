@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Part, ProjectJoint } from "./project-types";
-import { derivePartAssumptions } from "./part-assumptions";
+import { derivePartAssumptions, derivePartAssumptionsDetailed } from "./part-assumptions";
 
 describe("derivePartAssumptions", () => {
   it("reports joinery change history when a joint changed the part", () => {
@@ -46,6 +46,8 @@ describe("derivePartAssumptions", () => {
 
     const assumptions = derivePartAssumptions(part, [], { maxPurchasableBoardWidthInches: 20 });
     expect(assumptions.glueUp).toMatch(/Glue-up required assumption/);
+    expect(assumptions.glueUp).toMatch(/strips:/);
+    expect(assumptions.glueUp).toMatch(/seams @/);
   });
 
   it("treats a wide panel as single-board when max purchasable width allows", () => {
@@ -62,5 +64,29 @@ describe("derivePartAssumptions", () => {
     };
     const assumptions = derivePartAssumptions(part, [], { maxPurchasableBoardWidthInches: 30 });
     expect(assumptions.glueUp).toMatch(/Single-board panel assumption/);
+  });
+
+  it("uses material-group board width override for glue-up planning provenance", () => {
+    const part: Part = {
+      id: "p-panel-override",
+      name: "Panel",
+      assembly: "Back",
+      quantity: 1,
+      finished: { t: 0.75, w: 24, l: 30 },
+      rough: { t: 0.75, w: 24, l: 30, manual: true },
+      material: { label: "White oak", thicknessCategory: "4/4" },
+      grainNote: "",
+      status: "panel",
+    };
+    const detailed = derivePartAssumptionsDetailed(part, [], {
+      maxPurchasableBoardWidthInches: 30,
+      stockWidthByMaterialGroup: {
+        "White oak||4/4": 8,
+      },
+    });
+    expect(detailed.glueUpPlan.maxBoardWidthInches).toBe(8);
+    expect(detailed.glueUpPlan.boardWidthSource).toBe("material_override");
+    expect(detailed.glueUpPlan.stripCount).toBe(3);
+    expect(detailed.assumptions.glueUp).toMatch(/source: material override/);
   });
 });

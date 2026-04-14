@@ -10,6 +10,8 @@ describe("computeDrawerJoineryAllowances", () => {
     });
     expect(result.widthAllowance).toBeCloseTo(0, 5);
     expect(result.heightAllowance).toBeCloseTo(0, 5);
+    expect(result.formulaId).toBe("width=0");
+    expect(result.provenance).toMatch(/Butt-joint baseline/);
   });
 
   it("uses 2 × thickness for dovetail full-overlap", () => {
@@ -19,6 +21,7 @@ describe("computeDrawerJoineryAllowances", () => {
     });
     expect(result.widthAllowance).toBeCloseTo(1.25, 5);
     expect(result.heightAllowance).toBeCloseTo(0, 5);
+    expect(result.formulaId).toBe("width=2*t");
   });
 
   it("uses default half-thickness for dovetail half-lap", () => {
@@ -46,6 +49,7 @@ describe("computeDrawerJoineryAllowances", () => {
       halfLapDepth: 0.2,
     });
     expect(result.widthAllowance).toBeCloseTo(0.4, 5);
+    expect(result.provenance).toMatch(/halfLapDepthSide=0.200in/);
   });
 
   it("keeps simple rabbet continuity formula", () => {
@@ -101,6 +105,9 @@ describe("computeDresser joinery preset integration", () => {
 
     expect(result.cells[0]?.boxWidth).toBeCloseTo(36.5, 5);
     expect(result.cells[0]?.boxHeight).toBeCloseTo(19.75, 5);
+    expect(result.drawerJoineryApplied.preset).toBe("dovetail_full_overlap");
+    expect(result.drawerJoineryApplied.formulaId).toBe("width=2*t");
+    expect(result.drawerJoineryApplied.provenance).toMatch(/Dovetail, full overlap/);
   });
 
   it("adds legacy allowances on top of preset deduction", () => {
@@ -114,5 +121,7 @@ describe("computeDresser joinery preset integration", () => {
     if (!result.ok) return;
 
     expect(result.cells[0]?.boxWidth).toBeCloseTo(37.5, 5);
+    expect(result.drawerJoineryApplied.widthAllowanceLegacy).toBeCloseTo(0.1, 5);
+    expect(result.drawerJoineryApplied.provenance).toMatch(/legacy additive allowances/);
   });
 });

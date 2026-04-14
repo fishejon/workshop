@@ -52,8 +52,17 @@ export function formatImperial(inches: number, denominator: number = DEFAULT_DEN
   return `${sign}${whole > 0 ? whole : ""}${fracPart}"`;
 }
 
+/** Input-friendly imperial string without the trailing quote mark. */
+export function formatImperialInput(inches: number, denominator: number = DEFAULT_DENOM): string {
+  return formatImperial(inches, denominator).replace(/"$/, "");
+}
+
 export function parseInches(input: string): number | null {
-  const s = input.trim();
+  const s = input
+    .trim()
+    .replace(/\s*(in|inch|inches)\.?$/i, "")
+    .replace(/"$/, "")
+    .trim();
   if (!s) return null;
 
   const decimal = Number(s);

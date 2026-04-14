@@ -75,6 +75,19 @@ export type DresserEngineResult = {
   openingHeights: number[];
   cells: DrawerCellResult[];
   depthAvailableForBox: number;
+  drawerJoineryApplied: {
+    preset: DrawerJoineryPresetId;
+    presetLabel: string;
+    formulaId: string;
+    materialThickness: number;
+    widthAllowanceFromPreset: number;
+    heightAllowanceFromPreset: number;
+    widthAllowanceLegacy: number;
+    heightAllowanceLegacy: number;
+    widthAllowanceTotal: number;
+    heightAllowanceTotal: number;
+    provenance: string;
+  };
 };
 
 export type DresserEngineError = { ok: false; message: string };
@@ -169,14 +182,22 @@ export function computeDresser(input: DresserEngineInput): DresserEngineResult |
   }
 
   const boxDepth = Math.min(input.slideLengthNominal, depthAvail);
+  const joineryMaterialThickness = input.drawerJoineryMaterialThickness ?? input.materialThickness;
+  const joineryPreset = input.drawerJoineryPreset ?? "butt";
   const presetJoinery = computeDrawerJoineryAllowances({
-    preset: input.drawerJoineryPreset ?? "butt",
-    materialThickness: input.drawerJoineryMaterialThickness ?? input.materialThickness,
+    preset: joineryPreset,
+    materialThickness: joineryMaterialThickness,
     halfLapRatio: input.drawerJoineryHalfLapRatio,
     halfLapDepth: input.drawerJoineryHalfLapDepth,
   });
-  const joineryW = Math.max(0, presetJoinery.widthAllowance + (input.drawerJoineryWidthAllowance ?? 0));
-  const joineryH = Math.max(0, presetJoinery.heightAllowance + (input.drawerJoineryHeightAllowance ?? 0));
+  const legacyJoineryW = Math.max(0, input.drawerJoineryWidthAllowance ?? 0);
+  const legacyJoineryH = Math.max(0, input.drawerJoineryHeightAllowance ?? 0);
+  const joineryW = Math.max(0, presetJoinery.widthAllowance + legacyJoineryW);
+  const joineryH = Math.max(0, presetJoinery.heightAllowance + legacyJoineryH);
+  const joineryProvenance =
+    legacyJoineryW > 0 || legacyJoineryH > 0
+      ? `${presetJoinery.provenance}; legacy additive allowances width=${legacyJoineryW.toFixed(3)}in, height=${legacyJoineryH.toFixed(3)}in`
+      : presetJoinery.provenance;
 
   const cells: DrawerCellResult[] = [];
   for (let c = 0; c < input.columnCount; c++) {
@@ -205,6 +226,19 @@ export function computeDresser(input: DresserEngineInput): DresserEngineResult |
     openingHeights,
     cells,
     depthAvailableForBox: depthAvail,
+    drawerJoineryApplied: {
+      preset: joineryPreset,
+      presetLabel: presetJoinery.presetLabel,
+      formulaId: presetJoinery.formulaId,
+      materialThickness: joineryMaterialThickness,
+      widthAllowanceFromPreset: presetJoinery.widthAllowance,
+      heightAllowanceFromPreset: presetJoinery.heightAllowance,
+      widthAllowanceLegacy: legacyJoineryW,
+      heightAllowanceLegacy: legacyJoineryH,
+      widthAllowanceTotal: joineryW,
+      heightAllowanceTotal: joineryH,
+      provenance: joineryProvenance,
+    },
   };
 }
 

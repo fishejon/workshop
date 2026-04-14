@@ -16,7 +16,7 @@ import {
   createEmptyProject,
   parseProject,
 } from "@/lib/project-utils";
-import { derivePartAssumptions } from "@/lib/part-assumptions";
+import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { evaluatePurchaseScenario } from "@/lib/purchase-scenarios";
 
 function formatTxWxL(d: Dimension3): string {
@@ -165,7 +165,7 @@ export function ShopPrintView() {
                 </thead>
                 <tbody>
                   {project.parts.map((p) => {
-                    const assumptions = derivePartAssumptions(p, project.joints, project);
+                    const derived = derivePartAssumptionsDetailed(p, project.joints, project);
                     return (
                       <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
                         <td className="py-2 pr-3 align-top">{p.name}</td>
@@ -174,9 +174,11 @@ export function ShopPrintView() {
                         <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.finished)}</td>
                         <td className="py-2 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.rough)}</td>
                         <td className="py-2 pl-3 align-top text-xs shop-print-muted">
-                          {assumptions.joinery}
+                          {derived.assumptions.joinery}
                           <br />
-                          {assumptions.glueUp}
+                          {derived.assumptions.glueUp}
+                          <br />
+                          {derived.provenanceSummary}
                         </td>
                       </tr>
                     );

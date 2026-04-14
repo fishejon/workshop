@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { applyDadoShelfWidth } from "@/lib/joinery/dado-shelf";
+import {
+  computeDrawerJoineryAllowances,
+  DRAWER_JOINERY_PRESET_META,
+  type DrawerJoineryPresetId,
+} from "@/lib/joinery/drawer-allowances";
 import { applyGrooveForQuarterBackPanel } from "@/lib/joinery/groove-back";
 import { applyMortiseTenonRail, applyMortiseTenonStile } from "@/lib/joinery/mortise-tenon";
 import { buildConstructionPresetPlan, type ConstructionPresetId } from "@/lib/joinery/construction-presets";
@@ -51,6 +56,10 @@ export function JoineryPanel() {
   const [expandedJointId, setExpandedJointId] = useState<string | null>(null);
   const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
   const [useCustomJoineryParams, setUseCustomJoineryParams] = useState(false);
+  const [drawerPresetId, setDrawerPresetId] = useState<DrawerJoineryPresetId>("butt");
+  const [drawerMaterialThicknessStr, setDrawerMaterialThicknessStr] = useState("0.5");
+  const [drawerHalfLapRatioStr, setDrawerHalfLapRatioStr] = useState("0.5");
+  const [drawerHalfLapDepthStr, setDrawerHalfLapDepthStr] = useState("");
 
   function evaluateRule(
     currentRuleId: JointRuleId,
@@ -233,6 +242,26 @@ export function JoineryPanel() {
       }, 0),
     [selectedPresetPlan]
   );
+
+  const drawerPresetPreview = useMemo(() => {
+    const t = parseInches(drawerMaterialThicknessStr);
+    if (t === null || t <= 0) return null;
+    const ratio = parseInches(drawerHalfLapRatioStr);
+    const depth = parseInches(drawerHalfLapDepthStr);
+    if (ratio !== null && ratio < 0) return null;
+    if (depth !== null && depth < 0) return null;
+    return computeDrawerJoineryAllowances({
+      preset: drawerPresetId,
+      materialThickness: t,
+      halfLapRatio: ratio ?? undefined,
+      halfLapDepth: drawerHalfLapDepthStr.trim() ? (depth ?? undefined) : undefined,
+    });
+  }, [
+    drawerPresetId,
+    drawerMaterialThicknessStr,
+    drawerHalfLapRatioStr,
+    drawerHalfLapDepthStr,
+  ]);
 
   function resetJoineryParamsToRecommended() {
     setUseCustomJoineryParams(false);
@@ -535,6 +564,66 @@ export function JoineryPanel() {
                 No matching parts found for this preset yet. Add rails/stiles, drawers, shelves, or back parts first.
               </p>
             ) : null}
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p className="text-xs font-medium text-[var(--gl-cream)]">Drawer joinery allowance presets</p>
+            <p className="mt-1 text-xs text-[var(--gl-muted)]">
+              Engineering presets compute allowance from drawer side thickness and joint strategy.
+            </p>
+            <label className="mt-2 block text-xs text-[var(--gl-muted)]">
+              Joint strategy
+              <select
+                className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                value={drawerPresetId}
+                onChange={(e) => setDrawerPresetId(e.target.value as DrawerJoineryPresetId)}
+              >
+                {(Object.keys(DRAWER_JOINERY_PRESET_META) as DrawerJoineryPresetId[]).map((preset) => (
+                  <option key={preset} value={preset}>
+                    {DRAWER_JOINERY_PRESET_META[preset].engineeringLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="text-xs text-[var(--gl-muted)]">
+                Material thickness t
+                <input
+                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                  value={drawerMaterialThicknessStr}
+                  onChange={(e) => setDrawerMaterialThicknessStr(e.target.value)}
+                />
+              </label>
+              {drawerPresetId === "dovetail_half_lap" ? (
+                <label className="text-xs text-[var(--gl-muted)]">
+                  Half-lap ratio
+                  <input
+                    className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                    value={drawerHalfLapRatioStr}
+                    onChange={(e) => setDrawerHalfLapRatioStr(e.target.value)}
+                  />
+                </label>
+              ) : null}
+            </div>
+            {drawerPresetId === "dovetail_half_lap" ? (
+              <label className="mt-2 block text-xs text-[var(--gl-muted)]">
+                Half-lap depth per side (optional)
+                <input
+                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                  value={drawerHalfLapDepthStr}
+                  onChange={(e) => setDrawerHalfLapDepthStr(e.target.value)}
+                />
+              </label>
+            ) : null}
+            {drawerPresetPreview ? (
+              <p className="mt-2 text-xs text-[var(--gl-cream-soft)]">
+                Width allowance {formatImperial(drawerPresetPreview.widthAllowance)}; formula{" "}
+                <span className="font-mono">{drawerPresetPreview.formulaId}</span>; provenance{" "}
+                {drawerPresetPreview.provenance}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-amber-200/90">Enter valid non-negative values to preview allowance.</p>
+            )}
           </div>
 
           <label className="block text-xs text-[var(--gl-muted)]">
