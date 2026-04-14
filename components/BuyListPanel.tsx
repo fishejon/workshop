@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { DimensionalLumberPurchaseTable, ProjectCutRollup } from "@/components/LumberPurchaseSummary";
 import { useProject } from "@/components/ProjectContext";
 import {
   groupPartsByMaterial,
@@ -10,6 +11,7 @@ import {
   totalLinearFeet,
 } from "@/lib/board-feet";
 import { formatShopImperial } from "@/lib/imperial";
+import { buildLumberVehicleRows } from "@/lib/lumber-vehicle-summary";
 import {
   evaluateAllPurchaseScenarios,
   PURCHASE_SCENARIO_META,
@@ -68,6 +70,11 @@ export function BuyListPanel() {
     [plan]
   );
 
+  const vehicleRows = useMemo(
+    () => buildLumberVehicleRows(groups, project.parts, project.maxTransportLengthInches),
+    [groups, project.parts, project.maxTransportLengthInches]
+  );
+
   const twoDGroupByKey = useMemo(
     () => new Map(plan.twoDimensional.groups.map((row) => [row.key, row])),
     [plan.twoDimensional.groups]
@@ -92,9 +99,11 @@ export function BuyListPanel() {
 
   return (
     <section className="gl-panel p-5">
-      <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Buy list</p>
+      <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Lumber & buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
-        Start with scenario + total board footage, then tune stock width per material only if needed.
+        Lineal feet and 1/16″ cuts first. Vehicle length comes from <strong className="text-[var(--gl-cream)]">max transport</strong> on
+        the Project tab ({formatShopImperial(project.maxTransportLengthInches)}). Board-foot totals stay under{" "}
+        <strong className="text-[var(--gl-cream-soft)]">Advanced yard estimate</strong> if you need them.
       </p>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Default max board face width is{" "}
@@ -103,9 +112,17 @@ export function BuyListPanel() {
       </p>
 
       {groups.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--gl-muted)]">Add parts to see grouped board footage.</p>
+        <p className="mt-4 text-sm text-[var(--gl-muted)]">Add parts to see dimensional lumber and cuts.</p>
       ) : (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-6">
+          <DimensionalLumberPurchaseTable rows={vehicleRows} vehicleMaxInches={project.maxTransportLengthInches} />
+          <ProjectCutRollup parts={project.parts} />
+
+          <details className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
+            <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
+              Advanced yard estimate &amp; 2D solver
+            </summary>
+            <div className="mt-4 space-y-4">
           <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Purchase plan</p>
@@ -167,17 +184,17 @@ export function BuyListPanel() {
               })}
             </div>
           </div>
-          <div className="flex flex-wrap gap-4 text-sm text-[var(--gl-cream)]">
+          <div className="flex flex-wrap gap-4 text-xs text-[var(--gl-muted)]">
             <span>
-              Subtotal BF: <strong>{subtotal.toFixed(2)}</strong>
+              Project subtotal BF: <strong className="text-[var(--gl-cream)]">{subtotal.toFixed(2)}</strong>
             </span>
             <span>
-              With waste: <strong>{adjusted.toFixed(2)}</strong>
+              With waste: <strong className="text-[var(--gl-cream)]">{adjusted.toFixed(2)}</strong>
             </span>
-            <span className="text-[var(--gl-muted)]">
-              LF (rough L): <strong className="text-[var(--gl-cream)]">{subtotalLf.toFixed(2)}</strong>
+            <span>
+              Lineal (decimal LF): <strong className="text-[var(--gl-cream)]">{subtotalLf.toFixed(2)}</strong>
               {" → "}
-              <strong>{adjustedLf.toFixed(2)}</strong> with waste
+              <strong className="text-[var(--gl-cream)]">{adjustedLf.toFixed(2)}</strong> with waste
             </span>
           </div>
           <ul className="space-y-3">
@@ -313,6 +330,8 @@ export function BuyListPanel() {
               );
             })}
           </ul>
+            </div>
+          </details>
         </div>
       )}
     </section>

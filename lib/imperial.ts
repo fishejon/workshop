@@ -69,6 +69,22 @@ export function formatShopImperialInput(inches: number): string {
   return formatImperialInput(inches, SHOP_FRACTION_DENOMINATOR);
 }
 
+/**
+ * Total lineal demand in feet, shown as whole feet plus remainder in nearest 1/16″ (no board-foot volume).
+ */
+export function formatLinearFeetShop(linearFeet: number): string {
+  if (!Number.isFinite(linearFeet) || linearFeet <= 0) {
+    return "0 lineal ft";
+  }
+  const totalInches = linearFeet * 12;
+  const wholeFeet = Math.floor(totalInches / 12 + 1e-9);
+  const remainderInches = totalInches - wholeFeet * 12;
+  if (remainderInches < 1e-6) {
+    return `${wholeFeet} lineal ft`;
+  }
+  return `${wholeFeet} ft ${formatShopImperial(remainderInches)} lineal`;
+}
+
 export function parseInches(input: string): number | null {
   const s = input
     .trim()
