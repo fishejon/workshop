@@ -42,8 +42,11 @@ type ProjectContextValue = {
   setProjectName: (name: string) => void;
   setMillingAllowanceInches: (n: number) => void;
   setMaxTransportLengthInches: (n: number) => void;
+  setMaxPurchasableBoardWidthInches: (n: number) => void;
   setWasteFactorPercent: (n: number) => void;
   setMaterialGroupCostRate: (groupKey: string, rate: MaterialGroupCostRate) => void;
+  /** Per-group stock width for 2D buy estimate; pass null to clear override. */
+  setMaterialGroupStockWidth: (groupKey: string, widthInches: number | null) => void;
   setWorkshopLumberProfile: (profile: Project["workshop"]["lumberProfile"]) => void;
   setWorkshopOffcutMode: (mode: Project["workshop"]["offcutMode"]) => void;
   addPart: (part: Omit<Part, "id"> & { id?: string }) => void;
@@ -153,6 +156,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setProject((p) => resetMaterialCheckpoint({ ...p, maxTransportLengthInches: n }));
   }, [resetMaterialCheckpoint]);
 
+  const setMaxPurchasableBoardWidthInches = useCallback((n: number) => {
+    setProject((p) => resetMaterialCheckpoint({ ...p, maxPurchasableBoardWidthInches: n }));
+  }, [resetMaterialCheckpoint]);
+
   const setWasteFactorPercent = useCallback((n: number) => {
     setProject((p) => resetMaterialCheckpoint({ ...p, wasteFactorPercent: n }));
   }, [resetMaterialCheckpoint]);
@@ -174,6 +181,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           nextRates[groupKey] = normalized;
         }
         return resetMaterialCheckpoint({ ...p, costRatesByGroup: nextRates });
+      });
+    },
+    [resetMaterialCheckpoint]
+  );
+
+  const setMaterialGroupStockWidth = useCallback(
+    (groupKey: string, widthInches: number | null) => {
+      setProject((p) => {
+        const next = { ...(p.stockWidthByMaterialGroup ?? {}) };
+        if (widthInches === null || !Number.isFinite(widthInches) || widthInches <= 0) {
+          delete next[groupKey];
+        } else {
+          next[groupKey] = widthInches;
+        }
+        const keys = Object.keys(next);
+        return resetMaterialCheckpoint({
+          ...p,
+          stockWidthByMaterialGroup: keys.length > 0 ? next : undefined,
+        });
       });
     },
     [resetMaterialCheckpoint]
@@ -383,8 +409,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setProjectName,
       setMillingAllowanceInches,
       setMaxTransportLengthInches,
+      setMaxPurchasableBoardWidthInches,
       setWasteFactorPercent,
       setMaterialGroupCostRate,
+      setMaterialGroupStockWidth,
       setWorkshopLumberProfile,
       setWorkshopOffcutMode,
       addPart,
@@ -413,8 +441,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setProjectName,
       setMillingAllowanceInches,
       setMaxTransportLengthInches,
+      setMaxPurchasableBoardWidthInches,
       setWasteFactorPercent,
       setMaterialGroupCostRate,
+      setMaterialGroupStockWidth,
       setWorkshopLumberProfile,
       setWorkshopOffcutMode,
       addPart,

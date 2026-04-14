@@ -17,6 +17,15 @@ export const PROJECT_TEMPLATES_STORAGE_KEY = "grainline-project-templates-v1";
 export const MAX_PROJECT_LIBRARY_RECORDS = 60;
 
 /** Trim whitespace and strip a leading UTF-8 BOM so pasted or editor-exported JSON parses reliably. */
+function parseStockWidthByMaterialGroup(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function normalizeProjectJsonInput(input: string): string {
   let s = input.trimStart();
   if (!s) return "";
@@ -127,6 +136,7 @@ export function createEmptyProject(): Project {
     name: "Untitled project",
     millingAllowanceInches: 0.5,
     maxTransportLengthInches: 96,
+    maxPurchasableBoardWidthInches: 20,
     wasteFactorPercent: 15,
     costRatesByGroup: {},
     parts: [],
@@ -168,12 +178,16 @@ export function serializeTemplate(project: Project, templateName: string): Proje
     createdAt: new Date().toISOString(),
     millingAllowanceInches: project.millingAllowanceInches,
     maxTransportLengthInches: project.maxTransportLengthInches,
+    maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
     wasteFactorPercent: project.wasteFactorPercent,
     costRatesByGroup: { ...project.costRatesByGroup },
     workshop: { ...project.workshop },
     parts: project.parts.map((part) => ({ ...part, finished: { ...part.finished }, rough: { ...part.rough }, material: { ...part.material } })),
     joints: project.joints.map((joint) => ({ ...joint, params: { ...joint.params }, finishedBefore: { ...joint.finishedBefore }, finishedAfter: { ...joint.finishedAfter } })),
     connections: project.connections.map((connection) => ({ ...connection, params: { ...connection.params } })),
+    ...(project.stockWidthByMaterialGroup && Object.keys(project.stockWidthByMaterialGroup).length > 0
+      ? { stockWidthByMaterialGroup: { ...project.stockWidthByMaterialGroup } }
+      : {}),
   };
 }
 
@@ -183,9 +197,18 @@ export function applyTemplate(template: ProjectTemplate, projectName: string): P
     name: projectName,
     millingAllowanceInches: template.millingAllowanceInches,
     maxTransportLengthInches: template.maxTransportLengthInches,
+    maxPurchasableBoardWidthInches:
+      typeof template.maxPurchasableBoardWidthInches === "number" &&
+      Number.isFinite(template.maxPurchasableBoardWidthInches) &&
+      template.maxPurchasableBoardWidthInches > 0
+        ? template.maxPurchasableBoardWidthInches
+        : 20,
     wasteFactorPercent: template.wasteFactorPercent,
     costRatesByGroup: { ...template.costRatesByGroup },
     workshop: { ...template.workshop },
+    ...(template.stockWidthByMaterialGroup && Object.keys(template.stockWidthByMaterialGroup).length > 0
+      ? { stockWidthByMaterialGroup: { ...template.stockWidthByMaterialGroup } }
+      : {}),
   };
   const duplicated = remapGraph(template.parts, template.joints, template.connections, () => true);
   return {
@@ -266,7 +289,24 @@ export function parseProject(json: string): Project | null {
       offcutMode: "none",
     };
     const id = typeof o.id === "string" && o.id.length > 0 ? o.id : newProjectId();
-    return { ...(o as Project), id, joints, connections, costRatesByGroup, checkpoints, workshop };
+    const maxPurchasableBoardWidthInches =
+      typeof o.maxPurchasableBoardWidthInches === "number" &&
+      Number.isFinite(o.maxPurchasableBoardWidthInches) &&
+      o.maxPurchasableBoardWidthInches > 0
+        ? o.maxPurchasableBoardWidthInches
+        : 20;
+    const stockWidthByMaterialGroup = parseStockWidthByMaterialGroup(o.stockWidthByMaterialGroup);
+    return {
+      ...(o as Project),
+      id,
+      joints,
+      connections,
+      costRatesByGroup,
+      checkpoints,
+      workshop,
+      maxPurchasableBoardWidthInches,
+      stockWidthByMaterialGroup,
+    };
   } catch {
     return null;
   }
@@ -308,12 +348,16 @@ export function parseTemplates(json: string): ProjectTemplate[] {
         createdAt: candidate.createdAt,
         millingAllowanceInches: project.millingAllowanceInches,
         maxTransportLengthInches: project.maxTransportLengthInches,
+        maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
         wasteFactorPercent: project.wasteFactorPercent,
         costRatesByGroup: project.costRatesByGroup,
         workshop: project.workshop,
         parts: project.parts,
         joints: project.joints,
         connections: project.connections,
+        ...(project.stockWidthByMaterialGroup && Object.keys(project.stockWidthByMaterialGroup).length > 0
+          ? { stockWidthByMaterialGroup: { ...project.stockWidthByMaterialGroup } }
+          : {}),
       });
     }
     return parsed;

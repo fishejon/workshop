@@ -2,7 +2,14 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
-import { ASSEMBLY_IDS, type AssemblyId, type Part, type PartStatus, type ProjectJoint } from "@/lib/project-types";
+import {
+  ASSEMBLY_IDS,
+  type AssemblyId,
+  type Part,
+  type PartStatus,
+  type Project,
+  type ProjectJoint,
+} from "@/lib/project-types";
 import { formatJointRuleLabel, summarizePartProvenance } from "@/lib/part-provenance";
 import { derivePartAssumptions } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
@@ -11,7 +18,7 @@ import { formatImperial } from "@/lib/imperial";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
 
-function partsToCsv(parts: Part[], joints: ProjectJoint[]): string {
+function partsToCsv(parts: Part[], joints: ProjectJoint[], project: Pick<Project, "maxPurchasableBoardWidthInches">): string {
   const headers = [
     "name",
     "assembly",
@@ -38,7 +45,7 @@ function partsToCsv(parts: Part[], joints: ProjectJoint[]): string {
     const qty = Math.max(1, p.quantity);
     const bfEach = boardFeetForPart(p);
     const lfEach = linearFeetForPart(p);
-    const assumptions = derivePartAssumptions(p, joints);
+    const assumptions = derivePartAssumptions(p, joints, project);
     return [
       csvEscape(p.name),
       p.assembly,
@@ -78,7 +85,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
     project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
 
   function downloadCsv() {
-    const blob = new Blob([partsToCsv(project.parts, project.joints)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([partsToCsv(project.parts, project.joints, project)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -197,6 +204,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                   key={p.id}
                   part={p}
                   millingAllowanceInches={project.millingAllowanceInches}
+                  maxPurchasableBoardWidthInches={project.maxPurchasableBoardWidthInches}
                   openExplain={openExplain === p.id}
                   onToggleExplain={() => setOpenExplain((x) => (x === p.id ? null : p.id))}
                   joints={project.joints}
@@ -215,6 +223,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
 function PartRow({
   part,
   millingAllowanceInches,
+  maxPurchasableBoardWidthInches,
   openExplain,
   onToggleExplain,
   joints,
@@ -223,6 +232,7 @@ function PartRow({
 }: {
   part: Part;
   millingAllowanceInches: number;
+  maxPurchasableBoardWidthInches: number;
   openExplain: boolean;
   onToggleExplain: () => void;
   joints: ProjectJoint[];
@@ -230,7 +240,10 @@ function PartRow({
   onRemove: () => void;
 }) {
   const provenance = useMemo(() => summarizePartProvenance(part, joints), [part, joints]);
-  const assumptions = useMemo(() => derivePartAssumptions(part, joints), [part, joints]);
+  const assumptions = useMemo(
+    () => derivePartAssumptions(part, joints, { maxPurchasableBoardWidthInches }),
+    [part, joints, maxPurchasableBoardWidthInches]
+  );
   const summary = useMemo(
     () => {
       const roughSummary =

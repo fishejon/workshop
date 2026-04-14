@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- manual memo deps are intentional; React Compiler rule misfires here */
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
 import {
@@ -43,7 +43,7 @@ type GenerationSummary = {
 };
 
 export function DresserPlanner() {
-  const { project, addParts, replacePartsInAssemblies } = useProject();
+  const { project, addParts, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
 
   const [outerW, setOuterW] = useState("48");
   const [outerH, setOuterH] = useState("34");
@@ -51,7 +51,14 @@ export function DresserPlanner() {
   const [sideT, setSideT] = useState("0.75");
   const [centerSupportT, setCenterSupportT] = useState("0.75");
   const [topPanelT, setTopPanelT] = useState("0.75");
-  const [maxBoardW, setMaxBoardW] = useState("8");
+  const [maxBoardDraft, setMaxBoardDraft] = useState(() =>
+    String(project.maxPurchasableBoardWidthInches)
+  );
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- sync draft when Setup (or other UI) changes project field */
+    setMaxBoardDraft(String(project.maxPurchasableBoardWidthInches));
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [project.maxPurchasableBoardWidthInches]);
   const [columns, setColumns] = useState<DresserColumnCount>(2);
   const [rows, setRows] = useState(String(DRESSER_DEFAULT_ROW_COUNT));
   /** Each drawer row opening height in inches (must sum to case budget — see hint below). */
@@ -143,7 +150,7 @@ export function DresserPlanner() {
     const sT = parsePositive(sideT);
     const cT = parsePositive(centerSupportT);
     const topPanel = parsePositive(topPanelT);
-    const maxBoardWidth = parsePositive(maxBoardW);
+    const maxBoardWidth = project.maxPurchasableBoardWidthInches;
     const k = parseInches(kick.trim() === "" ? "0" : kick);
     const top = parseInches(topAsm);
     const bot = parseInches(bottomPanel);
@@ -156,8 +163,11 @@ export function DresserPlanner() {
         message: "Enter valid overall W × H × D and positive side/center/top thicknesses.",
       };
     }
-    if (maxBoardWidth === null) {
-      return { ok: false as const, message: "Enter a valid max purchasable board width for glue-up planning." };
+    if (!Number.isFinite(maxBoardWidth) || maxBoardWidth <= 0) {
+      return {
+        ok: false as const,
+        message: "Set a valid max purchasable board width in Project setup (or the field below) for glue-up planning.",
+      };
     }
     if (k === null || k < 0 || top === null || top < 0 || bot === null || bot < 0) {
       return { ok: false as const, message: "Top/bottom must be valid; kick can be 0." };
@@ -189,7 +199,7 @@ export function DresserPlanner() {
     sideT,
     centerSupportT,
     topPanelT,
-    maxBoardW,
+    project.maxPurchasableBoardWidthInches,
     columns,
     rowCount,
     kick,
@@ -480,9 +490,13 @@ export function DresserPlanner() {
             </Field>
             <Field label="Max purchasable board width">
               <In
-                value={maxBoardW}
-                onChange={setMaxBoardW}
-                hint="Glue-up planning uses this max single-board width for wide top/sides."
+                value={maxBoardDraft}
+                onChange={(v) => {
+                  setMaxBoardDraft(v);
+                  const parsed = parsePositive(v);
+                  if (parsed !== null) setMaxPurchasableBoardWidthInches(parsed);
+                }}
+                hint="Same as Project setup—glue-up planning for wide top/sides and materials assumptions."
               />
             </Field>
             <Field label="Columns (vertical stacks)">

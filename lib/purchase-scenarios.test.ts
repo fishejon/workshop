@@ -37,6 +37,8 @@ describe("evaluatePurchaseScenario", () => {
     expect(g.recommendedStockLengthInches).toBe(96);
     expect(g.estimatedStickCount).toBe(1);
     expect(g.exceedsTransport).toBe(false);
+    expect(r.twoDimensional.totalEstimatedBoards2d).toBeGreaterThanOrEqual(1);
+    expect(r.twoDimensional.groups).toHaveLength(1);
   });
 
   it("minBoardCount prefers longer stock when it reduces board count", () => {
@@ -76,6 +78,51 @@ describe("evaluatePurchaseScenario", () => {
     });
     expect(r.groups[0]!.exceedsTransport).toBe(true);
     expect(r.headline).toContain("exceed");
+  });
+
+  it("flags groups when solid rough width exceeds max purchasable board width (no stick inflation)", () => {
+    const parts: Part[] = [
+      samplePart({
+        id: "wide",
+        name: "Wide rail",
+        quantity: 1,
+        status: "solid",
+        rough: { t: 1, w: 24, l: 48, manual: false },
+      }),
+    ];
+    const r = evaluatePurchaseScenario("fitTransport", {
+      parts,
+      wasteFactorPercent: 0,
+      maxTransportLengthInches: 96,
+      maxPurchasableBoardWidthInches: 20,
+      kerfInches: 0.125,
+    });
+    expect(r.groups[0]!.exceedsPurchasableBoardWidth).toBe(true);
+    expect(r.anyExceedsPurchasableBoardWidth).toBe(true);
+    expect(r.maxPurchasableBoardWidthInches).toBe(20);
+    expect(r.headline).toMatch(/Width caveat/i);
+    expect(r.detail).toMatch(/rough width for solid stock/i);
+    expect(r.groups[0]!.estimatedStickCount).toBe(1);
+  });
+
+  it("uses finished width for panel status when checking purchasable width", () => {
+    const parts: Part[] = [
+      samplePart({
+        id: "panel",
+        name: "Back",
+        quantity: 1,
+        status: "panel",
+        finished: { t: 0.25, w: 22, l: 30 },
+        rough: { t: 0.25, w: 6, l: 30, manual: false },
+      }),
+    ];
+    const r = evaluatePurchaseScenario("fitTransport", {
+      parts,
+      wasteFactorPercent: 0,
+      maxTransportLengthInches: 96,
+      maxPurchasableBoardWidthInches: 20,
+    });
+    expect(r.groups[0]!.exceedsPurchasableBoardWidth).toBe(true);
   });
 
   it("computes group and total costs from optional BF/LF rates", () => {

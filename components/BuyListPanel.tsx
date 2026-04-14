@@ -24,7 +24,7 @@ const SCENARIO_ORDER: PurchaseScenarioId[] = [
 ];
 
 export function BuyListPanel() {
-  const { project, setMaterialGroupCostRate } = useProject();
+  const { project, setMaterialGroupCostRate, setMaterialGroupStockWidth } = useProject();
   const [scenario, setScenario] = useState<PurchaseScenarioId>("fitTransport");
 
   const groups = useMemo(
@@ -38,12 +38,16 @@ export function BuyListPanel() {
         parts: project.parts,
         wasteFactorPercent: project.wasteFactorPercent,
         maxTransportLengthInches: project.maxTransportLengthInches,
+        maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
+        stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
         costRatesByGroup: project.costRatesByGroup,
       }),
     [
       project.parts,
       project.wasteFactorPercent,
       project.maxTransportLengthInches,
+      project.maxPurchasableBoardWidthInches,
+      project.stockWidthByMaterialGroup,
       project.costRatesByGroup,
     ]
   );
@@ -61,6 +65,16 @@ export function BuyListPanel() {
   const groupCostMap = useMemo(
     () => new Map((plan?.groupCosts ?? []).map((row) => [row.key, row])),
     [plan]
+  );
+
+  const planGroupByKey = useMemo(
+    () => new Map(plan.groups.map((row) => [row.key, row])),
+    [plan.groups]
+  );
+
+  const twoDGroupByKey = useMemo(
+    () => new Map(plan.twoDimensional.groups.map((row) => [row.key, row])),
+    [plan.twoDimensional.groups]
   );
 
   const subtotal = totalBoardFeet(groups);
@@ -89,6 +103,12 @@ export function BuyListPanel() {
         still often assumes nominal thickness even after surfacing. Waste ({project.wasteFactorPercent}%) scales those rough
         totals. Scenarios use max carry {formatImperial(project.maxTransportLengthInches)} and {plan.kerfInches}″ kerf
         between cuts on the same stick—confirm surfaced vs rough and real stock lengths at the yard.
+      </p>
+      <p className="mt-1 text-xs text-[var(--gl-muted)]">
+        Width assumption for stick estimates: boards up to{" "}
+        <strong className="text-[var(--gl-cream)]">{formatImperial(project.maxPurchasableBoardWidthInches)}</strong> wide
+        (panels checked on finished width, solid stock on rough width). Packing is still 1D on length—if the headline
+        warns on width, add rips or glue-ups outside this stick count.
       </p>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Workshop memory: lumber profile <strong className="text-[var(--gl-cream)]">{project.workshop.lumberProfile.replaceAll("_", " ")}</strong>
@@ -125,6 +145,20 @@ export function BuyListPanel() {
               Estimated total cost: <strong className="text-[var(--gl-cream)]">{formatMoney(plan.totalEstimatedCost)}</strong>{" "}
               (optional model from adjusted BF/LF rates below).
             </p>
+            <div className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3">
+              <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                2D board estimate (width + length)
+              </p>
+              <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">{plan.twoDimensional.headline}</p>
+              {plan.twoDimensional.detail ? (
+                <p className="mt-1 text-xs text-[var(--gl-muted)]">{plan.twoDimensional.detail}</p>
+              ) : null}
+              <ul className="mt-2 list-inside list-disc text-[11px] text-[var(--gl-muted)]">
+                {plan.twoDimensional.assumptions.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {SCENARIO_ORDER.map((id) => {
                 const scenarioPlan = planByScenario.get(id);
@@ -170,6 +204,12 @@ export function BuyListPanel() {
                   <span className="font-medium">{g.materialLabel}</span>
                   <span className="text-xs text-[var(--gl-muted)]">{g.thicknessCategory}</span>
                 </div>
+                {planGroupByKey.get(g.key)?.exceedsPurchasableBoardWidth ? (
+                  <p className="mt-2 text-xs text-amber-200/90">
+                    Some parts in this group are wider than your {formatImperial(plan.maxPurchasableBoardWidthInches)}{" "}
+                    purchasable-board setting (length-only stick math does not add boards for width).
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs text-[var(--gl-muted)]">
                   Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
                   sizes/qty. Yard estimate with waste: <strong>{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
@@ -177,6 +217,42 @@ export function BuyListPanel() {
                   {formatImperial(project.maxTransportLengthInches)}; verify actual stock lengths, kerf, and cut plan at
                   the bench.
                 </p>
+                <div className="mt-2 rounded-lg border border-white/10 bg-black/30 p-2 text-xs text-[var(--gl-muted)]">
+                  <p className="font-medium text-[var(--gl-cream-soft)]">2D estimate (this group)</p>
+                  <p className="mt-1">
+                    Stock width assumed:{" "}
+                    {formatImperial(twoDGroupByKey.get(g.key)?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches)}{" "}
+                    · ~{twoDGroupByKey.get(g.key)?.estimatedBoards2d ?? 0} board(s) · length-only sticks:{" "}
+                    {twoDGroupByKey.get(g.key)?.estimatedSticks1d ?? 0}
+                  </p>
+                  <p className="mt-0.5">{twoDGroupByKey.get(g.key)?.detail}</p>
+                  {(twoDGroupByKey.get(g.key)?.flags ?? []).map((f) => (
+                    <p key={f} className="mt-1 text-amber-200/90">
+                      {f}
+                    </p>
+                  ))}
+                  <label className="mt-2 block">
+                    Override 2D stock width (in, optional)
+                    <input
+                      type="number"
+                      step="any"
+                      min={0.1}
+                      className="input-wood mt-1 text-xs"
+                      placeholder={`Default ${project.maxPurchasableBoardWidthInches}`}
+                      value={project.stockWidthByMaterialGroup?.[g.key] ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (!v) {
+                          setMaterialGroupStockWidth(g.key, null);
+                          return;
+                        }
+                        const n = Number.parseFloat(v);
+                        if (!Number.isFinite(n) || n <= 0) return;
+                        setMaterialGroupStockWidth(g.key, n);
+                      }}
+                    />
+                  </label>
+                </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   <label className="text-xs text-[var(--gl-muted)]">
                     Cost / BF

@@ -60,9 +60,9 @@ export function GrainlineApp() {
 
   const explainAllowance = `Project milling allowance: ${formatImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
-  const shopAside = (
+  const shopMaterialsLeft = <PartsTable explainAllowanceText={explainAllowance} />;
+  const shopMaterialsRight = (
     <>
-      <PartsTable explainAllowanceText={explainAllowance} />
       <BuyListPanel />
       <JoineryPanel />
       <RoughStickLayout />
@@ -183,7 +183,8 @@ export function GrainlineApp() {
           onChange={setAppTab}
           setupPanel={setupPanel}
           buildLeft={buildLeft}
-          shopAside={shopAside}
+          shopMaterialsLeft={shopMaterialsLeft}
+          shopMaterialsRight={shopMaterialsRight}
           aboutPanel={aboutPanel}
           canExportOrPrint={canExportOrPrint}
         />

@@ -115,7 +115,7 @@ describe("dresser regression fixture", () => {
     expect(back).toBeDefined();
     if (!back) return;
 
-    const assumptions = derivePartAssumptions(back, DRESSER_REGRESSION_PROJECT.joints);
+    const assumptions = derivePartAssumptions(back, DRESSER_REGRESSION_PROJECT.joints, DRESSER_REGRESSION_PROJECT);
     expect(assumptions.glueUp).toMatch(/Glue-up required assumption/);
     expect(assumptions.glueUp).toMatch(/70\.500"/);
     expect(assumptions.glueUp).toMatch(/max board width/);

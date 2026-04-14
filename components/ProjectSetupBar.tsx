@@ -18,6 +18,7 @@ export function ProjectSetupBar() {
     setProjectName,
     setMillingAllowanceInches,
     setMaxTransportLengthInches,
+    setMaxPurchasableBoardWidthInches,
     setWasteFactorPercent,
     setWorkshopLumberProfile,
     setWorkshopOffcutMode,
@@ -107,7 +108,7 @@ export function ProjectSetupBar() {
             />
           </label>
         </div>
-        <div className="grid flex-1 gap-3 sm:grid-cols-3">
+        <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Milling allowance (in)</span>
             <input
@@ -134,6 +135,24 @@ export function ProjectSetupBar() {
                 setMaxTransportLengthInches(Math.max(1, Number.parseFloat(e.target.value) || 96))
               }
             />
+          </label>
+          <label className="text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Max purchasable board width (in)</span>
+            <input
+              type="number"
+              step="any"
+              min={0.0001}
+              className="input-wood mt-1"
+              value={project.maxPurchasableBoardWidthInches}
+              onChange={(e) =>
+                setMaxPurchasableBoardWidthInches(
+                  Math.max(0.0001, Number.parseFloat(e.target.value) || 20)
+                )
+              }
+            />
+            <span className="mt-0.5 block text-[10px] text-[var(--gl-muted)]">
+              Panel glue-up copy and buy-list width caveat (widest single board you shop for)
+            </span>
           </label>
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Waste factor (%)</span>

@@ -3,9 +3,15 @@
  * BF/LF totals stay in board-feet.ts; scenarios add stock-length / stick-count guidance.
  */
 
+import { computeTwoDimensionalBoardEstimate } from "./buy-2d/estimate";
+import type { TwoDimensionalBoardEstimate } from "./buy-2d/types";
 import type { BoardFootGroup } from "./board-feet";
 import { groupPartsByMaterial, materialGroupKey } from "./board-feet";
-import { packUniformStock, totalWaste } from "./optimize-cuts";
+import {
+  bestPackGroupParts,
+  tryPackGroupParts,
+  type PackMetrics,
+} from "./purchase-pack";
 import type { Part } from "./project-types";
 import { roughCutsFromParts } from "./rough-sticks";
 
@@ -15,10 +21,17 @@ export type PurchaseScenarioInput = {
   parts: Part[];
   wasteFactorPercent: number;
   maxTransportLengthInches: number;
+  /**
+   * Widest single board assumed available at the yard. Used only for width-direction caveats;
+   * stick packing remains 1D on rough length.
+   */
+  maxPurchasableBoardWidthInches?: number;
   /** Optional rates keyed by materialGroupKey(label, thicknessCategory). */
   costRatesByGroup?: Record<string, { perBoardFoot?: number; perLinearFoot?: number }>;
   /** Table-saw kerf between cuts on the same stick (inches). */
   kerfInches?: number;
+  /** Optional per `materialGroupKey` max stock width for 2D rip math (falls back to maxPurchasableBoardWidthInches). */
+  stockWidthByMaterialGroup?: Record<string, number>;
 };
 
 export type MaterialGroupScenarioSummary = {
@@ -34,6 +47,11 @@ export type MaterialGroupScenarioSummary = {
   maxCutLengthInches: number;
   /** True when the longest cut exceeds max transport — cannot fit on a single carry-length board. */
   exceedsTransport: boolean;
+  /**
+   * True when some part in this group spans wider than `maxPurchasableBoardWidthInches` (see
+   * `partWidthInchesForPurchaseCaveat` — panels use finished W, other statuses use rough W).
+   */
+  exceedsPurchasableBoardWidth: boolean;
 };
 
 export type PurchaseScenarioResult = {
@@ -51,6 +69,15 @@ export type PurchaseScenarioResult = {
   totalEstimatedSticks: number;
   totalEstimatedWasteInches: number;
   totalEstimatedCost: number;
+  /** Effective max board width used for width caveats (defaults when input omitted). */
+  maxPurchasableBoardWidthInches: number;
+  /** Any material group has a part wider than max purchasable width (conservative flag only). */
+  anyExceedsPurchasableBoardWidth: boolean;
+  /**
+   * Parallel width×length estimate: expands panel glue-up strips and width-rip multipliers, then packs lengths.
+   * Labeled as an estimate in UI—not a substitute for yard verification.
+   */
+  twoDimensional: TwoDimensionalBoardEstimate;
 };
 
 export type ScenarioGroupCostSummary = {
@@ -67,11 +94,27 @@ export type ScenarioGroupCostSummary = {
 };
 
 const DEFAULT_KERF_IN = 0.125;
+const DEFAULT_MAX_PURCHASABLE_BOARD_WIDTH_IN = 20;
 
-/** Common retail hardwood stick lengths (inches), ascending. */
-const COMMON_STOCK_INCHES: readonly number[] = [
-  48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 120, 132, 144,
-];
+/**
+ * Width caveat rule (documented): stick math is length-only. For a conservative “can one board cover this span?”
+ * check we compare **panel** parts on **finished width** (face / glue-up target) and **non-panel** parts on **rough width**
+ * (stock width after allowance). This does not inflate stick counts—it only surfaces warnings.
+ */
+export function partWidthInchesForPurchaseCaveat(part: Part): number {
+  return part.status === "panel" ? part.finished.w : part.rough.w;
+}
+
+function effectiveMaxPurchasableBoardWidthInches(input: PurchaseScenarioInput): number {
+  const w = input.maxPurchasableBoardWidthInches;
+  if (typeof w === "number" && Number.isFinite(w) && w > 0) return w;
+  return DEFAULT_MAX_PURCHASABLE_BOARD_WIDTH_IN;
+}
+
+function groupExceedsPurchasableBoardWidth(groupParts: Part[], maxWidth: number): boolean {
+  if (!Number.isFinite(maxWidth) || maxWidth <= 0) return false;
+  return groupParts.some((p) => partWidthInchesForPurchaseCaveat(p) > maxWidth + 1e-6);
+}
 
 export const PURCHASE_SCENARIO_META: Record<
   PurchaseScenarioId,
@@ -100,93 +143,12 @@ function partsForGroup(parts: Part[], g: BoardFootGroup): Part[] {
   return parts.filter((p) => materialGroupKey(p.material.label, p.material.thicknessCategory) === key);
 }
 
-function candidateStockLengths(maxTransport: number, minCut: number): number[] {
-  if (minCut <= 0 || maxTransport <= 0) return [];
-  if (minCut > maxTransport + 1e-6) return [];
-  const fromCommon = COMMON_STOCK_INCHES.filter((l) => l <= maxTransport + 1e-6 && l >= minCut - 1e-6);
-  const set = new Set(fromCommon);
-  set.add(maxTransport);
-  return Array.from(set).sort((a, b) => a - b);
-}
-
-type PackMetrics = {
-  stockLength: number;
-  stickCount: number;
-  wasteInches: number;
-};
-
-function tryPack(
-  groupParts: Part[],
-  stockLength: number,
-  kerf: number
-): PackMetrics | null {
-  const pieces = roughCutsFromParts(groupParts);
-  if (pieces.length === 0) {
-    return { stockLength, stickCount: 0, wasteInches: 0 };
-  }
-  const maxCut = Math.max(...pieces.map((p) => p.lengthInches));
-  if (maxCut > stockLength + 1e-6) return null;
-  try {
-    const boards = packUniformStock(pieces, stockLength, kerf);
-    return {
-      stockLength,
-      stickCount: boards.length,
-      wasteInches: totalWaste(boards),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function bestPackForScenario(
-  groupParts: Part[],
-  maxTransport: number,
-  kerf: number,
-  mode: "minWaste" | "minBoardCount"
-): PackMetrics | null {
-  const pieces = roughCutsFromParts(groupParts);
-  if (pieces.length === 0) {
-    return { stockLength: maxTransport, stickCount: 0, wasteInches: 0 };
-  }
-  const minCut = Math.max(...pieces.map((p) => p.lengthInches));
-  const candidates = candidateStockLengths(maxTransport, minCut);
-  if (candidates.length === 0) return null;
-
-  let best: PackMetrics | null = null;
-
-  for (const L of candidates) {
-    const m = tryPack(groupParts, L, kerf);
-    if (!m) continue;
-    if (!best) {
-      best = m;
-      continue;
-    }
-    if (mode === "minBoardCount") {
-      if (m.stickCount < best.stickCount) best = m;
-      else if (m.stickCount === best.stickCount) {
-        if (m.wasteInches < best.wasteInches - 1e-6) best = m;
-        else if (Math.abs(m.wasteInches - best.wasteInches) <= 1e-6 && m.stockLength > best.stockLength)
-          best = m;
-      }
-    } else {
-      // minWaste
-      if (m.wasteInches < best.wasteInches - 1e-6) best = m;
-      else if (Math.abs(m.wasteInches - best.wasteInches) <= 1e-6) {
-        if (m.stickCount < best.stickCount) best = m;
-        else if (m.stickCount === best.stickCount && m.stockLength < best.stockLength) best = m;
-      }
-    }
-  }
-
-  return best;
-}
-
 function summarizeGroup(
   g: BoardFootGroup,
   metrics: PackMetrics | null,
   maxTransport: number,
   groupParts: Part[]
-): MaterialGroupScenarioSummary {
+): Omit<MaterialGroupScenarioSummary, "exceedsPurchasableBoardWidth"> {
   const pieces = roughCutsFromParts(groupParts);
   const maxCut = pieces.length ? Math.max(...pieces.map((p) => p.lengthInches)) : 0;
   const exceedsTransport = maxCut > maxTransport + 1e-6;
@@ -223,6 +185,7 @@ function buildResult(
 ): PurchaseScenarioResult {
   const kerf = input.kerfInches ?? DEFAULT_KERF_IN;
   const maxTransport = input.maxTransportLengthInches;
+  const maxPurchasableBoardWidthInches = effectiveMaxPurchasableBoardWidthInches(input);
   const groups = groupPartsByMaterial(input.parts, input.wasteFactorPercent);
   const summaries: MaterialGroupScenarioSummary[] = [];
   let totalSticks = 0;
@@ -231,7 +194,9 @@ function buildResult(
   for (const g of groups) {
     const gp = partsForGroup(input.parts, g);
     const metrics = summarize(g, gp);
-    summaries.push(summarizeGroup(g, metrics, maxTransport, gp));
+    const base = summarizeGroup(g, metrics, maxTransport, gp);
+    const exceedsPurchasableBoardWidth = groupExceedsPurchasableBoardWidth(gp, maxPurchasableBoardWidthInches);
+    summaries.push({ ...base, exceedsPurchasableBoardWidth });
     totalSticks += metrics?.stickCount ?? 0;
     totalWaste += metrics?.wasteInches ?? 0;
   }
@@ -239,10 +204,11 @@ function buildResult(
   const totalCost = groupCosts.reduce((sum, row) => sum + row.totalCost, 0);
 
   const meta = PURCHASE_SCENARIO_META[scenario];
-  const anyExceeds = summaries.some((s) => s.exceedsTransport);
-  const headline = anyExceeds
-    ? `One or more rough lengths exceed ${maxTransport.toFixed(0)}″ — split parts, revise rough L, or arrange delivery before counting sticks.`
-    : scenario === "minWaste"
+  const anyExceedsTransport = summaries.some((s) => s.exceedsTransport);
+  const anyExceedsWidth = summaries.some((s) => s.exceedsPurchasableBoardWidth);
+
+  const scenarioHeadline =
+    scenario === "minWaste"
       ? `Favor stock lengths that trim offcut waste (kerf ${kerf}″ between cuts on the same stick).`
       : scenario === "minBoardCount"
         ? `Bias toward longer sticks (still ≤ ${maxTransport.toFixed(0)}″) to reduce how many boards you carry.`
@@ -250,12 +216,33 @@ function buildResult(
           ? `Packing at your max carry length (${maxTransport.toFixed(0)}″) — every stick should ride home in one piece.`
           : `Use your max carry length (${maxTransport.toFixed(0)}″), confirm stick counts at the yard, and mill later—totals above stay rough-based.`;
 
-  const detail =
+  let headline = scenarioHeadline;
+  if (anyExceedsTransport) {
+    headline = `One or more rough lengths exceed ${maxTransport.toFixed(0)}″ — split parts, revise rough L, or arrange delivery before counting sticks.`;
+  } else if (anyExceedsWidth) {
+    headline = `Width caveat: at least one part spans more than your ${maxPurchasableBoardWidthInches.toFixed(0)}″ purchasable-board assumption (see Setup). Stick counts below are still a length-only estimate—plan rips, glue-ups, or wider stock separately. ${scenarioHeadline}`;
+  }
+
+  let detail =
     summaries.length === 0
       ? "Add parts to see stick-level hints."
-      : anyExceeds
+      : anyExceedsTransport
         ? "BF/LF still use rough T×W×L; fix transport-length violations before trusting stick counts."
         : `About ${totalSticks} stick${totalSticks === 1 ? "" : "s"} estimated (1D rough L only; width/thickness still come from BF groups).`;
+
+  if (anyExceedsWidth && !anyExceedsTransport && summaries.length > 0) {
+    detail = `${detail} Width check uses finished width for panels and rough width for solid stock—wider than ${maxPurchasableBoardWidthInches.toFixed(1)}″ does not add sticks here.`;
+  }
+
+  const twoDimensional = computeTwoDimensionalBoardEstimate({
+    parts: input.parts,
+    wasteFactorPercent: input.wasteFactorPercent,
+    maxTransportLengthInches: maxTransport,
+    maxPurchasableBoardWidthInches,
+    stockWidthByMaterialGroup: input.stockWidthByMaterialGroup,
+    kerfInches: kerf,
+    scenario,
+  });
 
   return {
     scenario,
@@ -269,6 +256,9 @@ function buildResult(
     totalEstimatedSticks: totalSticks,
     totalEstimatedWasteInches: totalWaste,
     totalEstimatedCost: totalCost,
+    maxPurchasableBoardWidthInches,
+    anyExceedsPurchasableBoardWidth: anyExceedsWidth,
+    twoDimensional,
   };
 }
 
@@ -313,12 +303,12 @@ export function evaluatePurchaseScenario(
   const maxTransport = input.maxTransportLengthInches;
 
   if (scenario === "fitTransport" || scenario === "simpleTrip") {
-    return buildResult(scenario, input, (_g, gp) => tryPack(gp, maxTransport, kerf));
+    return buildResult(scenario, input, (_g, gp) => tryPackGroupParts(gp, maxTransport, kerf));
   }
   if (scenario === "minWaste") {
-    return buildResult(scenario, input, (_g, gp) => bestPackForScenario(gp, maxTransport, kerf, "minWaste"));
+    return buildResult(scenario, input, (_g, gp) => bestPackGroupParts(gp, maxTransport, kerf, "minWaste"));
   }
-  return buildResult(scenario, input, (_g, gp) => bestPackForScenario(gp, maxTransport, kerf, "minBoardCount"));
+  return buildResult(scenario, input, (_g, gp) => bestPackGroupParts(gp, maxTransport, kerf, "minBoardCount"));
 }
 
 export function evaluateAllPurchaseScenarios(input: PurchaseScenarioInput): PurchaseScenarioResult[] {

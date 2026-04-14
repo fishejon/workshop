@@ -121,6 +121,11 @@ export type Project = {
   millingAllowanceInches: number;
   /** Max stick length for buy-list hints (transport). */
   maxTransportLengthInches: number;
+  /**
+   * Widest single board you can reliably buy (in). Used for panel glue-up copy and buy-list width caveats;
+   * stick packing stays 1D on rough length.
+   */
+  maxPurchasableBoardWidthInches: number;
   /** Applied to board-foot subtotals in buy list. */
   wasteFactorPercent: number;
   /** Optional material-group rates keyed by `materialGroupKey(label, thicknessCategory)`. */
@@ -137,6 +142,11 @@ export type Project = {
   };
   /** Workshop memory defaults stored locally (Epic 7 starter). */
   workshop: WorkshopPreferences;
+  /**
+   * Optional per `materialGroupKey` max stock width (in) for 2D buy estimates.
+   * Falls back to `maxPurchasableBoardWidthInches` when a key is absent.
+   */
+  stockWidthByMaterialGroup?: Record<string, number>;
 };
 
 export type ProjectTemplate = {
@@ -147,10 +157,12 @@ export type ProjectTemplate = {
   createdAt: string;
   millingAllowanceInches: number;
   maxTransportLengthInches: number;
+  maxPurchasableBoardWidthInches: number;
   wasteFactorPercent: number;
   costRatesByGroup: Record<string, MaterialGroupCostRate>;
   parts: Part[];
   joints: ProjectJoint[];
   connections: ProjectJoinConnection[];
   workshop: WorkshopPreferences;
+  stockWidthByMaterialGroup?: Record<string, number>;
 };

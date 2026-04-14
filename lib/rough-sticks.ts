@@ -8,6 +8,7 @@ export type RoughCutPiece = {
 /**
  * Expands each part by quantity into individual rough stick cuts. Uses **rough L** as the 1D stick length
  * (length along the board, dominant rip direction). Labels are `name` + space + 1-based index per instance.
+ * For width-aware board counts see `lib/buy-2d/` (parallel 2D estimate, not a replacement for BF/LF).
  */
 export function roughCutsFromParts(parts: Part[]): RoughCutPiece[] {
   const out: RoughCutPiece[] = [];

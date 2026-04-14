@@ -27,7 +27,7 @@ describe("derivePartAssumptions", () => {
       },
     ];
 
-    const assumptions = derivePartAssumptions(part, joints);
+    const assumptions = derivePartAssumptions(part, joints, { maxPurchasableBoardWidthInches: 20 });
     expect(assumptions.joinery).toMatch(/Joinery-adjusted finished size/);
   });
 
@@ -44,7 +44,23 @@ describe("derivePartAssumptions", () => {
       status: "panel",
     };
 
-    const assumptions = derivePartAssumptions(part, []);
+    const assumptions = derivePartAssumptions(part, [], { maxPurchasableBoardWidthInches: 20 });
     expect(assumptions.glueUp).toMatch(/Glue-up required assumption/);
+  });
+
+  it("treats a wide panel as single-board when max purchasable width allows", () => {
+    const part: Part = {
+      id: "p-panel",
+      name: "Panel",
+      assembly: "Back",
+      quantity: 1,
+      finished: { t: 0.75, w: 24, l: 30 },
+      rough: { t: 0.75, w: 24, l: 30, manual: true },
+      material: { label: "White oak", thicknessCategory: "4/4" },
+      grainNote: "",
+      status: "panel",
+    };
+    const assumptions = derivePartAssumptions(part, [], { maxPurchasableBoardWidthInches: 30 });
+    expect(assumptions.glueUp).toMatch(/Single-board panel assumption/);
   });
 });

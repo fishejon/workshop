@@ -6,6 +6,11 @@ import { applyDadoShelfWidth } from "@/lib/joinery/dado-shelf";
 import { applyGrooveForQuarterBackPanel } from "@/lib/joinery/groove-back";
 import { applyMortiseTenonRail, applyMortiseTenonStile } from "@/lib/joinery/mortise-tenon";
 import { buildConstructionPresetPlan, type ConstructionPresetId } from "@/lib/joinery/construction-presets";
+import {
+  formatInchesForJoineryField,
+  recommendedJoinerySummaryLine,
+  recommendedParamsForRule,
+} from "@/lib/joinery/recommended-params";
 import type { JointRuleId } from "@/lib/joinery/types";
 import { formatJointRuleLabel } from "@/lib/part-provenance";
 import { formatImperial, parseInches } from "@/lib/imperial";
@@ -44,6 +49,8 @@ export function JoineryPanel() {
   const [primaryEdgeLabel, setPrimaryEdgeLabel] = useState("");
   const [mateEdgeLabel, setMateEdgeLabel] = useState("");
   const [expandedJointId, setExpandedJointId] = useState<string | null>(null);
+  const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
+  const [useCustomJoineryParams, setUseCustomJoineryParams] = useState(false);
 
   function evaluateRule(
     currentRuleId: JointRuleId,
@@ -67,24 +74,6 @@ export function JoineryPanel() {
     return null;
   }
 
-  const grooveDepth = parseInches(grooveDepthStr);
-  const panelThickness = parseInches(panelThickStr);
-  const tenonLen = parseInches(tenonLenStr);
-  const dadoDepth = parseInches(dadoDepthStr);
-
-  const ruleResult = useMemo(() => {
-    if (ruleId === "groove_quarter_back") {
-      if (grooveDepth === null || grooveDepth < 0 || panelThickness === null || panelThickness < 0) return null;
-      return evaluateRule(ruleId, { grooveDepth, panelThickness });
-    }
-    if (ruleId === "dado_shelf_width") {
-      if (dadoDepth === null || dadoDepth < 0) return null;
-      return evaluateRule(ruleId, { dadoDepth });
-    }
-    if (tenonLen === null || tenonLen < 0) return null;
-    return evaluateRule(ruleId, { tenonLengthPerEnd: tenonLen });
-  }, [ruleId, grooveDepth, panelThickness, tenonLen, dadoDepth]);
-
   const backParts = useMemo(() => project.parts.filter((p) => p.assembly === "Back"), [project.parts]);
 
   const selectableParts = useMemo(() => {
@@ -101,6 +90,114 @@ export function JoineryPanel() {
     if (!matePartId || matePartId === resolvedPartId) return "";
     return project.parts.some((p) => p.id === matePartId) ? matePartId : "";
   }, [matePartId, resolvedPartId, project.parts]);
+
+  const selectedPartForJoinery = useMemo(
+    () => (resolvedPartId ? project.parts.find((p) => p.id === resolvedPartId) : undefined),
+    [project.parts, resolvedPartId]
+  );
+  const primaryFinishedThicknessIn = selectedPartForJoinery?.finished.t ?? null;
+
+  const effectiveJoineryNumbers = useMemo(() => {
+    if (ruleId === "groove_quarter_back") {
+      if (!useCustomJoineryParams) {
+        const r = recommendedParamsForRule("groove_quarter_back", primaryFinishedThicknessIn);
+        if (r.ruleId !== "groove_quarter_back") {
+          return {
+            grooveDepth: null as number | null,
+            panelThickness: null as number | null,
+            dadoDepth: null as number | null,
+            tenonLen: null as number | null,
+          };
+        }
+        return {
+          grooveDepth: r.grooveDepth,
+          panelThickness: r.panelThickness,
+          dadoDepth: null as number | null,
+          tenonLen: null as number | null,
+        };
+      }
+      return {
+        grooveDepth: parseInches(grooveDepthStr),
+        panelThickness: parseInches(panelThickStr),
+        dadoDepth: null,
+        tenonLen: null,
+      };
+    }
+    if (ruleId === "dado_shelf_width") {
+      if (!useCustomJoineryParams) {
+        const r = recommendedParamsForRule("dado_shelf_width", primaryFinishedThicknessIn);
+        if (r.ruleId !== "dado_shelf_width") {
+          return {
+            grooveDepth: null,
+            panelThickness: null,
+            dadoDepth: null,
+            tenonLen: null,
+          };
+        }
+        return {
+          grooveDepth: null,
+          panelThickness: null,
+          dadoDepth: r.dadoDepth,
+          tenonLen: null,
+        };
+      }
+      return {
+        grooveDepth: null,
+        panelThickness: null,
+        dadoDepth: parseInches(dadoDepthStr),
+        tenonLen: null,
+      };
+    }
+    if (!useCustomJoineryParams) {
+      const r = recommendedParamsForRule(ruleId, primaryFinishedThicknessIn);
+      if (r.ruleId !== "mortise_tenon_rail" && r.ruleId !== "mortise_tenon_stile") {
+        return {
+          grooveDepth: null,
+          panelThickness: null,
+          dadoDepth: null,
+          tenonLen: null,
+        };
+      }
+      return {
+        grooveDepth: null,
+        panelThickness: null,
+        dadoDepth: null,
+        tenonLen: r.tenonLengthPerEnd,
+      };
+    }
+    return {
+      grooveDepth: null,
+      panelThickness: null,
+      dadoDepth: null,
+      tenonLen: parseInches(tenonLenStr),
+    };
+  }, [
+    ruleId,
+    useCustomJoineryParams,
+    primaryFinishedThicknessIn,
+    grooveDepthStr,
+    panelThickStr,
+    dadoDepthStr,
+    tenonLenStr,
+  ]);
+
+  const grooveDepth = effectiveJoineryNumbers.grooveDepth;
+  const panelThickness = effectiveJoineryNumbers.panelThickness;
+  const dadoDepth = effectiveJoineryNumbers.dadoDepth;
+  const tenonLen = effectiveJoineryNumbers.tenonLen;
+
+  const ruleResult = useMemo(() => {
+    if (ruleId === "groove_quarter_back") {
+      if (grooveDepth === null || grooveDepth < 0 || panelThickness === null || panelThickness < 0) return null;
+      return evaluateRule(ruleId, { grooveDepth, panelThickness });
+    }
+    if (ruleId === "dado_shelf_width") {
+      if (dadoDepth === null || dadoDepth < 0) return null;
+      return evaluateRule(ruleId, { dadoDepth });
+    }
+    if (tenonLen === null || tenonLen < 0) return null;
+    return evaluateRule(ruleId, { tenonLengthPerEnd: tenonLen });
+  }, [ruleId, grooveDepth, panelThickness, tenonLen, dadoDepth]);
 
   const mateCandidates = useMemo(
     () => project.parts.filter((p) => p.id !== resolvedPartId),
@@ -136,6 +233,10 @@ export function JoineryPanel() {
       }, 0),
     [selectedPresetPlan]
   );
+
+  function resetJoineryParamsToRecommended() {
+    setUseCustomJoineryParams(false);
+  }
 
   function applyRuleToSelected() {
     if (!ruleResult || !resolvedPartId) return;
@@ -441,7 +542,10 @@ export function JoineryPanel() {
             <select
               className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
               value={ruleId}
-              onChange={(e) => setRuleId(e.target.value as JointRuleId)}
+              onChange={(e) => {
+                setRuleId(e.target.value as JointRuleId);
+                setUseCustomJoineryParams(false);
+              }}
             >
               {RULE_OPTIONS.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -451,52 +555,158 @@ export function JoineryPanel() {
             </select>
           </label>
 
-          {ruleId === "groove_quarter_back" ? (
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-xs text-[var(--gl-muted)]">
-                Groove depth
-                <input
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                  value={grooveDepthStr}
-                  onChange={(e) => setGrooveDepthStr(e.target.value)}
-                  inputMode="decimal"
-                  aria-invalid={grooveDepth === null || grooveDepth < 0}
-                />
-              </label>
-              <label className="block text-xs text-[var(--gl-muted)]">
-                Panel thickness (label)
-                <input
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                  value={panelThickStr}
-                  onChange={(e) => setPanelThickStr(e.target.value)}
-                  inputMode="decimal"
-                  aria-invalid={panelThickness === null || panelThickness < 0}
-                />
-              </label>
+          <div className="space-y-2 rounded-xl border border-white/10 bg-black/15 px-3 py-3">
+            <p className="text-sm leading-relaxed text-[var(--gl-cream-soft)]">
+              {useCustomJoineryParams ? (
+                <>Using custom parameters — expand Advanced below to edit.</>
+              ) : (
+                <>
+                  Using recommended:{" "}
+                  {recommendedJoinerySummaryLine(ruleId, primaryFinishedThicknessIn, {
+                    hasSelectedPart: Boolean(selectedPartForJoinery),
+                    partLabel: selectedPartForJoinery?.name,
+                  })}
+                </>
+              )}
+            </p>
+            <div className="rounded-lg border border-white/10 bg-black/20">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-[var(--gl-cream)]"
+                onClick={() => setAdvancedParamsOpen((o) => !o)}
+                aria-expanded={advancedParamsOpen}
+              >
+                <span>Advanced parameters</span>
+                <span className="text-[var(--gl-muted)]">{advancedParamsOpen ? "−" : "+"}</span>
+              </button>
+              {advancedParamsOpen ? (
+                <div className="space-y-3 border-t border-white/10 px-3 py-3">
+                  <p className="text-[11px] leading-relaxed text-[var(--gl-muted)]">
+                    Override groove, panel, dado, or tenon numbers. Rule changes reset to recommended values.
+                  </p>
+                  {ruleId === "groove_quarter_back" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-xs text-[var(--gl-muted)]">
+                        Groove depth
+                        <input
+                          className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                          value={
+                            useCustomJoineryParams
+                              ? grooveDepthStr
+                              : grooveDepth !== null
+                                ? formatInchesForJoineryField(grooveDepth)
+                                : ""
+                          }
+                          onChange={(e) => {
+                            setUseCustomJoineryParams(true);
+                            setGrooveDepthStr(e.target.value);
+                          }}
+                          inputMode="decimal"
+                          aria-invalid={
+                            useCustomJoineryParams
+                              ? (() => {
+                                  const v = parseInches(grooveDepthStr);
+                                  return v === null || v < 0;
+                                })()
+                              : false
+                          }
+                        />
+                      </label>
+                      <label className="block text-xs text-[var(--gl-muted)]">
+                        Panel thickness (label)
+                        <input
+                          className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                          value={
+                            useCustomJoineryParams
+                              ? panelThickStr
+                              : panelThickness !== null
+                                ? formatInchesForJoineryField(panelThickness)
+                                : ""
+                          }
+                          onChange={(e) => {
+                            setUseCustomJoineryParams(true);
+                            setPanelThickStr(e.target.value);
+                          }}
+                          inputMode="decimal"
+                          aria-invalid={
+                            useCustomJoineryParams
+                              ? (() => {
+                                  const v = parseInches(panelThickStr);
+                                  return v === null || v < 0;
+                                })()
+                              : false
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : ruleId === "dado_shelf_width" ? (
+                    <label className="block text-xs text-[var(--gl-muted)]">
+                      Dado depth (in)
+                      <input
+                        className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        value={
+                          useCustomJoineryParams
+                            ? dadoDepthStr
+                            : dadoDepth !== null
+                              ? formatInchesForJoineryField(dadoDepth)
+                              : ""
+                        }
+                        onChange={(e) => {
+                          setUseCustomJoineryParams(true);
+                          setDadoDepthStr(e.target.value);
+                        }}
+                        inputMode="decimal"
+                        aria-invalid={
+                          useCustomJoineryParams
+                            ? (() => {
+                                const v = parseInches(dadoDepthStr);
+                                return v === null || v < 0;
+                              })()
+                            : false
+                        }
+                      />
+                    </label>
+                  ) : (
+                    <label className="block text-xs text-[var(--gl-muted)]">
+                      Tenon length per end (in)
+                      <input
+                        className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        value={
+                          useCustomJoineryParams
+                            ? tenonLenStr
+                            : tenonLen !== null
+                              ? formatInchesForJoineryField(tenonLen)
+                              : ""
+                        }
+                        onChange={(e) => {
+                          setUseCustomJoineryParams(true);
+                          setTenonLenStr(e.target.value);
+                        }}
+                        inputMode="decimal"
+                        aria-invalid={
+                          useCustomJoineryParams
+                            ? (() => {
+                                const v = parseInches(tenonLenStr);
+                                return v === null || v < 0;
+                              })()
+                            : false
+                        }
+                      />
+                    </label>
+                  )}
+                  {useCustomJoineryParams ? (
+                    <button
+                      type="button"
+                      onClick={resetJoineryParamsToRecommended}
+                      className="text-xs font-medium text-[var(--gl-copper-bright)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
+                    >
+                      Reset to recommended
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-          ) : ruleId === "dado_shelf_width" ? (
-            <label className="block text-xs text-[var(--gl-muted)]">
-              Dado depth (in)
-              <input
-                className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                value={dadoDepthStr}
-                onChange={(e) => setDadoDepthStr(e.target.value)}
-                inputMode="decimal"
-                aria-invalid={dadoDepth === null || dadoDepth < 0}
-              />
-            </label>
-          ) : (
-            <label className="block text-xs text-[var(--gl-muted)]">
-              Tenon length per end (in)
-              <input
-                className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                value={tenonLenStr}
-                onChange={(e) => setTenonLenStr(e.target.value)}
-                inputMode="decimal"
-                aria-invalid={tenonLen === null || tenonLen < 0}
-              />
-            </label>
-          )}
+          </div>
 
           {invalidInputs ? (
             <p className="text-sm text-amber-200/90">Enter valid non-negative dimensions (e.g. 0.25 or 1/4).</p>

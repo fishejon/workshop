@@ -13,15 +13,16 @@ const TAB_LABELS: Record<AppShellTabId, string> = {
 };
 
 /**
- * IA shell: Setup (project + transport), Build (planners + shop column), Shop (shop column only), About.
- * Uses one `shopAside` mount so parts/buy state stays unified while tabs change layout.
+ * IA shell: Setup (project + transport), Build (planners + shop column), Shop (two-column shop), About.
+ * `shopMaterialsLeft` / `shopMaterialsRight` are the same panels as the Build aside, split for Materials’ wide grid.
  */
 export function AppShellTabs({
   active,
   onChange,
   setupPanel,
   buildLeft,
-  shopAside,
+  shopMaterialsLeft,
+  shopMaterialsRight,
   aboutPanel,
   canExportOrPrint,
 }: {
@@ -29,7 +30,8 @@ export function AppShellTabs({
   onChange: (id: AppShellTabId) => void;
   setupPanel: ReactNode;
   buildLeft: ReactNode;
-  shopAside: ReactNode;
+  shopMaterialsLeft: ReactNode;
+  shopMaterialsRight: ReactNode;
   aboutPanel: ReactNode;
   canExportOrPrint: boolean;
 }) {
@@ -105,7 +107,12 @@ export function AppShellTabs({
         ) : active === "build" ? (
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
             <div className="min-w-0 space-y-6">{buildLeft}</div>
-            <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">{shopAside}</aside>
+            <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
+              <div className="space-y-6">
+                {shopMaterialsLeft}
+                {shopMaterialsRight}
+              </div>
+            </aside>
           </div>
         ) : (
           <div className="space-y-6">
@@ -132,7 +139,10 @@ export function AppShellTabs({
                 for a paper-friendly sheet.
               </p>
             </div>
-            <div className="mx-auto w-full max-w-[min(100%,480px)] space-y-6">{shopAside}</div>
+            <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,380px)] lg:items-start">
+              <div className="min-w-0 space-y-6">{shopMaterialsLeft}</div>
+              <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">{shopMaterialsRight}</aside>
+            </div>
           </div>
         )}
       </div>

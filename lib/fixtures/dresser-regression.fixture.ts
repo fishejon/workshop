@@ -59,6 +59,7 @@ export const DRESSER_REGRESSION_PROJECT: Project = {
   name: "Canonical dresser regression fixture",
   millingAllowanceInches: 0.5,
   maxTransportLengthInches: 96,
+  maxPurchasableBoardWidthInches: 20,
   wasteFactorPercent: 15,
   costRatesByGroup: {},
   parts: DRESSER_REGRESSION_PARTS,

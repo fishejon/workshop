@@ -25,6 +25,7 @@ describe("parseProject", () => {
     });
     const p = parseProject(legacy);
     expect(p).not.toBeNull();
+    expect(p!.maxPurchasableBoardWidthInches).toBe(20);
     expect(p!.connections).toEqual([]);
     expect(p!.checkpoints).toEqual({
       materialAssumptionsReviewed: false,
@@ -49,6 +50,16 @@ describe("parseProject", () => {
     const p = parseProject(JSON.stringify(withConn));
     expect(p?.connections).toHaveLength(1);
     expect(p?.connections[0]?.id).toBe("c1");
+  });
+
+  it("parses stockWidthByMaterialGroup when present", () => {
+    const withStock = {
+      ...createEmptyProject(),
+      stockWidthByMaterialGroup: { "Oak||4/4": 14, bad: Number.NaN as unknown as number },
+    };
+    const p = parseProject(JSON.stringify(withStock));
+    expect(p?.stockWidthByMaterialGroup?.["Oak||4/4"]).toBe(14);
+    expect(p?.stockWidthByMaterialGroup?.bad).toBeUndefined();
   });
 
   it("preserves costRatesByGroup when present", () => {

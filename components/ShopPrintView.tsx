@@ -16,7 +16,8 @@ import {
   createEmptyProject,
   parseProject,
 } from "@/lib/project-utils";
-import { derivePartAssumptions, PANEL_GLUE_UP_MAX_BOARD_WIDTH_IN } from "@/lib/part-assumptions";
+import { derivePartAssumptions } from "@/lib/part-assumptions";
+import { evaluatePurchaseScenario } from "@/lib/purchase-scenarios";
 
 function formatTxWxL(d: Dimension3): string {
   return `${formatImperial(d.t)} × ${formatImperial(d.w)} × ${formatImperial(d.l)}`;
@@ -49,6 +50,18 @@ export function ShopPrintView() {
   const canPrint = Boolean(
     project?.checkpoints.materialAssumptionsReviewed && project?.checkpoints.joineryReviewed
   );
+
+  const purchasePreview = useMemo(() => {
+    if (!project) return null;
+    return evaluatePurchaseScenario("fitTransport", {
+      parts: project.parts,
+      wasteFactorPercent: project.wasteFactorPercent,
+      maxTransportLengthInches: project.maxTransportLengthInches,
+      maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
+      stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+      kerfInches: 0.125,
+    });
+  }, [project]);
 
   if (!project) {
     return (
@@ -120,6 +133,10 @@ export function ShopPrintView() {
               <dt className="shop-print-muted">Waste factor</dt>
               <dd className="font-medium">{project.wasteFactorPercent}%</dd>
             </div>
+            <div className="flex gap-2">
+              <dt className="shop-print-muted">Max purchasable board width</dt>
+              <dd className="font-medium">{formatImperial(project.maxPurchasableBoardWidthInches)}</dd>
+            </div>
           </dl>
         </header>
 
@@ -129,7 +146,7 @@ export function ShopPrintView() {
           </h2>
           <p className="mb-2 text-xs shop-print-muted">
             Assumptions column calls out joinery sizing provenance and panel glue-up checks (max single-board panel
-            width assumption: {formatImperial(PANEL_GLUE_UP_MAX_BOARD_WIDTH_IN)}).
+            width: {formatImperial(project.maxPurchasableBoardWidthInches)}).
           </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
@@ -148,7 +165,7 @@ export function ShopPrintView() {
                 </thead>
                 <tbody>
                   {project.parts.map((p) => {
-                    const assumptions = derivePartAssumptions(p, project.joints);
+                    const assumptions = derivePartAssumptions(p, project.joints, project);
                     return (
                       <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
                         <td className="py-2 pr-3 align-top">{p.name}</td>
@@ -181,8 +198,23 @@ export function ShopPrintView() {
             </strong>{" "}
             is nominal yard language—pricing often still uses nominal thickness after surfacing. Waste ({project.wasteFactorPercent}%)
             applies to those rough subtotals; transport cap {formatImperial(project.maxTransportLengthInches)} is for
-            planning only. Verify surfaced vs rough and available lengths before you buy.
+            planning only. Stick-count scenarios (if you use them in the app) pack on rough length only and assume board
+            width is already available up to {formatImperial(project.maxPurchasableBoardWidthInches)} for solid stock
+            (rough width) and panels (finished width)—wider spans need rips or glue-ups and are called out there, not by
+            inflating stick totals. Verify surfaced vs rough and real stock sizes before you buy.
           </p>
+          {purchasePreview ? (
+            <div className="mb-4 rounded-lg border border-[var(--gl-ink)]/25 bg-white/70 p-3 text-xs shop-print-muted">
+              <p className="font-semibold text-[var(--gl-ink)]">2D board estimate (companion to length-only sticks)</p>
+              <p className="mt-1 text-[var(--gl-ink)]/90">{purchasePreview.twoDimensional.headline}</p>
+              <p className="mt-1">{purchasePreview.twoDimensional.detail}</p>
+              <ul className="mt-2 list-inside list-disc">
+                {purchasePreview.twoDimensional.assumptions.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {groups.length === 0 ? (
             <p className="text-sm shop-print-muted">Add parts with materials to see board-foot groups.</p>
           ) : (
