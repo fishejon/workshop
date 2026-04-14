@@ -1,8 +1,16 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useProject } from "@/components/ProjectContext";
 import { formatImperial } from "@/lib/imperial";
+import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type ProjectTemplate } from "@/lib/project-types";
+import { PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
+
+const OFFCUT_MODE_LABELS: Record<OffcutModeId, string> = {
+  none: "Do not preserve offcuts",
+  keep_serviceable: "Preserve serviceable offcuts",
+};
 
 export function ProjectSetupBar() {
   const {
@@ -10,9 +18,81 @@ export function ProjectSetupBar() {
     setProjectName,
     setMillingAllowanceInches,
     setMaxTransportLengthInches,
+    setMaxPurchasableBoardWidthInches,
     setWasteFactorPercent,
+    setWorkshopLumberProfile,
+    setWorkshopOffcutMode,
+    duplicateProject,
+    createTemplate,
+    applyTemplate,
+    exportProjectJson,
+    importProjectJson,
+    projectLibrary,
+    backupCurrentProject,
+    restoreFromLibrary,
+    setLibraryArchived,
     resetProject,
   } = useProject();
+  const canPrint = project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
+  const [duplicateName, setDuplicateName] = useState("");
+  const [templateName, setTemplateName] = useState("");
+  const [templates, setTemplates] = useState<ProjectTemplate[]>(() => {
+    if (typeof window === "undefined") return [];
+    const raw = window.localStorage.getItem(PROJECT_TEMPLATES_STORAGE_KEY);
+    return raw ? parseTemplates(raw) : [];
+  });
+  const [selectedTemplateId, setSelectedTemplateId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const raw = window.localStorage.getItem(PROJECT_TEMPLATES_STORAGE_KEY);
+    const parsed = raw ? parseTemplates(raw) : [];
+    return parsed[0]?.id ?? "";
+  });
+  const [projectNameFromTemplate, setProjectNameFromTemplate] = useState("");
+  const [transferStatus, setTransferStatus] = useState("");
+  const [showAllBackups, setShowAllBackups] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const activeBackups = useMemo(() => projectLibrary.filter((row) => !row.archived), [projectLibrary]);
+
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId]
+  );
+  const duplicateNameValue = duplicateName || `${project.name} copy`;
+  const projectNameFromTemplateValue = projectNameFromTemplate || `${project.name} from template`;
+
+  useEffect(() => {
+    if (!transferStatus) return;
+    const isError = /could not parse|import file was empty/i.test(transferStatus);
+    if (isError) return;
+    const t = window.setTimeout(() => setTransferStatus(""), 5000);
+    return () => window.clearTimeout(t);
+  }, [transferStatus]);
+
+  function persistTemplates(next: ProjectTemplate[]) {
+    setTemplates(next);
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(PROJECT_TEMPLATES_STORAGE_KEY, JSON.stringify(next));
+  }
+
+  function handleExportProject() {
+    const blob = new Blob([exportProjectJson()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().replaceAll(":", "-");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${project.name || "grainline-project"}-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setTransferStatus("Exported project JSON.");
+  }
+
+  async function handleImportChange(file: File | null) {
+    if (!file) return;
+    const text = await file.text();
+    const imported = importProjectJson(text);
+    setTransferStatus(imported.ok ? "Imported project file." : imported.reason);
+    if (importInputRef.current) importInputRef.current.value = "";
+  }
 
   return (
     <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
@@ -28,7 +108,7 @@ export function ProjectSetupBar() {
             />
           </label>
         </div>
-        <div className="grid flex-1 gap-3 sm:grid-cols-3">
+        <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Milling allowance (in)</span>
             <input
@@ -57,6 +137,24 @@ export function ProjectSetupBar() {
             />
           </label>
           <label className="text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Max purchasable board width (in)</span>
+            <input
+              type="number"
+              step="any"
+              min={0.0001}
+              className="input-wood mt-1"
+              value={project.maxPurchasableBoardWidthInches}
+              onChange={(e) =>
+                setMaxPurchasableBoardWidthInches(
+                  Math.max(0.0001, Number.parseFloat(e.target.value) || 20)
+                )
+              }
+            />
+            <span className="mt-0.5 block text-[10px] text-[var(--gl-muted)]">
+              Panel glue-up copy and buy-list width caveat (widest single board you shop for)
+            </span>
+          </label>
+          <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Waste factor (%)</span>
             <input
               type="number"
@@ -70,18 +168,85 @@ export function ProjectSetupBar() {
             />
           </label>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-col items-stretch gap-1">
-            <Link
-              href="/print"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-[var(--gl-copper-bright)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-center text-xs font-medium text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/60 hover:text-[var(--gl-cream)]"
+        <div className="grid flex-1 gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Lumber profile memory</span>
+            <select
+              className="input-wood mt-1"
+              value={project.workshop.lumberProfile}
+              onChange={(e) => setWorkshopLumberProfile(e.target.value as LumberProfileId)}
             >
-              Print shop sheet
-            </Link>
+              {LUMBER_PROFILE_IDS.map((profileId) => (
+                <option key={profileId} value={profileId}>
+                  {profileId.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="text-[var(--gl-cream-soft)]">Offcut mode</span>
+            <select
+              className="input-wood mt-1"
+              value={project.workshop.offcutMode}
+              onChange={(e) => setWorkshopOffcutMode(e.target.value as OffcutModeId)}
+            >
+              {Object.entries(OFFCUT_MODE_LABELS).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            onClick={handleExportProject}
+          >
+            Export JSON
+          </button>
+          <label className="rounded-lg border border-white/15 px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]">
+            Import JSON
+            <input
+              ref={importInputRef}
+              type="file"
+              className="sr-only"
+              accept="application/json,.json"
+              onChange={(e) => void handleImportChange(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <button
+            type="button"
+            className="rounded-lg border border-[var(--gl-copper-bright)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/60 hover:text-[var(--gl-cream)]"
+            onClick={() => backupCurrentProject()}
+          >
+            Backup current
+          </button>
+          <div className="flex flex-col items-stretch gap-1">
+            {canPrint ? (
+              <Link
+                href="/print"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-[var(--gl-copper-bright)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-center text-xs font-medium text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/60 hover:text-[var(--gl-cream)]"
+              >
+                Print shop sheet
+              </Link>
+            ) : (
+              <button
+                type="button"
+                aria-disabled="true"
+                className="cursor-not-allowed rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center text-xs font-medium text-[var(--gl-muted)]"
+                title="Complete both Review checkpoints to unlock print/export."
+              >
+                Print shop sheet (locked)
+              </button>
+            )}
             <span className="text-center text-[10px] text-[var(--gl-muted)]">
-              PDF: print dialog → Save as PDF
+              {canPrint
+                ? "PDF: print dialog -> Save as PDF"
+                : "Locked until Review checkpoints are acknowledged"}
             </span>
           </div>
           <button
@@ -94,6 +259,144 @@ export function ProjectSetupBar() {
             Reset project
           </button>
         </div>
+      </div>
+      {transferStatus ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className={`mt-2 text-xs ${
+            /could not parse|import file was empty/i.test(transferStatus)
+              ? "text-amber-200/90"
+              : "text-[var(--gl-cream-soft)]"
+          }`}
+        >
+          {transferStatus}
+        </p>
+      ) : null}
+      <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 lg:grid-cols-2">
+        <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Duplicate project</p>
+          <input
+            className="input-wood w-full text-sm"
+            value={duplicateNameValue}
+            onChange={(e) => setDuplicateName(e.target.value)}
+            placeholder="New project name"
+          />
+          <button
+            type="button"
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
+            onClick={() => {
+              const nextName = duplicateName.trim();
+              duplicateProject(nextName || `${project.name} copy`);
+            }}
+          >
+            Duplicate current project
+          </button>
+        </div>
+        <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Templates</p>
+          <div className="flex gap-2">
+            <input
+              className="input-wood flex-1 text-sm"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Template name"
+            />
+            <button
+              type="button"
+              className="rounded-lg border border-white/20 px-3 py-2 text-xs text-[var(--gl-cream)] hover:bg-white/10"
+              onClick={() => {
+                const nextName = templateName.trim();
+                if (!nextName) return;
+                const template = createTemplate(nextName);
+                const next = [template, ...templates];
+                persistTemplates(next);
+                setSelectedTemplateId(template.id);
+                setTemplateName("");
+              }}
+            >
+              Save template
+            </button>
+          </div>
+          <select
+            className="input-wood w-full text-sm"
+            value={selectedTemplateId}
+            onChange={(e) => setSelectedTemplateId(e.target.value)}
+          >
+            {templates.length === 0 ? <option value="">No templates yet</option> : null}
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name} ({template.sourceProjectName})
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <input
+              className="input-wood flex-1 text-sm"
+              value={projectNameFromTemplateValue}
+              onChange={(e) => setProjectNameFromTemplate(e.target.value)}
+              placeholder="New project name"
+            />
+            <button
+              type="button"
+              disabled={!selectedTemplate}
+              className="rounded-lg border border-[var(--gl-copper)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/25 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => {
+                if (!selectedTemplate) return;
+                const nextName = projectNameFromTemplate.trim();
+                applyTemplate(selectedTemplate, nextName || `${project.name} from template`);
+              }}
+            >
+              Create from template
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+          Local backups ({activeBackups.length} active / {projectLibrary.length - activeBackups.length} archived)
+        </p>
+        {projectLibrary.length === 0 ? (
+          <p className="text-xs text-[var(--gl-muted)]">No backups yet. Use &quot;Backup current&quot; to create restore points.</p>
+        ) : (
+          <>
+            <ul className="space-y-1 text-xs">
+              {(showAllBackups ? projectLibrary : projectLibrary.slice(0, 8)).map((entry) => (
+                <li key={entry.id} className="flex flex-wrap items-center gap-2 text-[var(--gl-muted)]">
+                  <span className="min-w-0 flex-1 truncate">
+                    {entry.name} · {new Date(entry.updatedAt).toLocaleString()}
+                    {entry.archived ? (
+                      <span className="ml-1 text-[10px] uppercase tracking-wide text-[var(--gl-muted)]">archived</span>
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded border border-white/15 px-2 py-1 hover:text-[var(--gl-cream)]"
+                    onClick={() => restoreFromLibrary(entry.id)}
+                  >
+                    Restore
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-white/15 px-2 py-1 hover:text-[var(--gl-cream)]"
+                    onClick={() => setLibraryArchived(entry.id, !entry.archived)}
+                  >
+                    {entry.archived ? "Unarchive" : "Archive"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {projectLibrary.length > 8 ? (
+              <button
+                type="button"
+                className="mt-2 text-[10px] font-medium tracking-wide text-[var(--gl-muted)] uppercase hover:text-[var(--gl-cream-soft)]"
+                onClick={() => setShowAllBackups((v) => !v)}
+              >
+                {showAllBackups ? "Show fewer" : `Show all ${projectLibrary.length} backups`}
+              </button>
+            ) : null}
+          </>
+        )}
       </div>
     </section>
   );

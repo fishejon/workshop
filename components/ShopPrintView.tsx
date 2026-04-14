@@ -16,6 +16,8 @@ import {
   createEmptyProject,
   parseProject,
 } from "@/lib/project-utils";
+import { derivePartAssumptions } from "@/lib/part-assumptions";
+import { evaluatePurchaseScenario } from "@/lib/purchase-scenarios";
 
 function formatTxWxL(d: Dimension3): string {
   return `${formatImperial(d.t)} × ${formatImperial(d.w)} × ${formatImperial(d.l)}`;
@@ -45,11 +47,61 @@ export function ShopPrintView() {
   const adjustedBf = useMemo(() => totalAdjustedBoardFeet(groups), [groups]);
   const subtotalLf = useMemo(() => totalLinearFeet(groups), [groups]);
   const adjustedLf = useMemo(() => totalAdjustedLinearFeet(groups), [groups]);
+  const canPrint = Boolean(
+    project?.checkpoints.materialAssumptionsReviewed && project?.checkpoints.joineryReviewed
+  );
+
+  const purchasePreview = useMemo(() => {
+    if (!project) return null;
+    return evaluatePurchaseScenario("fitTransport", {
+      parts: project.parts,
+      wasteFactorPercent: project.wasteFactorPercent,
+      maxTransportLengthInches: project.maxTransportLengthInches,
+      maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
+      stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+      kerfInches: 0.125,
+    });
+  }, [project]);
 
   if (!project) {
     return (
       <div className="shop-print-page px-6 py-10 shop-print-muted">
         Loading project…
+      </div>
+    );
+  }
+
+  if (!canPrint) {
+    return (
+      <div className="shop-print-page min-h-full bg-[var(--gl-cream)] text-[var(--gl-ink)]">
+        <div className="mx-auto max-w-3xl px-6 py-8">
+          <p className="mb-6 text-sm">
+            <Link
+              href="/"
+              className="text-[var(--gl-copper)] underline decoration-[var(--gl-copper)]/40 underline-offset-2 hover:decoration-[var(--gl-copper)]"
+            >
+              Back to planner
+            </Link>
+          </p>
+          <section className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5">
+            <h1 className="font-display text-2xl text-[var(--gl-ink)]">Print locked pending review checkpoints</h1>
+            <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
+              Go to the Review step and acknowledge both checkpoints before printing/exporting.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>
+                Material assumptions:{" "}
+                <strong>
+                  {project.checkpoints.materialAssumptionsReviewed ? "Acknowledged" : "Not acknowledged"}
+                </strong>
+              </li>
+              <li>
+                Joinery review:{" "}
+                <strong>{project.checkpoints.joineryReviewed ? "Acknowledged" : "Not acknowledged"}</strong>
+              </li>
+            </ul>
+          </section>
+        </div>
       </div>
     );
   }
@@ -81,6 +133,10 @@ export function ShopPrintView() {
               <dt className="shop-print-muted">Waste factor</dt>
               <dd className="font-medium">{project.wasteFactorPercent}%</dd>
             </div>
+            <div className="flex gap-2">
+              <dt className="shop-print-muted">Max purchasable board width</dt>
+              <dd className="font-medium">{formatImperial(project.maxPurchasableBoardWidthInches)}</dd>
+            </div>
           </dl>
         </header>
 
@@ -88,6 +144,10 @@ export function ShopPrintView() {
           <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
             Finished parts
           </h2>
+          <p className="mb-2 text-xs shop-print-muted">
+            Assumptions column calls out joinery sizing provenance and panel glue-up checks (max single-board panel
+            width: {formatImperial(project.maxPurchasableBoardWidthInches)}).
+          </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
           ) : (
@@ -100,18 +160,27 @@ export function ShopPrintView() {
                     <th className="py-2 pr-3 font-semibold">Qty</th>
                     <th className="py-2 font-semibold">Finished T×W×L</th>
                     <th className="py-2 font-semibold">Rough T×W×L</th>
+                    <th className="py-2 pl-3 font-semibold">Assumptions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {project.parts.map((p) => (
-                    <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
-                      <td className="py-2 pr-3 align-top">{p.name}</td>
-                      <td className="py-2 pr-3 align-top">{p.assembly}</td>
-                      <td className="py-2 pr-3 align-top tabular-nums">{p.quantity}</td>
-                      <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.finished)}</td>
-                      <td className="py-2 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.rough)}</td>
-                    </tr>
-                  ))}
+                  {project.parts.map((p) => {
+                    const assumptions = derivePartAssumptions(p, project.joints, project);
+                    return (
+                      <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
+                        <td className="py-2 pr-3 align-top">{p.name}</td>
+                        <td className="py-2 pr-3 align-top">{p.assembly}</td>
+                        <td className="py-2 pr-3 align-top tabular-nums">{p.quantity}</td>
+                        <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.finished)}</td>
+                        <td className="py-2 align-top font-mono text-xs tabular-nums">{formatTxWxL(p.rough)}</td>
+                        <td className="py-2 pl-3 align-top text-xs shop-print-muted">
+                          {assumptions.joinery}
+                          <br />
+                          {assumptions.glueUp}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -123,10 +192,29 @@ export function ShopPrintView() {
             Buy list summary
           </h2>
           <p className="mb-4 text-xs shop-print-muted">
-            Board feet from rough T×W×L (144 cu in = 1 BF). Lineal feet (LF) = Σ (quantity × rough L) ÷ 12 per material
-            group, with the same waste % as BF. Sticks ≤ {formatImperial(project.maxTransportLengthInches)} for
-            planning—verify cuts and kerf at the bench.
+            BF/LF are computed from <strong className="text-[var(--gl-ink)]">rough T×W×L × qty</strong> (144 cu in = 1 BF;
+            LF = Σ rough L ÷ 12 per piece), not finished net dimensions. <strong className="text-[var(--gl-ink)]">
+              Thickness category
+            </strong>{" "}
+            is nominal yard language—pricing often still uses nominal thickness after surfacing. Waste ({project.wasteFactorPercent}%)
+            applies to those rough subtotals; transport cap {formatImperial(project.maxTransportLengthInches)} is for
+            planning only. Stick-count scenarios (if you use them in the app) pack on rough length only and assume board
+            width is already available up to {formatImperial(project.maxPurchasableBoardWidthInches)} for solid stock
+            (rough width) and panels (finished width)—wider spans need rips or glue-ups and are called out there, not by
+            inflating stick totals. Verify surfaced vs rough and real stock sizes before you buy.
           </p>
+          {purchasePreview ? (
+            <div className="mb-4 rounded-lg border border-[var(--gl-ink)]/25 bg-white/70 p-3 text-xs shop-print-muted">
+              <p className="font-semibold text-[var(--gl-ink)]">2D board estimate (companion to length-only sticks)</p>
+              <p className="mt-1 text-[var(--gl-ink)]/90">{purchasePreview.twoDimensional.headline}</p>
+              <p className="mt-1">{purchasePreview.twoDimensional.detail}</p>
+              <ul className="mt-2 list-inside list-disc">
+                {purchasePreview.twoDimensional.assumptions.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {groups.length === 0 ? (
             <p className="text-sm shop-print-muted">Add parts with materials to see board-foot groups.</p>
           ) : (
@@ -157,9 +245,9 @@ export function ShopPrintView() {
                       <span className="text-xs shop-print-muted">{g.thicknessCategory}</span>
                     </div>
                     <p className="mt-1 text-xs shop-print-muted">
-                      {g.subtotalBoardFeet.toFixed(2)} BF →{" "}
-                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF with waste ·{" "}
-                      {g.subtotalLinearFeet.toFixed(2)} LF →{" "}
+                      Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from
+                      rough sizes/qty. Yard estimate with waste:{" "}
+                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
                       <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
                     </p>
                     <ul className="mt-2 space-y-0.5 text-xs shop-print-muted">
@@ -178,6 +266,9 @@ export function ShopPrintView() {
         </section>
 
         <p className="no-print mt-10 text-center text-xs shop-print-muted">
+          Bring this print to the lumber yard: material label + thickness category + adjusted BF/LF, then finalize board
+          counts from available stock lengths.
+          <br />
           Use your browser&apos;s print dialog for a paper copy. For a <strong>PDF</strong>, choose{" "}
           <strong>Print → Save as PDF</strong> (or &quot;Microsoft Print to PDF&quot;) as the destination—no server-side
           PDF engine required.

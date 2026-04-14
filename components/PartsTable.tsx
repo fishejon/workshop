@@ -2,14 +2,23 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
-import { ASSEMBLY_IDS, type AssemblyId, type Part, type PartStatus } from "@/lib/project-types";
+import {
+  ASSEMBLY_IDS,
+  type AssemblyId,
+  type Part,
+  type PartStatus,
+  type Project,
+  type ProjectJoint,
+} from "@/lib/project-types";
+import { formatJointRuleLabel, summarizePartProvenance } from "@/lib/part-provenance";
+import { derivePartAssumptions } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
 import { boardFeetForPart, linearFeetForPart } from "@/lib/board-feet";
 import { formatImperial } from "@/lib/imperial";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
 
-function partsToCsv(parts: Part[]): string {
+function partsToCsv(parts: Part[], joints: ProjectJoint[], project: Pick<Project, "maxPurchasableBoardWidthInches">): string {
   const headers = [
     "name",
     "assembly",
@@ -28,12 +37,15 @@ function partsToCsv(parts: Part[]): string {
     "material",
     "thickness_category",
     "grain_note",
+    "joinery_assumption",
+    "glue_up_assumption",
     "status",
   ];
   const rows = parts.map((p) => {
     const qty = Math.max(1, p.quantity);
     const bfEach = boardFeetForPart(p);
     const lfEach = linearFeetForPart(p);
+    const assumptions = derivePartAssumptions(p, joints, project);
     return [
       csvEscape(p.name),
       p.assembly,
@@ -52,6 +64,8 @@ function partsToCsv(parts: Part[]): string {
       csvEscape(p.material.label),
       csvEscape(p.material.thicknessCategory),
       csvEscape(p.grainNote),
+      csvEscape(assumptions.joinery),
+      csvEscape(assumptions.glueUp),
       p.status,
     ].join(",");
   });
@@ -64,11 +78,14 @@ function csvEscape(s: string): string {
 }
 
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
-  const { project, addPart, updatePart, removePart, clearParts } = useProject();
+  const { project, addPart, updatePart, removePart, clearParts, duplicateAssemblyGroup } = useProject();
   const [openExplain, setOpenExplain] = useState<string | null>(null);
+  const [selectedAssemblyToDuplicate, setSelectedAssemblyToDuplicate] = useState<AssemblyId>(ASSEMBLY_IDS[0]);
+  const canExport =
+    project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
 
   function downloadCsv() {
-    const blob = new Blob([partsToCsv(project.parts)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([partsToCsv(project.parts, project.joints, project)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -87,6 +104,27 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-2 py-1">
+            <select
+              className="input-wood py-1.5 text-xs"
+              value={selectedAssemblyToDuplicate}
+              onChange={(e) => setSelectedAssemblyToDuplicate(e.target.value as AssemblyId)}
+            >
+              {ASSEMBLY_IDS.map((assembly) => (
+                <option key={assembly} value={assembly}>
+                  {assembly}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="rounded-lg border border-white/20 px-2 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-white/10 disabled:opacity-40"
+              disabled={!project.parts.some((part) => part.assembly === selectedAssemblyToDuplicate)}
+              onClick={() => duplicateAssemblyGroup(selectedAssemblyToDuplicate)}
+            >
+              Duplicate assembly group
+            </button>
+          </div>
           <button
             type="button"
             className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-white/15"
@@ -122,14 +160,21 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             type="button"
             className="rounded-lg border border-[var(--gl-copper)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/25"
             onClick={downloadCsv}
-            disabled={project.parts.length === 0}
+            disabled={project.parts.length === 0 || !canExport}
+            aria-disabled={project.parts.length === 0 || !canExport}
+            title={!canExport ? "Acknowledge both Review checkpoints to unlock export." : undefined}
           >
-            Export CSV
+            {canExport ? "Export CSV" : "Export CSV (locked)"}
           </button>
         </div>
       </div>
 
       <p className="mt-2 text-xs text-[var(--gl-muted)]">{explainAllowanceText}</p>
+      {!canExport ? (
+        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+          Export is locked until you acknowledge material assumptions and joinery review in the Review step.
+        </p>
+      ) : null}
 
       {project.parts.length === 0 ? (
         <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Dresser results or manually.</p>
@@ -148,6 +193,8 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                 <th className="px-2 py-2 font-medium">Thick cat</th>
                 <th className="px-2 py-2 font-medium">Grain</th>
                 <th className="px-2 py-2 font-medium">Status</th>
+                <th className="px-2 py-2 font-medium">Assumptions</th>
+                <th className="px-2 py-2 font-medium">Prov</th>
                 <th className="px-2 py-2 font-medium" />
               </tr>
             </thead>
@@ -157,8 +204,10 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                   key={p.id}
                   part={p}
                   millingAllowanceInches={project.millingAllowanceInches}
+                  maxPurchasableBoardWidthInches={project.maxPurchasableBoardWidthInches}
                   openExplain={openExplain === p.id}
                   onToggleExplain={() => setOpenExplain((x) => (x === p.id ? null : p.id))}
+                  joints={project.joints}
                   onUpdate={updatePart}
                   onRemove={() => removePart(p.id)}
                 />
@@ -174,25 +223,46 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
 function PartRow({
   part,
   millingAllowanceInches,
+  maxPurchasableBoardWidthInches,
   openExplain,
   onToggleExplain,
+  joints,
   onUpdate,
   onRemove,
 }: {
   part: Part;
   millingAllowanceInches: number;
+  maxPurchasableBoardWidthInches: number;
   openExplain: boolean;
   onToggleExplain: () => void;
+  joints: ProjectJoint[];
   onUpdate: (id: string, patch: Partial<Part>) => void;
   onRemove: () => void;
 }) {
+  const provenance = useMemo(() => summarizePartProvenance(part, joints), [part, joints]);
+  const assumptions = useMemo(
+    () => derivePartAssumptions(part, joints, { maxPurchasableBoardWidthInches }),
+    [part, joints, maxPurchasableBoardWidthInches]
+  );
   const summary = useMemo(
-    () =>
-      `Default rough = finished + ${formatImperial(millingAllowanceInches)} on each of T, W, L (MVP rule). ` +
-      `Displayed: ${formatImperial(part.finished.t)}→${formatImperial(part.rough.t)}, ` +
-      `${formatImperial(part.finished.w)}→${formatImperial(part.rough.w)}, ` +
-      `${formatImperial(part.finished.l)}→${formatImperial(part.rough.l)}.`,
-    [part, millingAllowanceInches]
+    () => {
+      const roughSummary =
+        provenance.roughSource === "manual"
+          ? "Rough dims are manually overridden for this part."
+          : `Rough dims are derived from finished + ${formatImperial(millingAllowanceInches)} allowance on T, W, and L.`;
+      const joinerySummary =
+        provenance.joineryChangeCount > 0
+          ? `Joinery changed this part ${provenance.joineryChangeCount} time${provenance.joineryChangeCount === 1 ? "" : "s"}${provenance.lastJoineryRuleId ? ` (latest: ${formatJointRuleLabel(provenance.lastJoineryRuleId)}).` : "."}`
+          : "No joinery rule has changed this part's finished dimensions.";
+      return (
+        `${roughSummary} ` +
+        `Displayed: ${formatImperial(part.finished.t)}→${formatImperial(part.rough.t)}, ` +
+        `${formatImperial(part.finished.w)}→${formatImperial(part.rough.w)}, ` +
+        `${formatImperial(part.finished.l)}→${formatImperial(part.rough.l)}. ` +
+        joinerySummary
+      );
+    },
+    [part, millingAllowanceInches, provenance]
   );
 
   return (
@@ -301,6 +371,39 @@ function PartRow({
           </select>
         </td>
         <td className="px-2 py-2">
+          <div className="max-w-[220px] space-y-1 text-[10px] leading-snug text-[var(--gl-muted)]">
+            <p>{assumptions.joinery}</p>
+            <p>{assumptions.glueUp}</p>
+          </div>
+        </td>
+        <td className="px-2 py-2">
+          <div className="flex max-w-[130px] flex-wrap gap-1">
+            <ProvenancePill
+              title={
+                provenance.roughSource === "manual"
+                  ? "Rough dimensions are manually controlled."
+                  : "Rough dimensions auto-track finished size and milling allowance."
+              }
+            >
+              {provenance.roughSource === "manual" ? "Rough: manual" : "Rough: derived"}
+            </ProvenancePill>
+            <ProvenancePill
+              title={
+                provenance.joineryChangeCount > 0
+                  ? `Joinery adjusted this part ${provenance.joineryChangeCount} time(s).`
+                  : "No joinery dimension changes recorded for this part."
+              }
+            >
+              {provenance.joineryChangeCount > 0 ? `Joinery: ${provenance.joineryChangeCount}` : "Joinery: none"}
+            </ProvenancePill>
+            {provenance.joineryReferenceCount > 0 ? (
+              <ProvenancePill title="This part was selected as a mate in joinery history.">
+                Mate refs: {provenance.joineryReferenceCount}
+              </ProvenancePill>
+            ) : null}
+          </div>
+        </td>
+        <td className="px-2 py-2">
           <div className="flex flex-col gap-1">
             <button
               type="button"
@@ -321,12 +424,23 @@ function PartRow({
       </tr>
       {openExplain ? (
         <tr className="bg-black/25">
-          <td colSpan={11} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
+          <td colSpan={13} className="px-3 py-2 text-xs text-[var(--gl-muted)]">
             {summary}
           </td>
         </tr>
       ) : null}
     </>
+  );
+}
+
+function ProvenancePill({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <span
+      className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-[10px] text-[var(--gl-cream-soft)]"
+      title={title}
+    >
+      {children}
+    </span>
   );
 }
 

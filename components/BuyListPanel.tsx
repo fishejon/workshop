@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import {
   groupPartsByMaterial,
@@ -10,13 +10,71 @@ import {
   totalLinearFeet,
 } from "@/lib/board-feet";
 import { formatImperial } from "@/lib/imperial";
+import {
+  evaluateAllPurchaseScenarios,
+  PURCHASE_SCENARIO_META,
+  type PurchaseScenarioId,
+} from "@/lib/purchase-scenarios";
+
+const SCENARIO_ORDER: PurchaseScenarioId[] = [
+  "fitTransport",
+  "simpleTrip",
+  "minWaste",
+  "minBoardCount",
+];
 
 export function BuyListPanel() {
-  const { project } = useProject();
+  const { project, setMaterialGroupCostRate, setMaterialGroupStockWidth } = useProject();
+  const [scenario, setScenario] = useState<PurchaseScenarioId>("fitTransport");
 
   const groups = useMemo(
     () => groupPartsByMaterial(project.parts, project.wasteFactorPercent),
     [project.parts, project.wasteFactorPercent]
+  );
+
+  const allPlans = useMemo(
+    () =>
+      evaluateAllPurchaseScenarios({
+        parts: project.parts,
+        wasteFactorPercent: project.wasteFactorPercent,
+        maxTransportLengthInches: project.maxTransportLengthInches,
+        maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
+        stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+        costRatesByGroup: project.costRatesByGroup,
+      }),
+    [
+      project.parts,
+      project.wasteFactorPercent,
+      project.maxTransportLengthInches,
+      project.maxPurchasableBoardWidthInches,
+      project.stockWidthByMaterialGroup,
+      project.costRatesByGroup,
+    ]
+  );
+
+  const plan = useMemo(
+    () => allPlans.find((row) => row.scenario === scenario) ?? allPlans[0]!,
+    [allPlans, scenario]
+  );
+
+  const planByScenario = useMemo(
+    () => new Map(allPlans.map((row) => [row.scenario, row])),
+    [allPlans]
+  );
+
+  const groupCostMap = useMemo(
+    () => new Map((plan?.groupCosts ?? []).map((row) => [row.key, row])),
+    [plan]
+  );
+
+  const planGroupByKey = useMemo(
+    () => new Map(plan.groups.map((row) => [row.key, row])),
+    [plan.groups]
+  );
+
+  const twoDGroupByKey = useMemo(
+    () => new Map(plan.twoDimensional.groups.map((row) => [row.key, row])),
+    [plan.twoDimensional.groups]
   );
 
   const subtotal = totalBoardFeet(groups);
@@ -24,22 +82,105 @@ export function BuyListPanel() {
   const subtotalLf = totalLinearFeet(groups);
   const adjustedLf = totalAdjustedLinearFeet(groups);
 
+  function formatMoney(n: number): string {
+    return `$${n.toFixed(2)}`;
+  }
+
+  function parseOptionalRate(raw: string): number | undefined {
+    const value = raw.trim();
+    if (!value) return undefined;
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+    return parsed;
+  }
+
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
       <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
-        Board feet use <strong className="text-[var(--gl-cream)]">rough T×W×L</strong> (144 cu in = 1 BF).{" "}
-        <strong className="text-[var(--gl-cream)]">Lineal feet</strong> sum{" "}
-        <code className="text-[var(--gl-copper-bright)]">quantity × rough L</code> per group (12&quot; = 1 LF)—handy
-        alongside BF for stick purchases. Nominal thickness for pricing may differ at the yard. Waste factor:{" "}
-        {project.wasteFactorPercent}%. Stick length cap:{" "}
-        <strong className="text-[var(--gl-cream)]">{formatImperial(project.maxTransportLengthInches)}</strong>.
+        Totals are <strong className="text-[var(--gl-cream)]">rough T×W×L × qty</strong>—finished sizes stay in the parts
+        table. <strong className="text-[var(--gl-cream)]">Thickness category</strong> (e.g. 4/4) is nominal yard naming; BF
+        still often assumes nominal thickness even after surfacing. Waste ({project.wasteFactorPercent}%) scales those rough
+        totals. Scenarios use max carry {formatImperial(project.maxTransportLengthInches)} and {plan.kerfInches}″ kerf
+        between cuts on the same stick—confirm surfaced vs rough and real stock lengths at the yard.
+      </p>
+      <p className="mt-1 text-xs text-[var(--gl-muted)]">
+        Width assumption for stick estimates: boards up to{" "}
+        <strong className="text-[var(--gl-cream)]">{formatImperial(project.maxPurchasableBoardWidthInches)}</strong> wide
+        (panels checked on finished width, solid stock on rough width). Packing is still 1D on length—if the headline
+        warns on width, add rips or glue-ups outside this stick count.
+      </p>
+      <p className="mt-1 text-xs text-[var(--gl-muted)]">
+        Workshop memory: lumber profile <strong className="text-[var(--gl-cream)]">{project.workshop.lumberProfile.replaceAll("_", " ")}</strong>
+        {" · "}
+        offcut mode <strong className="text-[var(--gl-cream)]">{project.workshop.offcutMode.replaceAll("_", " ")}</strong>.
       </p>
 
       {groups.length === 0 ? (
         <p className="mt-4 text-sm text-[var(--gl-muted)]">Add parts to see grouped board footage.</p>
       ) : (
         <div className="mt-4 space-y-4">
+          <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Purchase plan</p>
+              <label className="flex flex-wrap items-center gap-2 text-xs text-[var(--gl-muted)]">
+                <span className="sr-only">Buy scenario</span>
+                <select
+                  className="input-wood min-w-[12rem] text-sm text-[var(--gl-cream)]"
+                  value={scenario}
+                  onChange={(e) => setScenario(e.target.value as PurchaseScenarioId)}
+                  aria-label="Buy scenario"
+                >
+                  {SCENARIO_ORDER.map((id) => (
+                    <option key={id} value={id}>
+                      {PURCHASE_SCENARIO_META[id].title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="mt-2 text-sm text-[var(--gl-cream)]">{plan.headline}</p>
+            <p className="mt-1 text-xs text-[var(--gl-muted)]">{plan.detail}</p>
+            <p className="mt-2 text-xs text-[var(--gl-muted)]">
+              Estimated total cost: <strong className="text-[var(--gl-cream)]">{formatMoney(plan.totalEstimatedCost)}</strong>{" "}
+              (optional model from adjusted BF/LF rates below).
+            </p>
+            <div className="mt-4 rounded-lg border border-white/10 bg-black/30 p-3">
+              <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                2D board estimate (width + length)
+              </p>
+              <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">{plan.twoDimensional.headline}</p>
+              {plan.twoDimensional.detail ? (
+                <p className="mt-1 text-xs text-[var(--gl-muted)]">{plan.twoDimensional.detail}</p>
+              ) : null}
+              <ul className="mt-2 list-inside list-disc text-[11px] text-[var(--gl-muted)]">
+                {plan.twoDimensional.assumptions.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SCENARIO_ORDER.map((id) => {
+                const scenarioPlan = planByScenario.get(id);
+                if (!scenarioPlan) return null;
+                const selected = id === scenario;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`rounded-md border px-2 py-1 text-[11px] ${
+                      selected
+                        ? "border-[var(--gl-copper-bright)]/60 bg-[var(--gl-copper)]/20 text-[var(--gl-cream)]"
+                        : "border-white/10 bg-black/20 text-[var(--gl-muted)] hover:text-[var(--gl-cream-soft)]"
+                    }`}
+                    onClick={() => setScenario(id)}
+                  >
+                    {PURCHASE_SCENARIO_META[id].title}: {formatMoney(scenarioPlan.totalEstimatedCost)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-4 text-sm text-[var(--gl-cream)]">
             <span>
               Subtotal BF: <strong>{subtotal.toFixed(2)}</strong>
@@ -63,11 +204,99 @@ export function BuyListPanel() {
                   <span className="font-medium">{g.materialLabel}</span>
                   <span className="text-xs text-[var(--gl-muted)]">{g.thicknessCategory}</span>
                 </div>
+                {planGroupByKey.get(g.key)?.exceedsPurchasableBoardWidth ? (
+                  <p className="mt-2 text-xs text-amber-200/90">
+                    Some parts in this group are wider than your {formatImperial(plan.maxPurchasableBoardWidthInches)}{" "}
+                    purchasable-board setting (length-only stick math does not add boards for width).
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs text-[var(--gl-muted)]">
-                  {g.subtotalBoardFeet.toFixed(2)} BF → <strong>{g.adjustedBoardFeet.toFixed(2)}</strong> BF with waste ·{" "}
-                  {g.subtotalLinearFeet.toFixed(2)} LF → <strong>{g.adjustedLinearFeet.toFixed(2)}</strong> LF (rough L).
-                  Sticks ≤ {formatImperial(project.maxTransportLengthInches)} (verify cuts + kerf locally).
+                  Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
+                  sizes/qty. Yard estimate with waste: <strong>{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
+                  <strong>{g.adjustedLinearFeet.toFixed(2)}</strong> LF. Plan on sticks ≤{" "}
+                  {formatImperial(project.maxTransportLengthInches)}; verify actual stock lengths, kerf, and cut plan at
+                  the bench.
                 </p>
+                <div className="mt-2 rounded-lg border border-white/10 bg-black/30 p-2 text-xs text-[var(--gl-muted)]">
+                  <p className="font-medium text-[var(--gl-cream-soft)]">2D estimate (this group)</p>
+                  <p className="mt-1">
+                    Stock width assumed:{" "}
+                    {formatImperial(twoDGroupByKey.get(g.key)?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches)}{" "}
+                    · ~{twoDGroupByKey.get(g.key)?.estimatedBoards2d ?? 0} board(s) · length-only sticks:{" "}
+                    {twoDGroupByKey.get(g.key)?.estimatedSticks1d ?? 0}
+                  </p>
+                  <p className="mt-0.5">{twoDGroupByKey.get(g.key)?.detail}</p>
+                  {(twoDGroupByKey.get(g.key)?.flags ?? []).map((f) => (
+                    <p key={f} className="mt-1 text-amber-200/90">
+                      {f}
+                    </p>
+                  ))}
+                  <label className="mt-2 block">
+                    Override 2D stock width (in, optional)
+                    <input
+                      type="number"
+                      step="any"
+                      min={0.1}
+                      className="input-wood mt-1 text-xs"
+                      placeholder={`Default ${project.maxPurchasableBoardWidthInches}`}
+                      value={project.stockWidthByMaterialGroup?.[g.key] ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (!v) {
+                          setMaterialGroupStockWidth(g.key, null);
+                          return;
+                        }
+                        const n = Number.parseFloat(v);
+                        if (!Number.isFinite(n) || n <= 0) return;
+                        setMaterialGroupStockWidth(g.key, n);
+                      }}
+                    />
+                  </label>
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  <label className="text-xs text-[var(--gl-muted)]">
+                    Cost / BF
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      inputMode="decimal"
+                      className="input-wood mt-1 text-xs"
+                      value={project.costRatesByGroup[g.key]?.perBoardFoot ?? ""}
+                      placeholder="0.00"
+                      onChange={(e) =>
+                        setMaterialGroupCostRate(g.key, {
+                          perBoardFoot: parseOptionalRate(e.target.value),
+                          perLinearFoot: project.costRatesByGroup[g.key]?.perLinearFoot,
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="text-xs text-[var(--gl-muted)]">
+                    Cost / LF
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      inputMode="decimal"
+                      className="input-wood mt-1 text-xs"
+                      value={project.costRatesByGroup[g.key]?.perLinearFoot ?? ""}
+                      placeholder="0.00"
+                      onChange={(e) =>
+                        setMaterialGroupCostRate(g.key, {
+                          perBoardFoot: project.costRatesByGroup[g.key]?.perBoardFoot,
+                          perLinearFoot: parseOptionalRate(e.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <div className="rounded-lg border border-white/10 bg-black/25 px-2 py-1 text-xs text-[var(--gl-muted)]">
+                    Estimated group cost:{" "}
+                    <strong className="text-[var(--gl-cream)]">
+                      {formatMoney(groupCostMap.get(g.key)?.totalCost ?? 0)}
+                    </strong>
+                  </div>
+                </div>
                 <ul className="mt-2 space-y-0.5 text-xs text-[var(--gl-muted)]">
                   {g.lines.map((ln) => (
                     <li key={ln.partId}>

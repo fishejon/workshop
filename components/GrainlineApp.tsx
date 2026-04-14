@@ -9,6 +9,7 @@ import { CutPlanner } from "@/components/CutPlanner";
 import { DresserPlanner } from "@/components/DresserPlanner";
 import { PartsTable } from "@/components/PartsTable";
 import { ProjectSetupBar } from "@/components/ProjectSetupBar";
+import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
 import { formatImperial } from "@/lib/imperial";
@@ -25,6 +26,12 @@ const PRESETS = [
     title: "Board cut list",
     tag: "1D pack",
     blurb: "Hardwood stick layout with kerf and the length you actually haul home.",
+  },
+  {
+    id: "sideboard-console" as const,
+    title: "Sideboard console",
+    tag: "Casework family",
+    blurb: "Archetype-backed sideboard shell with workshop defaults and geometry warnings.",
   },
   {
     id: "tv-console" as const,
@@ -46,14 +53,16 @@ type PresetId = (typeof PRESETS)[number]["id"];
 export function GrainlineApp() {
   const [preset, setPreset] = useState<PresetId>("dresser");
   const [appTab, setAppTab] = useState<AppShellTabId>("build");
-  const { project } = useProject();
+  const { project, setCheckpointReviewed } = useProject();
   const active = PRESETS.find((p) => p.id === preset);
+  const canExportOrPrint =
+    project.checkpoints.materialAssumptionsReviewed && project.checkpoints.joineryReviewed;
 
   const explainAllowance = `Project milling allowance: ${formatImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
-  const shopAside = (
+  const shopMaterialsLeft = <PartsTable explainAllowanceText={explainAllowance} />;
+  const shopMaterialsRight = (
     <>
-      <PartsTable explainAllowanceText={explainAllowance} />
       <BuyListPanel />
       <JoineryPanel />
       <RoughStickLayout />
@@ -65,6 +74,7 @@ export function GrainlineApp() {
       {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
       {preset === "dresser" ? <DresserPlanner /> : null}
       {preset === "board" ? <CutPlanner /> : null}
+      {preset === "sideboard-console" ? <SideboardPlanner /> : null}
       {preset === "tv-console" ? <TvConsoleStub /> : null}
       {preset === "soon-cab" ? (
         <p className="text-[var(--gl-muted)]">This preset is queued—use Dresser, TV console stub, or Board cuts for now.</p>
@@ -76,15 +86,49 @@ export function GrainlineApp() {
 
   const aboutPanel = (
     <div className="max-w-2xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-sm leading-relaxed text-[var(--gl-muted)]">
-      <h2 className="font-display text-xl text-[var(--gl-cream)]">About Grainline</h2>
+      <h2 className="font-display text-xl text-[var(--gl-cream)]">Review checkpoints</h2>
       <p>
-        Furniture-oriented presets and shop math in imperial: dresser case and drawer sizing, board cut lists, and a
-        growing set of case stubs. Use <strong className="font-medium text-[var(--gl-cream-soft)]">Setup</strong> for
-        project defaults, <strong className="font-medium text-[var(--gl-cream-soft)]">Build</strong> for planners, and{" "}
-        <strong className="font-medium text-[var(--gl-cream-soft)]">Shop</strong> for parts, buy list (BF + lineal
-        feet), joinery, and rough-stick layout.
+        Before exporting or printing, acknowledge two checkpoints so assumptions are intentionally reviewed right before
+        handoff.
       </p>
-      <p className="text-xs text-[var(--gl-muted)]">Phase 6 IA — Setup / Build / Shop / About.</p>
+      <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
+        <label className="flex items-start gap-2 text-sm text-[var(--gl-cream-soft)]">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={project.checkpoints.materialAssumptionsReviewed}
+            onChange={(e) => setCheckpointReviewed("materialAssumptionsReviewed", e.target.checked)}
+            aria-label="Acknowledge material assumptions review"
+          />
+          <span>
+            I reviewed material assumptions (rough dimensions, thickness category, waste factor, and transport limits).
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-sm text-[var(--gl-cream-soft)]">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={project.checkpoints.joineryReviewed}
+            onChange={(e) => setCheckpointReviewed("joineryReviewed", e.target.checked)}
+            aria-label="Acknowledge joinery review"
+          />
+          <span>I reviewed joinery deltas/history and confirmed finished dimensions before export/print.</span>
+        </label>
+      </div>
+      <p
+        className={`text-xs ${
+          canExportOrPrint ? "text-[var(--gl-copper-bright)]" : "text-[var(--gl-muted)]"
+        }`}
+        aria-live="polite"
+      >
+        {canExportOrPrint
+          ? "Export and print are unlocked."
+          : "Export and print stay locked until both checkpoints are acknowledged."}
+      </p>
+      <p>
+        Checkpoints auto-reset when relevant data changes so each export reflects current assumptions.
+      </p>
+      <p className="text-xs text-[var(--gl-muted)]">Guided flow: Setup / Construction / Materials / Review.</p>
     </div>
   );
 
@@ -139,8 +183,10 @@ export function GrainlineApp() {
           onChange={setAppTab}
           setupPanel={setupPanel}
           buildLeft={buildLeft}
-          shopAside={shopAside}
+          shopMaterialsLeft={shopMaterialsLeft}
+          shopMaterialsRight={shopMaterialsRight}
           aboutPanel={aboutPanel}
+          canExportOrPrint={canExportOrPrint}
         />
       </div>
     </div>

@@ -2,11 +2,11 @@
  * Dresser case (carcass) cut-list math — rectilinear, dados/rabbets not modeled per joint.
  *
  * Assumptions (verify in your build):
- * - **Sides & dividers**: Same net thickness `materialThickness`. Each is a vertical board with
- *   finished T×W×L = thickness × full case depth × full case height (toe kick is only a front
- *   reveal in front view; sides run full height).
- * - **Top**: One primary top board, same thickness as case sides, full outer W×D (add overhang
- *   manually if needed; `topAssemblyHeight` is only used for back height / notes, not top stock T).
+ * - **Sides & dividers**: Side thickness comes from `materialThickness`. Divider thickness defaults
+ *   to side thickness but can be set explicitly with `dividerThickness`.
+ * - **Top**: One primary top board, thickness defaults to side thickness but can be overridden with
+ *   `topPanelThickness`. Full outer W×D (add overhang manually if needed; `topAssemblyHeight` is
+ *   only used for back height / notes, not top stock T).
  * - **Bottom**: Thickness = `bottomPanelThickness`. Sits between sides: width = inner width
  *   (outerW − 2×sideT), depth = inner depth from front inside face to back panel inside face:
  *   outerD − sideT − backThickness (one rear side rabbet / inset back).
@@ -21,12 +21,16 @@
  */
 
 import type { AssemblyId, Dimension3, PartStatus } from "./project-types";
+import { planPanelGlueUp, type PanelGlueUpPlan } from "./panel-glueup";
 
 export type DresserCarcassInput = {
   outerWidth: number;
   outerHeight: number;
   outerDepth: number;
   materialThickness: number;
+  dividerThickness?: number;
+  topPanelThickness?: number;
+  maxPurchasableBoardWidth?: number;
   columnCount: 1 | 2 | 3;
   kickHeight: number;
   topAssemblyHeight: number;
@@ -42,6 +46,7 @@ export type DresserCarcassPartSpec = {
   quantity: number;
   finished: Dimension3;
   grainNote?: string;
+  glueUpPlan?: PanelGlueUpPlan;
   status: PartStatus;
 };
 
@@ -59,14 +64,16 @@ function drawerZoneHeight(input: DresserCarcassInput): number | null {
 }
 
 export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCarcassResult {
-  const t = input.materialThickness;
+  const sideT = input.materialThickness;
+  const dividerT = input.dividerThickness ?? sideT;
+  const topT = input.topPanelThickness ?? sideT;
   const { outerWidth: W, outerHeight: H, outerDepth: D } = input;
 
   if (!Number.isFinite(W) || W <= 0 || !Number.isFinite(H) || H <= 0 || !Number.isFinite(D) || D <= 0) {
     return { ok: false, message: "Overall width, height, and depth must be positive numbers." };
   }
-  if (!Number.isFinite(t) || t <= 0) {
-    return { ok: false, message: "Material thickness must be positive." };
+  if (!Number.isFinite(sideT) || sideT <= 0 || !Number.isFinite(dividerT) || dividerT <= 0 || !Number.isFinite(topT) || topT <= 0) {
+    return { ok: false, message: "Case side, divider, and top panel thickness must be positive." };
   }
   if (input.kickHeight < 0 || input.topAssemblyHeight < 0 || input.bottomPanelThickness < 0) {
     return { ok: false, message: "Kick, top assembly, and bottom panel values must be ≥ 0." };
@@ -81,13 +88,13 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     return { ok: false, message: "Rail between drawers must be ≥ 0." };
   }
 
-  const innerW = W - 2 * t;
+  const innerW = W - 2 * sideT;
   if (innerW <= 0) {
     return { ok: false, message: "Sides consume the full width—increase width or reduce thickness." };
   }
 
   const dividers = input.columnCount - 1;
-  const columnInner = (innerW - dividers * t) / input.columnCount;
+  const columnInner = (innerW - dividers * dividerT) / input.columnCount;
   if (columnInner <= 0) {
     return { ok: false, message: "Columns are too narrow—fewer columns, wider case, or thinner stock." };
   }
@@ -101,7 +108,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     };
   }
 
-  const bottomDepth = D - t - input.backThickness;
+  const bottomDepth = D - sideT - input.backThickness;
   if (bottomDepth <= 0) {
     return { ok: false, message: "Depth is too shallow for bottom panel after side and back thickness." };
   }
@@ -112,35 +119,68 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
   }
 
   const stackNote = `${input.rowCount} drawer row(s), ${input.rowCount - 1} rail gap(s) at ${input.railBetweenDrawers.toFixed(3)}"`;
+  const maxPurchasableBoardWidth = input.maxPurchasableBoardWidth;
+
+  function maybePlanGlueUp(targetPanelWidth: number): PanelGlueUpPlan | undefined {
+    if (!Number.isFinite(maxPurchasableBoardWidth) || (maxPurchasableBoardWidth ?? 0) <= 0) return undefined;
+    if (targetPanelWidth <= (maxPurchasableBoardWidth ?? 0)) return undefined;
+    const result = planPanelGlueUp({
+      targetPanelWidth,
+      maxBoardWidth: maxPurchasableBoardWidth ?? 0,
+    });
+    return result.ok ? result.plan : undefined;
+  }
+
+  function formatGlueUpNote(plan: PanelGlueUpPlan | undefined): string {
+    if (!plan) return "";
+    const stripWidths = plan.targetStripWidths.map((w) => `${w.toFixed(3)}"`).join(" + ");
+    const seamLocations = plan.seamPositions.map((s) => `${s.toFixed(3)}"`).join(", ");
+    return `Glue-up plan: ${plan.stripCount} strip(s) (${stripWidths}) · Seams at ${seamLocations} from one edge · Rough glue-up width ${plan.roughOversizeRecommendation.roughGlueUpWidth.toFixed(3)}" (+${plan.roughOversizeRecommendation.edgeTrimAllowance.toFixed(3)}" per edge, +${plan.roughOversizeRecommendation.overLengthAllowance.toFixed(3)}" extra length) · ${plan.seamGuidance}`;
+  }
 
   const parts: DresserCarcassPartSpec[] = [];
 
-  const sideNote = `Grain vertical (along L / case height) · Full-height side · ${stackNote}`;
+  const sideGlueUp = maybePlanGlueUp(D);
+  const sideNote = [
+    `Grain vertical (along L / case height) · Full-height side · ${stackNote}`,
+    formatGlueUpNote(sideGlueUp),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   parts.push(
     {
       name: "Case side (left)",
       assembly: "Case",
       quantity: 1,
-      finished: { t, w: D, l: H },
+      finished: { t: sideT, w: D, l: H },
       grainNote: sideNote,
+      glueUpPlan: sideGlueUp,
       status: "solid",
     },
     {
       name: "Case side (right)",
       assembly: "Case",
       quantity: 1,
-      finished: { t, w: D, l: H },
+      finished: { t: sideT, w: D, l: H },
       grainNote: sideNote,
+      glueUpPlan: sideGlueUp,
       status: "solid",
     }
   );
 
+  const topGlueUp = maybePlanGlueUp(W);
   parts.push({
     name: "Case top",
     assembly: "Case",
     quantity: 1,
-    finished: { t, w: W, l: D },
-    grainNote: `Grain typically along W (front edge); confirm rift/flat preference · Full outer top · ${stackNote} (top assembly height ${input.topAssemblyHeight.toFixed(3)}" is total band above drawers)`,
+    finished: { t: topT, w: W, l: D },
+    grainNote: [
+      `Grain typically along W (front edge); confirm rift/flat preference · Full outer top · ${stackNote} (top assembly height ${input.topAssemblyHeight.toFixed(3)}" is total band above drawers)`,
+      formatGlueUpNote(topGlueUp),
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    glueUpPlan: topGlueUp,
     status: "solid",
   });
 
@@ -158,7 +198,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       name: `Case divider ${i + 1}`,
       assembly: "Case",
       quantity: 1,
-      finished: { t, w: D, l: H },
+      finished: { t: dividerT, w: D, l: H },
       grainNote: `Grain vertical (along L) · Full-depth vertical partition · ${stackNote}`,
       status: "solid",
     });
@@ -169,7 +209,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       name: "Toe kick front",
       assembly: "Base",
       quantity: 1,
-      finished: { t, w: innerW, l: input.kickHeight },
+      finished: { t: sideT, w: innerW, l: input.kickHeight },
       grainNote:
         "Grain horizontal along strip length (W) · Front facing strip between sides; confirm recess and side notches on site",
       status: "solid",

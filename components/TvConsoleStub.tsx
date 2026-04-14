@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useProject } from "@/components/ProjectContext";
-import type { Part } from "@/lib/project-types";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { buildConsoleShellCasework } from "@/lib/archetypes/casework";
+import { parseInches } from "@/lib/imperial";
 
 function parsePositive(s: string): number | null {
   const n = parseInches(s);
@@ -28,45 +28,16 @@ export function TvConsoleStub() {
     const D = parsePositive(outerD);
     const t = parsePositive(materialT);
     if (W === null || H === null || D === null || t === null) return;
-    if (W <= 2 * t) return;
 
-    const innerW = W - 2 * t;
-    const shelfDepth = Math.max(D - 0.25, t);
+    const built = buildConsoleShellCasework({
+      outerWidth: W,
+      outerHeight: H,
+      outerDepth: D,
+      materialThickness: t,
+    });
+    if (!built.ok) return;
 
-    const toAdd: Array<Omit<Part, "id">> = [
-      {
-        name: "Console top",
-        assembly: "Case",
-        quantity: 1,
-        finished: { t, w: W, l: D },
-        rough: { t: 0, w: 0, l: 0, manual: false },
-        material: { label: "Primary hardwood", thicknessCategory: "4/4" },
-        grainNote: "Grain along length (depth).",
-        status: "solid",
-      },
-      {
-        name: "Console side",
-        assembly: "Case",
-        quantity: 2,
-        finished: { t, w: H, l: D },
-        rough: { t: 0, w: 0, l: 0, manual: false },
-        material: { label: "Primary hardwood", thicknessCategory: "4/4" },
-        grainNote: "Vertical grain; pair.",
-        status: "solid",
-      },
-      {
-        name: "Fixed shelf",
-        assembly: "Case",
-        quantity: 1,
-        finished: { t, w: innerW, l: shelfDepth },
-        rough: { t: 0, w: 0, l: 0, manual: false },
-        material: { label: "Primary hardwood", thicknessCategory: "4/4" },
-        grainNote: `Nominal inside width ${formatImperial(innerW)}; stub — adjust for dados.`,
-        status: "solid",
-      },
-    ];
-
-    addParts(toAdd);
+    addParts(built.parts);
   }
 
   const w = parsePositive(outerW);

@@ -1,3 +1,5 @@
+import { computeDrawerJoineryAllowances, type DrawerJoineryPresetId } from "@/lib/joinery/drawer-allowances";
+
 /**
  * Dresser case + drawer opening / box sizing for shop use.
  * Verify all numbers against your slide manufacturer’s worksheet — defaults are rules-of-thumb.
@@ -13,6 +15,8 @@ export type DresserEngineInput = {
   outerHeight: number;
   outerDepth: number;
   materialThickness: number;
+  /** Optional center-support/divider thickness; defaults to materialThickness. */
+  dividerThickness?: number;
   columnCount: DresserColumnCount;
   rowCount: number;
   /** Clear height of each drawer opening, bottom to top, in inches (same for every column). */
@@ -33,6 +37,24 @@ export type DresserEngineInput = {
   slideWidthClearance: number;
   /** Total height subtracted from opening → drawer box height. */
   slideHeightClearance: number;
+  /** Extra total width allowance for joinery/build method (e.g. dovetail tuning). */
+  drawerJoineryWidthAllowance?: number;
+  /** Extra total height allowance for joinery/build method. */
+  drawerJoineryHeightAllowance?: number;
+  /**
+   * Optional preset rule for thickness-aware joinery deductions.
+   * Legacy numeric allowances remain supported and are additive.
+   */
+  drawerJoineryPreset?: DrawerJoineryPresetId;
+  /** Material thickness used by joinery formulas (defaults to `materialThickness`). */
+  drawerJoineryMaterialThickness?: number;
+  /**
+   * For dovetail half-lap: lap depth per side as ratio of thickness.
+   * Ignored when explicit depth is provided.
+   */
+  drawerJoineryHalfLapRatio?: number;
+  /** For dovetail half-lap: explicit lap depth per side (inches). */
+  drawerJoineryHalfLapDepth?: number;
 };
 
 export type DrawerCellResult = {
@@ -82,21 +104,22 @@ export function budgetForRowOpeningHeights(input: {
 }
 
 export function computeDresser(input: DresserEngineInput): DresserEngineResult | DresserEngineError {
-  const t = input.materialThickness;
+  const sideT = input.materialThickness;
+  const dividerT = input.dividerThickness ?? sideT;
   if (input.outerWidth <= 0 || input.outerHeight <= 0 || input.outerDepth <= 0) {
     return { ok: false, message: "Overall width, height, and depth must be positive." };
   }
-  if (t <= 0) return { ok: false, message: "Material thickness must be positive." };
+  if (sideT <= 0 || dividerT <= 0) return { ok: false, message: "Case side and divider thickness must be positive." };
   if (input.rowCount < 1) return { ok: false, message: "Need at least one drawer row." };
   if (input.rowOpeningHeightsInches.length !== input.rowCount) {
     return { ok: false, message: "Enter one opening height per row (inches)." };
   }
 
-  const innerW = input.outerWidth - 2 * t;
+  const innerW = input.outerWidth - 2 * sideT;
   if (innerW <= 0) return { ok: false, message: "Sides consume the full width—increase width or reduce thickness." };
 
   const dividers = input.columnCount - 1;
-  const columnInner = (innerW - dividers * t) / input.columnCount;
+  const columnInner = (innerW - dividers * dividerT) / input.columnCount;
   if (columnInner <= 0) {
     return { ok: false, message: "Columns are too narrow—fewer columns, wider case, or thinner stock." };
   }
@@ -146,14 +169,22 @@ export function computeDresser(input: DresserEngineInput): DresserEngineResult |
   }
 
   const boxDepth = Math.min(input.slideLengthNominal, depthAvail);
+  const presetJoinery = computeDrawerJoineryAllowances({
+    preset: input.drawerJoineryPreset ?? "butt",
+    materialThickness: input.drawerJoineryMaterialThickness ?? input.materialThickness,
+    halfLapRatio: input.drawerJoineryHalfLapRatio,
+    halfLapDepth: input.drawerJoineryHalfLapDepth,
+  });
+  const joineryW = Math.max(0, presetJoinery.widthAllowance + (input.drawerJoineryWidthAllowance ?? 0));
+  const joineryH = Math.max(0, presetJoinery.heightAllowance + (input.drawerJoineryHeightAllowance ?? 0));
 
   const cells: DrawerCellResult[] = [];
   for (let c = 0; c < input.columnCount; c++) {
     for (let r = 0; r < input.rowCount; r++) {
       const ow = columnInner;
       const oh = openingHeights[r] ?? 0;
-      const bw = Math.max(0, ow - input.slideWidthClearance);
-      const bh = Math.max(0, oh - input.slideHeightClearance);
+      const bw = Math.max(0, ow - input.slideWidthClearance - joineryW);
+      const bh = Math.max(0, oh - input.slideHeightClearance - joineryH);
       cells.push({
         columnIndex: c,
         rowIndex: r,

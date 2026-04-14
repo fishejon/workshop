@@ -1,27 +1,34 @@
 "use client";
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- manual memo deps are intentional; React Compiler rule misfires here */
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
-import { buildDresserCarcassParts } from "@/lib/dresser-carcass";
+import {
+  DRESSER_ASSEMBLIES,
+  DRESSER_DEFAULT_ROW_COUNT,
+  DRESSER_DEFAULT_ROW_OPENING_HEIGHTS,
+  DRESSER_DRAWER_JOINERY_PRESETS,
+  DRESSER_PRIMARY_HARDWOOD_4_4,
+  DRESSER_SLIDE_PRESETS,
+  type DresserDrawerJoineryPresetKey,
+  type DresserSlidePresetKey,
+} from "@/lib/archetypes/assemblies";
+import {
+  buildDresserCaseworkCarcass,
+  computeDresserCaseworkEngine,
+} from "@/lib/archetypes/casework";
 import {
   budgetForRowOpeningHeights,
-  computeDresser,
   outerHeightFromRowOpenings,
   type DresserColumnCount,
 } from "@/lib/dresser-engine";
 import type { Part } from "@/lib/project-types";
 import { formatImperial, parseInches } from "@/lib/imperial";
 
-const SLIDE_PRESETS = {
-  sideMount: { label: "Side-mount slides (rule of thumb)", w: 0.5, h: 0.25 },
-  tight: { label: "Tighter side-mount", w: 0.375, h: 0.1875 },
-  undermount: { label: "Undermount (placeholder — verify mfg.)", w: 0.125, h: 0.75 },
-  custom: { label: "Custom clearances", w: 0.5, h: 0.25 },
-} as const;
-
-type SlideKey = keyof typeof SLIDE_PRESETS;
+type SlideKey = DresserSlidePresetKey;
+type CaseJoineryStyle = "screw_glue" | "dados" | "confirmat" | "other";
+type DrawerJoineryKey = DresserDrawerJoineryPresetKey;
 
 function parsePositive(s: string): number | null {
   const n = parseInches(s);
@@ -29,17 +36,35 @@ function parsePositive(s: string): number | null {
   return n;
 }
 
+type GenerationSummary = {
+  mode: "append_all" | "replace_all" | "append_case" | "append_drawers";
+  addedCount: number;
+  replacedCount: number;
+};
+
 export function DresserPlanner() {
-  const { addParts } = useProject();
+  const { project, addParts, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
 
   const [outerW, setOuterW] = useState("48");
   const [outerH, setOuterH] = useState("34");
   const [outerD, setOuterD] = useState("18");
-  const [materialT, setMaterialT] = useState("0.75");
+  const [sideT, setSideT] = useState("0.75");
+  const [centerSupportT, setCenterSupportT] = useState("0.75");
+  const [topPanelT, setTopPanelT] = useState("0.75");
+  const [maxBoardDraft, setMaxBoardDraft] = useState(() =>
+    String(project.maxPurchasableBoardWidthInches)
+  );
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- sync draft when Setup (or other UI) changes project field */
+    setMaxBoardDraft(String(project.maxPurchasableBoardWidthInches));
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [project.maxPurchasableBoardWidthInches]);
   const [columns, setColumns] = useState<DresserColumnCount>(2);
-  const [rows, setRows] = useState("3");
+  const [rows, setRows] = useState(String(DRESSER_DEFAULT_ROW_COUNT));
   /** Each drawer row opening height in inches (must sum to case budget — see hint below). */
-  const [rowOpeningHeights, setRowOpeningHeights] = useState<string[]>(["10", "10", "10.25"]);
+  const [rowOpeningHeights, setRowOpeningHeights] = useState<string[]>(() => [
+    ...DRESSER_DEFAULT_ROW_OPENING_HEIGHTS,
+  ]);
   const [kick, setKick] = useState("0");
   const [topAsm, setTopAsm] = useState("1.5");
   const [bottomPanel, setBottomPanel] = useState("0.75");
@@ -48,17 +73,31 @@ export function DresserPlanner() {
   const [rearClear, setRearClear] = useState("0.5");
   const [slideLen, setSlideLen] = useState("22");
   const [slidePreset, setSlidePreset] = useState<SlideKey>("sideMount");
-  const [slideWClr, setSlideWClr] = useState(String(SLIDE_PRESETS.sideMount.w));
-  const [slideHClr, setSlideHClr] = useState(String(SLIDE_PRESETS.sideMount.h));
+  const [slideWClr, setSlideWClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.w));
+  const [slideHClr, setSlideHClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.h));
+  const [caseJoineryStyle, setCaseJoineryStyle] = useState<CaseJoineryStyle>("dados");
+  const [drawerJoineryPreset, setDrawerJoineryPreset] = useState<DrawerJoineryKey>("none");
+  const [drawerJoineryW, setDrawerJoineryW] = useState("0");
+  const [drawerJoineryH, setDrawerJoineryH] = useState("0");
+  const [generationSummary, setGenerationSummary] = useState<GenerationSummary | null>(null);
 
   const [backsolve, setBacksolve] = useState<string[]>(["", "", ""]);
 
   function applySlidePreset(key: SlideKey) {
     setSlidePreset(key);
     if (key !== "custom") {
-      const p = SLIDE_PRESETS[key];
+      const p = DRESSER_SLIDE_PRESETS[key];
       setSlideWClr(String(p.w));
       setSlideHClr(String(p.h));
+    }
+  }
+
+  function applyDrawerJoineryPreset(key: DrawerJoineryKey) {
+    setDrawerJoineryPreset(key);
+    if (key !== "custom") {
+      const p = DRESSER_DRAWER_JOINERY_PRESETS[key];
+      setDrawerJoineryW(String(p.w));
+      setDrawerJoineryH(String(p.h));
     }
   }
 
@@ -108,15 +147,27 @@ export function DresserPlanner() {
     const w = parsePositive(outerW);
     const h = parsePositive(outerH);
     const d = parsePositive(outerD);
-    const t = parsePositive(materialT);
+    const sT = parsePositive(sideT);
+    const cT = parsePositive(centerSupportT);
+    const topPanel = parsePositive(topPanelT);
+    const maxBoardWidth = project.maxPurchasableBoardWidthInches;
     const k = parseInches(kick.trim() === "" ? "0" : kick);
     const top = parseInches(topAsm);
     const bot = parseInches(bottomPanel);
     const r = parseInches(rail);
     const b = parseInches(backT);
 
-    if (w === null || h === null || d === null || t === null) {
-      return { ok: false as const, message: "Enter valid overall W × H × D and material thickness." };
+    if (w === null || h === null || d === null || sT === null || cT === null || topPanel === null) {
+      return {
+        ok: false as const,
+        message: "Enter valid overall W × H × D and positive side/center/top thicknesses.",
+      };
+    }
+    if (!Number.isFinite(maxBoardWidth) || maxBoardWidth <= 0) {
+      return {
+        ok: false as const,
+        message: "Set a valid max purchasable board width in Project setup (or the field below) for glue-up planning.",
+      };
     }
     if (k === null || k < 0 || top === null || top < 0 || bot === null || bot < 0) {
       return { ok: false as const, message: "Top/bottom must be valid; kick can be 0." };
@@ -125,11 +176,14 @@ export function DresserPlanner() {
       return { ok: false as const, message: "Rails and back thickness must be valid (≥ 0)." };
     }
 
-    return buildDresserCarcassParts({
+    return buildDresserCaseworkCarcass({
       outerWidth: w,
       outerHeight: h,
       outerDepth: d,
-      materialThickness: t,
+      materialThickness: sT,
+      dividerThickness: cT,
+      topPanelThickness: topPanel,
+      maxPurchasableBoardWidth: maxBoardWidth,
       columnCount: columns,
       kickHeight: k,
       topAssemblyHeight: top,
@@ -142,7 +196,10 @@ export function DresserPlanner() {
     outerW,
     outerH,
     outerD,
-    materialT,
+    sideT,
+    centerSupportT,
+    topPanelT,
+    project.maxPurchasableBoardWidthInches,
     columns,
     rowCount,
     kick,
@@ -159,7 +216,8 @@ export function DresserPlanner() {
     const w = parsePositive(outerW);
     const h = parsePositive(outerH);
     const d = parsePositive(outerD);
-    const t = parsePositive(materialT);
+    const sT = parsePositive(sideT);
+    const cT = parsePositive(centerSupportT);
     const k = parseInches(kick.trim() === "" ? "0" : kick);
     const top = parseInches(topAsm);
     const bot = parseInches(bottomPanel);
@@ -169,9 +227,11 @@ export function DresserPlanner() {
     const sl = parsePositive(slideLen);
     const sw = parseInches(slideWClr);
     const sh = parseInches(slideHClr);
+    const jw = parseInches(drawerJoineryW);
+    const jh = parseInches(drawerJoineryH);
 
-    if (w === null || h === null || d === null || t === null) {
-      return { ok: false as const, message: "Enter valid overall W × H × D and material thickness." };
+    if (w === null || h === null || d === null || sT === null || cT === null) {
+      return { ok: false as const, message: "Enter valid overall W × H × D and side/center thicknesses." };
     }
     if (k === null || k < 0 || top === null || top < 0 || bot === null || bot < 0) {
       return { ok: false as const, message: "Top/bottom must be valid; kick can be 0 (e.g. legs instead of toe kick)." };
@@ -181,6 +241,9 @@ export function DresserPlanner() {
     }
     if (sl === null || sw === null || sh === null || sw < 0 || sh < 0) {
       return { ok: false as const, message: "Slide length and clearances must be valid numbers." };
+    }
+    if (jw === null || jh === null || jw < 0 || jh < 0) {
+      return { ok: false as const, message: "Drawer joinery allowances must be valid non-negative numbers." };
     }
 
     const openingHeights = rowOpeningHeights.slice(0, rowCount).map((s) => {
@@ -192,11 +255,12 @@ export function DresserPlanner() {
       return { ok: false as const, message: "Each row needs a positive opening height in inches (e.g. 8 or 7 1/2)." };
     }
 
-    return computeDresser({
+    return computeDresserCaseworkEngine({
       outerWidth: w,
       outerHeight: h,
       outerDepth: d,
-      materialThickness: t,
+      materialThickness: sT,
+      dividerThickness: cT,
       columnCount: columns,
       rowCount,
       rowOpeningHeightsInches: openingHeights,
@@ -209,12 +273,15 @@ export function DresserPlanner() {
       slideLengthNominal: sl,
       slideWidthClearance: sw,
       slideHeightClearance: sh,
+      drawerJoineryWidthAllowance: jw,
+      drawerJoineryHeightAllowance: jh,
     });
   }, [
     outerW,
     outerH,
     outerD,
-    materialT,
+    sideT,
+    centerSupportT,
     columns,
     rowCount,
     rowOpeningHeights,
@@ -227,6 +294,8 @@ export function DresserPlanner() {
     slideLen,
     slideWClr,
     slideHClr,
+    drawerJoineryW,
+    drawerJoineryH,
   ]);
 
   const backsolveResult = useMemo(() => {
@@ -266,46 +335,105 @@ export function DresserPlanner() {
     });
   }, [rowOpeningHeights, rowCount]);
 
-  function handleAddCaseParts() {
-    if (carcassResult.ok !== true) return;
-    const toAdd: Omit<Part, "id">[] = carcassResult.parts.map((p) => ({
+  const casePartsToAdd = useMemo<Omit<Part, "id">[]>(() => {
+    if (carcassResult.ok !== true) return [];
+    const caseJoineryNote =
+      caseJoineryStyle === "dados"
+        ? "case joinery ref: dados/grooves"
+        : caseJoineryStyle === "screw_glue"
+          ? "case joinery ref: screw + glue"
+          : caseJoineryStyle === "confirmat"
+            ? "case joinery ref: confirmat / knockdown"
+            : "case joinery ref: custom";
+    return carcassResult.parts.map((p) => ({
       name: p.name,
       assembly: p.assembly,
       quantity: p.quantity,
       finished: p.finished,
       rough: { t: 0, w: 0, l: 0, manual: false },
-      material: { label: "Primary hardwood", thicknessCategory: "4/4" },
-      grainNote: p.grainNote ?? "",
+      material: DRESSER_PRIMARY_HARDWOOD_4_4,
+      grainNote: [p.grainNote ?? "", caseJoineryNote].filter(Boolean).join(" · "),
       status: p.status,
     }));
-    addParts(toAdd);
-  }
+  }, [carcassResult, caseJoineryStyle]);
 
-  function handleAddDrawerParts() {
-    if (result.ok !== true) return;
-    const toAdd: Omit<Part, "id">[] = result.cells.map((c) => ({
+  const drawerPartsToAdd = useMemo<Omit<Part, "id">[]>(() => {
+    if (result.ok !== true) return [];
+    const sw = parseInches(slideWClr) ?? 0;
+    const sh = parseInches(slideHClr) ?? 0;
+    const jw = parseInches(drawerJoineryW) ?? 0;
+    const jh = parseInches(drawerJoineryH) ?? 0;
+    return result.cells.map((c) => ({
       name: `Drawer box (${c.label})`,
       assembly: "Drawers",
       quantity: 1,
       finished: { t: 0.5, w: c.boxWidth, l: c.boxHeight },
       rough: { t: 0, w: 0, l: 0, manual: false },
-      material: { label: "Primary hardwood", thicknessCategory: "4/4" },
-      grainNote: `Depth (slide run) ${formatImperial(c.boxDepth)} · opening ${formatImperial(c.openingWidth)} × ${formatImperial(c.openingHeight)}`,
+      material: DRESSER_PRIMARY_HARDWOOD_4_4,
+      grainNote:
+        `Depth (slide run) ${formatImperial(c.boxDepth)} · opening ${formatImperial(c.openingWidth)} × ${formatImperial(c.openingHeight)} · ` +
+        `box formula: W−${formatImperial(sw)}−${formatImperial(jw)}, H−${formatImperial(sh)}−${formatImperial(jh)}`,
       status: "needs_milling",
     }));
-    addParts(toAdd);
+  }, [result, slideWClr, slideHClr, drawerJoineryW, drawerJoineryH]);
+
+  const existingDresserPartCount = useMemo(
+    () => project.parts.filter((part) => DRESSER_ASSEMBLIES.includes(part.assembly)).length,
+    [project.parts]
+  );
+
+  const generationSummaryText = useMemo(() => {
+    if (!generationSummary) return null;
+    if (generationSummary.mode === "replace_all") {
+      return `Replaced ${generationSummary.replacedCount} dresser row(s) with ${generationSummary.addedCount} newly generated row(s).`;
+    }
+    if (generationSummary.mode === "append_all") {
+      return `Added ${generationSummary.addedCount} dresser row(s) without removing existing rows.`;
+    }
+    if (generationSummary.mode === "append_case") {
+      return `Added ${generationSummary.addedCount} case/base/back row(s) without removing existing rows.`;
+    }
+    return `Added ${generationSummary.addedCount} drawer row(s) without removing existing rows.`;
+  }, [generationSummary]);
+
+  function handleAddCaseParts() {
+    if (casePartsToAdd.length < 1) return;
+    addParts(casePartsToAdd);
+    setGenerationSummary({ mode: "append_case", addedCount: casePartsToAdd.length, replacedCount: 0 });
+  }
+
+  function handleAddDrawerParts() {
+    if (drawerPartsToAdd.length < 1) return;
+    addParts(drawerPartsToAdd);
+    setGenerationSummary({ mode: "append_drawers", addedCount: drawerPartsToAdd.length, replacedCount: 0 });
+  }
+
+  function handleAppendAllDresserParts() {
+    if (casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1) return;
+    const combined = [...casePartsToAdd, ...drawerPartsToAdd];
+    addParts(combined);
+    setGenerationSummary({ mode: "append_all", addedCount: combined.length, replacedCount: 0 });
+  }
+
+  function handleReplaceDresserParts() {
+    if (casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1) return;
+    const combined = [...casePartsToAdd, ...drawerPartsToAdd];
+    replacePartsInAssemblies(DRESSER_ASSEMBLIES, combined);
+    setGenerationSummary({
+      mode: "replace_all",
+      addedCount: combined.length,
+      replacedCount: existingDresserPartCount,
+    });
   }
 
   return (
     <div className="space-y-8">
       <div className="space-y-8">
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
-          <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Case</h2>
+          <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Intent-first case inputs</h2>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
-            Start with outside size. Drawer openings must fit in what’s left after the optional{" "}
-            <strong className="font-medium text-[var(--gl-cream-soft)]">toe kick</strong> (0 if the case
-            stands on legs/feet), the <strong className="font-medium text-[var(--gl-cream-soft)]">top assembly</strong>
-            , and the <strong className="font-medium text-[var(--gl-cream-soft)]">bottom panel</strong> zone.
+            Define the cabinet by intent first: overall envelope, structural thicknesses, then target drawer
+            opening heights by row. The planner computes what those choices imply for every opening and box.
           </p>
           <details className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[var(--gl-muted)]">
             <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">
@@ -334,19 +462,44 @@ export function DresserPlanner() {
             </ul>
           </details>
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <Field label="Overall width">
+            <Field label="Overall width (outside)">
               <In value={outerW} onChange={setOuterW} />
             </Field>
-            <Field label="Overall height">
+            <Field label="Overall height (outside)">
               <In value={outerH} onChange={setOuterH} />
             </Field>
-            <Field label="Overall depth">
+            <Field label="Overall depth (outside)">
               <In value={outerD} onChange={setOuterD} />
             </Field>
-            <Field label="Material thickness (sides / dividers)">
-              <In value={materialT} onChange={setMaterialT} hint="e.g. 3/4 for S4S hardwood" />
+            <Field label="Case side thickness">
+              <In value={sideT} onChange={setSideT} hint="Primary side stock thickness (e.g. 3/4)." />
             </Field>
-            <Field label="Columns">
+            <Field label="Center support / divider thickness">
+              <In
+                value={centerSupportT}
+                onChange={setCenterSupportT}
+                hint="Vertical column divider thickness used in opening-width math."
+              />
+            </Field>
+            <Field label="Top panel thickness">
+              <In
+                value={topPanelT}
+                onChange={setTopPanelT}
+                hint="Case top stock thickness for parts output (separate from top assembly height)."
+              />
+            </Field>
+            <Field label="Max purchasable board width">
+              <In
+                value={maxBoardDraft}
+                onChange={(v) => {
+                  setMaxBoardDraft(v);
+                  const parsed = parsePositive(v);
+                  if (parsed !== null) setMaxPurchasableBoardWidthInches(parsed);
+                }}
+                hint="Same as Project setup—glue-up planning for wide top/sides and materials assumptions."
+              />
+            </Field>
+            <Field label="Columns (vertical stacks)">
               <select
                 className="input-wood"
                 value={columns}
@@ -357,7 +510,7 @@ export function DresserPlanner() {
                 <option value={3}>Three columns</option>
               </select>
             </Field>
-            <Field label="Drawer rows (total)">
+            <Field label="Drawer rows (horizontal bands)">
               <input
                 className="input-wood"
                 type="number"
@@ -453,6 +606,21 @@ export function DresserPlanner() {
             >
               <In value={rearClear} onChange={setRearClear} />
             </Field>
+            <Field
+              label="Case joinery style (reference)"
+              hint="Reference only for now; use this to keep your case-part assumptions explicit."
+            >
+              <select
+                className="input-wood"
+                value={caseJoineryStyle}
+                onChange={(e) => setCaseJoineryStyle(e.target.value as CaseJoineryStyle)}
+              >
+                <option value="dados">Dados / grooves + glue</option>
+                <option value="screw_glue">Screw + glue carcass</option>
+                <option value="confirmat">Confirmat / knockdown screws</option>
+                <option value="other">Other / custom</option>
+              </select>
+            </Field>
           </div>
           {carcassResult.ok === false ? (
             <p className="mt-4 text-sm text-red-300/90">{carcassResult.message}</p>
@@ -463,47 +631,87 @@ export function DresserPlanner() {
             disabled={carcassResult.ok !== true}
             onClick={handleAddCaseParts}
           >
-            Add case parts to parts list
+            1) Add case parts (append)
           </button>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Appends only case/base/back rows and keeps any existing drawer rows untouched.
+          </p>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
-          <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Slides</h2>
+          <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Slide + joinery intent</h2>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
-            Pick a starting point, then tweak. Always confirm against the manufacturer install sheet.
+            Choose hardware style and joinery assumptions explicitly. Final drawer box dimensions are calculated from these allowances.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Slide preset">
+            <Field label="Slide style preset">
               <select
                 className="input-wood"
                 value={slidePreset}
                 onChange={(e) => applySlidePreset(e.target.value as SlideKey)}
               >
-                {(Object.keys(SLIDE_PRESETS) as SlideKey[]).map((k) => (
+                {(Object.keys(DRESSER_SLIDE_PRESETS) as SlideKey[]).map((k) => (
                   <option key={k} value={k}>
-                    {SLIDE_PRESETS[k].label}
+                    {DRESSER_SLIDE_PRESETS[k].label}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Nominal slide length">
+            <Field label="Slide length (nominal)">
               <In value={slideLen} onChange={setSlideLen} hint="Box depth = min(this, usable depth)" />
             </Field>
-            <Field label="Width clearance (opening → box)">
+            <Field label="Slide width clearance (opening -> box)">
               <In value={slideWClr} onChange={(v) => {
                 setSlideWClr(v);
                 setSlidePreset("custom");
               }}
               />
             </Field>
-            <Field label="Height clearance (opening → box)">
+            <Field label="Slide height clearance (opening -> box)">
               <In value={slideHClr} onChange={(v) => {
                 setSlideHClr(v);
                 setSlidePreset("custom");
               }}
               />
             </Field>
+            <Field label="Drawer joinery style preset">
+              <select
+                className="input-wood"
+                value={drawerJoineryPreset}
+                onChange={(e) => applyDrawerJoineryPreset(e.target.value as DrawerJoineryKey)}
+              >
+                {(Object.keys(DRESSER_DRAWER_JOINERY_PRESETS) as DrawerJoineryKey[]).map((k) => (
+                  <option key={k} value={k}>
+                    {DRESSER_DRAWER_JOINERY_PRESETS[k].label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Joinery width allowance (total)">
+              <In
+                value={drawerJoineryW}
+                onChange={(v) => {
+                  setDrawerJoineryW(v);
+                  setDrawerJoineryPreset("custom");
+                }}
+                hint="Extra total width removed from opening beyond slide clearance."
+              />
+            </Field>
+            <Field label="Joinery height allowance (total)">
+              <In
+                value={drawerJoineryH}
+                onChange={(v) => {
+                  setDrawerJoineryH(v);
+                  setDrawerJoineryPreset("custom");
+                }}
+                hint="Extra total height removed from opening beyond slide clearance."
+              />
+            </Field>
           </div>
+          <p className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-[var(--gl-muted)]">
+            Formula used: <strong className="text-[var(--gl-cream)]">box width = opening width − slide width clearance − joinery width allowance</strong> and{" "}
+            <strong className="text-[var(--gl-cream)]">box height = opening height − slide height clearance − joinery height allowance</strong>.
+          </p>
         </section>
 
         <section className="rounded-2xl border border-dashed border-[var(--gl-copper)]/35 bg-[var(--gl-copper)]/5 p-6">
@@ -545,7 +753,11 @@ export function DresserPlanner() {
       <div className="space-y-6">
         <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
           <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-            Preview
+            Visual preview only
+          </p>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Front elevation is for proportion/orientation only and is not manufacturing output. Use the calculated
+            values below for cutlist and fit decisions.
           </p>
           <DresserPreview
             outerW={parsePositive(outerW) ?? 48}
@@ -557,24 +769,68 @@ export function DresserPlanner() {
             topBand={parseInches(topAsm) ?? 0}
             bottomBand={parseInches(bottomPanel) ?? 0}
             rail={parseInches(rail) ?? 0}
-            materialT={parsePositive(materialT) ?? 0.75}
+            materialT={parsePositive(sideT) ?? 0.75}
           />
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
           <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-            Openings &amp; boxes
+            Calculated outputs
           </p>
           {result.ok === false ? (
             <p className="mt-3 text-sm text-red-300/90">{result.message}</p>
           ) : (
             <div className="mt-4 space-y-4">
               <p className="text-sm text-[var(--gl-muted)]">
-                Column interior width{" "}
+                Interior space and opening math:
+                <span className="block mt-1 text-xs leading-relaxed">
+                  case interior width = overall width - 2 × side thickness
+                  {" · "}
+                  per-column opening width = (case interior width - (columns - 1) × center support thickness) / columns
+                </span>
+              </p>
+              <p className="text-sm text-[var(--gl-muted)]">
+                Per-column opening width{" "}
                 <strong className="text-[var(--gl-cream)]">{formatImperial(result.columnInnerWidth)}</strong>
                 {" · "}
-                Drawer stack zone{" "}
+                Drawer-zone height{" "}
                 <strong className="text-[var(--gl-cream)]">{formatImperial(result.drawerZoneHeight)}</strong>
+              </p>
+              <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
+                Final drawer formulas:
+                <span className="block mt-1">
+                  box width = opening width - slide width clearance - joinery width allowance
+                </span>
+                <span className="block">
+                  box height = opening height - slide height clearance - joinery height allowance
+                </span>
+                <span className="block">
+                  box depth = min(slide length nominal, usable depth)
+                </span>
+              </p>
+              <p className="rounded-lg border border-[var(--gl-copper)]/30 bg-[var(--gl-copper)]/8 px-3 py-2 text-xs leading-relaxed text-[var(--gl-cream-soft)]">
+                Current run values: interior width = {formatImperial(parsePositive(outerW) ?? 0)} - 2 ×{" "}
+                {formatImperial(parsePositive(sideT) ?? 0)}; per-column opening = (
+                {formatImperial((parsePositive(outerW) ?? 0) - 2 * (parsePositive(sideT) ?? 0))} -{" "}
+                {Math.max(columns - 1, 0)} × {formatImperial(parsePositive(centerSupportT) ?? 0)}) / {columns} ={" "}
+                {formatImperial(result.columnInnerWidth)}.
+              </p>
+              <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
+                Build-critical clearances: side clearance per side ≈{" "}
+                <strong className="text-[var(--gl-cream)]">
+                  {formatImperial((parseInches(slideWClr) ?? 0) / 2)}
+                </strong>
+                {" · "}
+                total width deduction ={" "}
+                <strong className="text-[var(--gl-cream)]">
+                  {formatImperial((parseInches(slideWClr) ?? 0) + (parseInches(drawerJoineryW) ?? 0))}
+                </strong>
+                {" · "}
+                total height deduction ={" "}
+                <strong className="text-[var(--gl-cream)]">
+                  {formatImperial((parseInches(slideHClr) ?? 0) + (parseInches(drawerJoineryH) ?? 0))}
+                </strong>
+                .
               </p>
               <div className="max-h-[min(55vh,520px)] overflow-auto rounded-xl border border-white/10">
                 <table className="w-full text-left text-sm">
@@ -611,11 +867,49 @@ export function DresserPlanner() {
                 className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)]"
                 onClick={handleAddDrawerParts}
               >
-                Add drawer boxes to parts list
+                2) Add drawer boxes (append)
               </button>
+              <p className="text-xs text-[var(--gl-muted)]">
+                Appends only drawer rows so you can stage generation if you prefer.
+              </p>
             </div>
           )}
         </div>
+
+        <section className="rounded-2xl border border-[var(--gl-copper)]/30 bg-[var(--gl-copper)]/8 p-5">
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Parts list handoff
+          </p>
+          <p className="mt-2 text-sm text-[var(--gl-muted)]">
+            For a clean dresser pass, generate both together. This uses the current case + slide settings and makes the
+            add vs replace behavior explicit.
+          </p>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Ready now: {casePartsToAdd.length} case/base/back part(s) + {drawerPartsToAdd.length} drawer box part(s).
+            Existing dresser-tagged rows in parts list: {existingDresserPartCount}.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-bg)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
+              onClick={handleAppendAllDresserParts}
+            >
+              Add full dresser set (append)
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-[var(--gl-cream)] transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
+              onClick={handleReplaceDresserParts}
+            >
+              Replace dresser rows (case/base/back/drawers)
+            </button>
+          </div>
+          {generationSummaryText ? (
+            <p className="mt-3 text-xs text-[var(--gl-cream-soft)]">{generationSummaryText}</p>
+          ) : null}
+        </section>
       </div>
     </div>
   );
