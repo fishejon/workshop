@@ -3,6 +3,8 @@ import { roundToFraction } from "./imperial";
 export type CutPiece = {
   lengthInches: number;
   label?: string;
+  /** Stable id for this rough-length instance; preserved through packing. */
+  roughInstanceId?: string;
 };
 
 export type BoardPlan = {
@@ -32,7 +34,12 @@ export function packUniformStock(
     expanded.push({ ...p });
   }
 
-  expanded.sort((a, b) => b.lengthInches - a.lengthInches);
+  expanded.sort((a, b) => {
+    if (b.lengthInches !== a.lengthInches) return b.lengthInches - a.lengthInches;
+    const ai = a.roughInstanceId ?? "";
+    const bi = b.roughInstanceId ?? "";
+    return ai.localeCompare(bi);
+  });
 
   type Board = { cuts: CutPiece[]; used: number; needsKerf: boolean };
 

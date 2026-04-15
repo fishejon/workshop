@@ -36,6 +36,7 @@ import {
   serializeProject,
   type StoredProjectRecord,
 } from "@/lib/project-utils";
+import { pruneCutProgressForPartIds } from "@/lib/rough-instance-id";
 import {
   getBlockingValidationIssues,
   getWarningValidationIssues,
@@ -85,6 +86,9 @@ type ProjectContextValue = {
     checkpoint: "materialAssumptionsReviewed" | "joineryReviewed",
     reviewed: boolean
   ) => void;
+  /** Toggle “cut” progress for one rough-length instance (`partId:instanceIndex`). */
+  toggleCutProgress: (roughInstanceId: string) => void;
+  clearCutProgress: () => void;
 };
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -317,8 +321,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const connections = p.connections.filter(
           (c) => !removedIds.has(c.partAId) && !removedIds.has(c.partBId)
         );
+        const cutProgressByRoughInstanceId = pruneCutProgressForPartIds(
+          p.cutProgressByRoughInstanceId,
+          removedIds
+        );
         return resetJoineryCheckpoint(
-          resetMaterialCheckpoint({ ...p, parts: nextParts, joints, connections })
+          resetMaterialCheckpoint({ ...p, parts: nextParts, joints, connections, cutProgressByRoughInstanceId })
         );
       });
     },
@@ -340,21 +348,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const removePart = useCallback((id: string) => {
-    setProject((p) =>
-      resetJoineryCheckpoint(
+    setProject((p) => {
+      const cutProgressByRoughInstanceId = pruneCutProgressForPartIds(p.cutProgressByRoughInstanceId, new Set([id]));
+      return resetJoineryCheckpoint(
         resetMaterialCheckpoint({
           ...p,
           parts: p.parts.filter((x) => x.id !== id),
           joints: p.joints.filter((j) => j.primaryPartId !== id && j.matePartId !== id),
           connections: p.connections.filter((c) => c.partAId !== id && c.partBId !== id),
+          cutProgressByRoughInstanceId,
         })
-      )
-    );
+      );
+    });
   }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const clearParts = useCallback(() => {
     setProject((p) =>
-      resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: [], joints: [], connections: [] }))
+      resetJoineryCheckpoint(
+        resetMaterialCheckpoint({ ...p, parts: [], joints: [], connections: [], cutProgressByRoughInstanceId: {} })
+      )
     );
   }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
@@ -490,6 +502,23 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const toggleCutProgress = useCallback((roughInstanceId: string) => {
+    setProject((p) => {
+      const cur = p.cutProgressByRoughInstanceId ?? {};
+      const next = { ...cur };
+      if (next[roughInstanceId] === "cut") {
+        delete next[roughInstanceId];
+      } else {
+        next[roughInstanceId] = "cut";
+      }
+      return { ...p, cutProgressByRoughInstanceId: next };
+    });
+  }, []);
+
+  const clearCutProgress = useCallback(() => {
+    setProject((p) => ({ ...p, cutProgressByRoughInstanceId: {} }));
+  }, []);
+
   const value = useMemo(
     () => {
       const validationIssues = validateProject(project);
@@ -530,6 +559,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addJointRecord,
       addConnectionRecord,
       setCheckpointReviewed,
+      toggleCutProgress,
+      clearCutProgress,
       };
     },
     [
@@ -563,6 +594,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addJointRecord,
       addConnectionRecord,
       setCheckpointReviewed,
+      toggleCutProgress,
+      clearCutProgress,
     ]
   );
 

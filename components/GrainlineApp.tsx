@@ -292,7 +292,7 @@ export function GrainlineApp() {
               </details>
             </div>
           }
-          cutListBuyListPanel={<BuyListPanel />}
+          cutListBuyListPanel={<BuyListPanel showDresserSummary={preset === "dresser"} />}
           aboutPanel={aboutPanel}
           blockingValidationIssues={blockingValidationIssues}
           decisionStrip={decisionStrip}

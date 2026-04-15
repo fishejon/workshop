@@ -7,13 +7,13 @@ import type { BoardFootGroup } from "./board-feet";
 import { materialGroupKey } from "./board-feet";
 import type { BoardPlan, CutPiece } from "./optimize-cuts";
 import { packUniformStock, totalWaste } from "./optimize-cuts";
+import { roughCutPiecesForPack } from "./rough-sticks";
 import {
   projectDefaultPurchasableStockWidthInches,
   purchasableStockWidthInchesForPart,
   type PartAssumptionsProjectInput,
 } from "./part-assumptions";
 import type { Part } from "./project-types";
-import { roughCutsFromParts } from "./rough-sticks";
 import { formatYardLumberLine, nominalBoardForPurchasableFaceWidth } from "./yard-lumber-display";
 
 const DEFAULT_PACK_KERF_IN = 0.125;
@@ -56,10 +56,7 @@ function packGroupToBoardPlans(
   stockLength: number,
   kerf: number
 ): { boards: BoardPlan[] | null; error: string | null; waste: number | null } {
-  const pieces: CutPiece[] = roughCutsFromParts(groupParts).map((c) => ({
-    lengthInches: c.lengthInches,
-    label: c.label,
-  }));
+  const pieces: CutPiece[] = roughCutPiecesForPack(groupParts);
   if (pieces.length === 0) {
     return { boards: [], error: null, waste: 0 };
   }

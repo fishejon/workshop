@@ -15,6 +15,8 @@ import {
   PURCHASE_SCENARIO_META,
   type PurchaseScenarioId,
 } from "@/lib/purchase-scenarios";
+import { DresserMaterialsSummary } from "@/components/DresserMaterialsSummary";
+import { useDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
 import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 
 const SCENARIO_ORDER: PurchaseScenarioId[] = [
@@ -24,8 +26,9 @@ const SCENARIO_ORDER: PurchaseScenarioId[] = [
   "minBoardCount",
 ];
 
-export function BuyListPanel() {
+export function BuyListPanel({ showDresserSummary = false }: { showDresserSummary?: boolean }) {
   const { project, setMaterialGroupCostRate, setMaterialGroupStockWidth } = useProject();
+  const dresserSnapshot = useDresserMaterialsSnapshot();
   const [scenario, setScenario] = useState<PurchaseScenarioId>("fitTransport");
 
   const groups = useMemo(
@@ -92,6 +95,11 @@ export function BuyListPanel() {
 
   return (
     <section className="gl-panel p-5">
+      {showDresserSummary && dresserSnapshot ? (
+        <div className="mb-5">
+          <DresserMaterialsSummary snapshot={dresserSnapshot} />
+        </div>
+      ) : null}
       <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Lumber & buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
         Stick counts and the <strong className="text-[var(--gl-cream)]">cut layout</strong> for each rack line live on

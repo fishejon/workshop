@@ -1,9 +1,11 @@
 "use client";
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- manual memo deps are intentional; React Compiler rule misfires here */
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { PackedStickCutBoardList } from "@/components/PackedStickCutStrip";
 import { formatShopImperial, parseInches } from "@/lib/imperial";
 import { packUniformStock, totalWaste, type CutPiece } from "@/lib/optimize-cuts";
+import { buildPlannerGroupedShopLabels } from "@/lib/shop-labels";
 
 type PartRow = { id: string; label: string; length: string; qty: string };
 
@@ -21,6 +23,7 @@ export function CutPlanner() {
     { id: nextId(), label: "Stretcher", length: "24", qty: "4" },
   ]);
   const [submitted, setSubmitted] = useState(false);
+  const [plannerCutProgress, setPlannerCutProgress] = useState<Record<string, "cut">>({});
 
   const parsed = useMemo(() => {
     const kerfN = parseInches(kerf);
@@ -53,6 +56,7 @@ export function CutPlanner() {
           pieces.push({
             lengthInches: len,
             label: row.label.trim() || undefined,
+            roughInstanceId: `${row.id}:${i + 1}`,
           });
         }
       }
@@ -62,6 +66,30 @@ export function CutPlanner() {
     }
     return { ok: true as const, kerfN, stockN, carryN, pieces };
   }, [kerf, stockLength, maxCarry, parts]);
+
+  const plannerLabelMap = useMemo(() => {
+    const rows: { rowId: string; qty: number }[] = [];
+    for (const row of parts) {
+      const len = parseInches(row.length);
+      const q = Number.parseInt(row.qty, 10);
+      if (len !== null && len > 0 && Number.isFinite(q) && q >= 1) {
+        rows.push({ rowId: row.id, qty: q });
+      }
+    }
+    return buildPlannerGroupedShopLabels(rows);
+  }, [parts]);
+
+  const togglePlannerCut = useCallback((roughInstanceId: string) => {
+    setPlannerCutProgress((prev) => {
+      const next = { ...prev };
+      if (next[roughInstanceId] === "cut") {
+        delete next[roughInstanceId];
+      } else {
+        next[roughInstanceId] = "cut";
+      }
+      return next;
+    });
+  }, []);
 
   const result = useMemo(() => {
     if (!parsed.ok) return null;
@@ -220,59 +248,28 @@ export function CutPlanner() {
       {showResult && result && "boards" in result ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Cut layout</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Cut layout</h3>
+              <p className="mt-1 max-w-xl text-xs text-[var(--gl-muted)]">
+                Tap segments to track what is cut. Labels are for this session only—they are not saved with the
+                project until you use parts on the Plan tab.
+              </p>
+            </div>
             <p className="text-sm text-[var(--gl-muted)]">
               {result.boards.length} board{result.boards.length === 1 ? "" : "s"} ×{" "}
               {formatShopImperial(parsed.stockN)} — combined waste ≈ {formatShopImperial(result.waste)} (after kerf)
             </p>
           </div>
 
-          <ul className="space-y-5">
-            {result.boards.map((board) => (
-              <li
-                key={board.index}
-                className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-5"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
-                  <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
-                  <span>
-                    Waste ~ <span className="text-[var(--gl-cream)]">{formatShopImperial(board.wasteInches)}</span>
-                  </span>
-                </div>
-
-                <div className="mt-4 flex h-14 w-full overflow-hidden rounded-lg bg-[var(--gl-surface-inset)] ring-1 ring-[var(--gl-border)]">
-                  {board.cuts.map((cut, i) => {
-                    const pct = Math.max(4, (cut.lengthInches / board.stockLengthInches) * 100);
-                    return (
-                      <div
-                        key={`${board.index}-${i}-${cut.lengthInches}`}
-                        className="flex min-w-[2.5rem] flex-col justify-center border-r border-[var(--gl-copper)]/20 bg-gradient-to-b from-[var(--gl-copper)]/35 to-[var(--gl-copper)]/15 px-1 text-center last:border-r-0"
-                        style={{ width: `${pct}%` }}
-                        title={cut.label ?? formatShopImperial(cut.lengthInches)}
-                      >
-                        <span className="text-xs font-medium leading-tight text-[var(--gl-cream)]">
-                          {formatShopImperial(cut.lengthInches)}
-                        </span>
-                        {cut.label ? (
-                          <span className="hidden truncate text-xs leading-tight text-[var(--gl-muted)] sm:block">
-                            {cut.label}
-                          </span>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-                <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--gl-muted)]">
-                  {board.cuts.map((cut, i) => (
-                    <li key={`${board.index}-list-${i}`}>
-                      {i + 1}. {formatShopImperial(cut.lengthInches)}
-                      {cut.label ? ` — ${cut.label}` : ""}
-                    </li>
-                  ))}
-                </ol>
-              </li>
-            ))}
-          </ul>
+          <PackedStickCutBoardList
+            boards={result.boards}
+            skin="planner"
+            listClassName="space-y-5"
+            shopLabelByRoughInstanceId={plannerLabelMap}
+            showPartLabel={false}
+            cutProgressByRoughInstanceId={plannerCutProgress}
+            onToggleCut={togglePlannerCut}
+          />
         </section>
       ) : null}
 

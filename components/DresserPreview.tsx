@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { DresserColumnCount } from "@/lib/dresser-engine";
+import { formatShopImperial } from "@/lib/imperial";
 
 type Props = {
   outerW: number;
@@ -158,7 +159,7 @@ export function DresserPreview({
                 fontSize={7}
                 fontFamily="var(--font-geist-sans), system-ui, sans-serif"
               >
-                {`R${r + 1}C${c + 1}`}
+                {formatShopImperial(rowOpeningHeightsInches[r] ?? 0)}
               </text>
             );
           }

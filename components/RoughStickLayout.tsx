@@ -1,17 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PackedStickCutBoardList } from "@/components/PackedStickCutStrip";
 import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial, parseInches } from "@/lib/imperial";
-import { packUniformStock, totalWaste, type CutPiece } from "@/lib/optimize-cuts";
-import { roughCutsFromParts } from "@/lib/rough-sticks";
+import { packUniformStock, totalWaste } from "@/lib/optimize-cuts";
+import { roughCutPiecesForPack } from "@/lib/rough-sticks";
+import { buildRoughInstanceLabelMap } from "@/lib/shop-labels";
 
 export function RoughStickLayout() {
-  const { project } = useProject();
+  const { project, toggleCutProgress, clearCutProgress } = useProject();
   const [kerf, setKerf] = useState("0.125");
   const [stockLength, setStockLength] = useState(() => String(project.maxTransportLengthInches));
 
-  const cuts = useMemo(() => roughCutsFromParts(project.parts), [project.parts]);
+  const pieces = useMemo(() => roughCutPiecesForPack(project.parts), [project.parts]);
+  const shopLabelByRoughInstanceId = useMemo(
+    () => buildRoughInstanceLabelMap(project.parts),
+    [project.parts]
+  );
+  const hasCutMarks = useMemo(
+    () => Object.keys(project.cutProgressByRoughInstanceId ?? {}).length > 0,
+    [project.cutProgressByRoughInstanceId]
+  );
 
   const parsed = useMemo(() => {
     const kerfN = parseInches(kerf);
@@ -20,9 +30,11 @@ export function RoughStickLayout() {
     if (stockN === null || stockN <= 0) {
       return { ok: false as const, reason: "Stock length must be a positive length." };
     }
-    const pieces: CutPiece[] = cuts.map((c) => ({ lengthInches: c.lengthInches, label: c.label }));
+    if (pieces.length === 0) {
+      return { ok: false as const, reason: "No packable rough lengths yet—set quantity ≥ 1 and rough L > 0 on your parts." };
+    }
     return { ok: true as const, kerfN, stockN, pieces };
-  }, [kerf, stockLength, cuts]);
+  }, [kerf, stockLength, pieces]);
 
   const result = useMemo(() => {
     if (!parsed.ok || parsed.pieces.length === 0) return null;
@@ -49,7 +61,7 @@ export function RoughStickLayout() {
   }
 
   const showError =
-    cuts.length > 0
+    pieces.length > 0
       ? parsed.ok && result && "error" in result
         ? result.error
         : !parsed.ok
@@ -62,10 +74,11 @@ export function RoughStickLayout() {
       <h2 className="text-sm font-semibold text-[var(--gl-cream)]">Rough stick layout (from parts list)</h2>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Each part instance uses <strong className="text-[var(--gl-cream-soft)]">rough L</strong> as the stick length;
-        labels match the parts list (name + index).
+        labels match the parts list (name + index). <strong className="text-[var(--gl-cream-soft)]">GL-</strong> codes
+        are stable per piece—write them on the board; marks follow the part if the pack changes.
       </p>
 
-      {cuts.length === 0 ? (
+      {pieces.length === 0 ? (
         <p className="mt-4 text-sm text-[var(--gl-muted)]">
           No packable rough lengths yet—set quantity ≥ 1 and rough L &gt; 0 on your parts.
         </p>
@@ -102,60 +115,40 @@ export function RoughStickLayout() {
 
           {packed && parsed.ok ? (
             <div className="mt-5 space-y-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>
-                <p className="text-sm text-[var(--gl-muted)]">
-                  {packed.boards.length} board{packed.boards.length === 1 ? "" : "s"} ×{" "}
-                  {formatShopImperial(parsed.stockN)} — combined waste ≈ {formatShopImperial(packed.waste)} (after kerf)
-                </p>
+              <div className="flex flex-wrap items-baseline justify-between gap-2 gap-y-2">
+                <div>
+                  <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>
+                  <p className="mt-1 max-w-xl text-xs text-[var(--gl-muted)]">
+                    Tap a segment when that rough length is off the saw (green = cut). Progress is stored per part
+                    instance, not per position on the stick.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-[var(--gl-muted)]">
+                    {packed.boards.length} board{packed.boards.length === 1 ? "" : "s"} ×{" "}
+                    {formatShopImperial(parsed.stockN)} — combined waste ≈ {formatShopImperial(packed.waste)} (after
+                    kerf)
+                  </p>
+                  {hasCutMarks ? (
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-[var(--gl-copper)] underline decoration-[var(--gl-copper)]/30 underline-offset-2 hover:decoration-[var(--gl-copper)]"
+                      onClick={() => clearCutProgress()}
+                    >
+                      Reset cut marks
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
-              <ul className="space-y-4">
-                {packed.boards.map((board) => (
-                  <li
-                    key={board.index}
-                    className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
-                      <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
-                      <span>
-                        Waste ~ <span className="text-[var(--gl-cream)]">{formatShopImperial(board.wasteInches)}</span>
-                      </span>
-                    </div>
-
-                    <div className="mt-3 flex h-12 w-full overflow-hidden rounded-lg bg-[var(--gl-surface-inset)] ring-1 ring-[var(--gl-border)]">
-                      {board.cuts.map((cut, i) => {
-                        const pct = Math.max(4, (cut.lengthInches / board.stockLengthInches) * 100);
-                        return (
-                          <div
-                            key={`${board.index}-${i}-${cut.lengthInches}-${cut.label ?? ""}`}
-                            className="flex min-w-[2.5rem] flex-col justify-center border-r border-[var(--gl-copper)]/20 bg-gradient-to-b from-[var(--gl-copper)]/35 to-[var(--gl-copper)]/15 px-1 text-center last:border-r-0"
-                            style={{ width: `${pct}%` }}
-                            title={cut.label ?? formatShopImperial(cut.lengthInches)}
-                          >
-                            <span className="text-xs font-medium leading-tight text-[var(--gl-cream)]">
-                              {formatShopImperial(cut.lengthInches)}
-                            </span>
-                            {cut.label ? (
-                              <span className="hidden truncate text-xs leading-tight text-[var(--gl-muted)] sm:block">
-                                {cut.label}
-                              </span>
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <ol className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--gl-muted)]">
-                      {board.cuts.map((cut, i) => (
-                        <li key={`${board.index}-list-${i}`}>
-                          {i + 1}. {formatShopImperial(cut.lengthInches)}
-                          {cut.label ? ` — ${cut.label}` : ""}
-                        </li>
-                      ))}
-                    </ol>
-                  </li>
-                ))}
-              </ul>
+              <PackedStickCutBoardList
+                boards={packed.boards}
+                skin="rough"
+                shopLabelByRoughInstanceId={shopLabelByRoughInstanceId}
+                showPartLabel={false}
+                cutProgressByRoughInstanceId={project.cutProgressByRoughInstanceId}
+                onToggleCut={toggleCutProgress}
+              />
             </div>
           ) : null}
         </>

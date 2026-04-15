@@ -75,6 +75,20 @@ describe("parseProject", () => {
     expect(p?.costRatesByGroup["White oak||4/4"]?.perLinearFoot).toBe(0.25);
   });
 
+  it("parses and sanitizes cutProgressByRoughInstanceId", () => {
+    const base = createEmptyProject();
+    const raw = {
+      ...base,
+      cutProgressByRoughInstanceId: {
+        "part-a:1": "cut",
+        bad: "nope",
+        "part-b:2": 99 as unknown as string,
+      },
+    };
+    const p = parseProject(JSON.stringify(raw));
+    expect(p?.cutProgressByRoughInstanceId).toEqual({ "part-a:1": "cut" });
+  });
+
   it("assigns a project id for legacy projects missing id", () => {
     const legacy = {
       version: 1,
@@ -163,6 +177,18 @@ describe("project clone/template/assembly duplication", () => {
     expect(cloned.parts).toHaveLength(source.parts.length);
     expect(cloned.parts.some((part) => part.id === "p1")).toBe(false);
     expect(cloned.connections[0]?.jointId).toBe(cloned.joints[0]?.id);
+  });
+
+  it("remaps cut progress when cloning", () => {
+    const source = makeProject();
+    const withProgress: Project = {
+      ...source,
+      cutProgressByRoughInstanceId: { "p1:1": "cut" },
+    };
+    const cloned = cloneProject(withProgress, "Clone");
+    const newSide = cloned.parts.find((part) => part.name === "Side");
+    expect(newSide).toBeDefined();
+    expect(cloned.cutProgressByRoughInstanceId?.[`${newSide!.id}:1`]).toBe("cut");
   });
 
   it("applies template to produce a fresh project graph", () => {

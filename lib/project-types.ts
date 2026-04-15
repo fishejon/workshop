@@ -113,6 +113,9 @@ export type WorkshopPreferences = {
   offcutMode: OffcutModeId;
 };
 
+/** Progress for one rough stick instance (`partId:instanceIndex`). */
+export type CutProgressValue = "cut";
+
 export type Project = {
   id: string;
   version: 1;
@@ -147,6 +150,11 @@ export type Project = {
    * Falls back to `maxPurchasableBoardWidthInches` when a key is absent.
    */
   stockWidthByMaterialGroup?: Record<string, number>;
+  /**
+   * Which rough-length instances are already cut (keys from `makeRoughInstanceId`).
+   * Omitted keys mean not cut; only `"cut"` is stored today.
+   */
+  cutProgressByRoughInstanceId?: Record<string, CutProgressValue>;
 };
 
 export type ProjectTemplate = {

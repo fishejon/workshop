@@ -1,6 +1,11 @@
 import type { Part } from "./project-types";
+import { makeRoughInstanceId } from "./rough-instance-id";
+import type { CutPiece } from "./optimize-cuts";
 
 export type RoughCutPiece = {
+  partId: string;
+  /** 1-based index within this part's quantity (matches part name suffix in labels). */
+  instanceIndex: number;
   label: string;
   lengthInches: number;
 };
@@ -19,8 +24,22 @@ export function roughCutsFromParts(parts: Part[]): RoughCutPiece[] {
     if (!(L > 0)) continue;
     const base = p.name.trim() || "Part";
     for (let i = 1; i <= q; i++) {
-      out.push({ label: `${base} ${i}`, lengthInches: L });
+      out.push({
+        partId: p.id,
+        instanceIndex: i,
+        label: `${base} ${i}`,
+        lengthInches: L,
+      });
     }
   }
   return out;
+}
+
+/** `CutPiece` rows for `packUniformStock`, including stable `roughInstanceId` per instance. */
+export function roughCutPiecesForPack(parts: Part[]): CutPiece[] {
+  return roughCutsFromParts(parts).map((c) => ({
+    lengthInches: c.lengthInches,
+    label: c.label,
+    roughInstanceId: makeRoughInstanceId(c.partId, c.instanceIndex),
+  }));
 }

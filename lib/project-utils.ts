@@ -1,5 +1,6 @@
 import type {
   AssemblyId,
+  CutProgressValue,
   Dimension3,
   Part,
   Project,
@@ -8,6 +9,7 @@ import type {
   ProjectTemplate,
   RoughSpec,
 } from "./project-types";
+import { remapCutProgressKeys } from "./rough-instance-id";
 
 export const STORAGE_KEY = "grainline-project-v1";
 export const PROJECT_LIBRARY_STORAGE_KEY = "grainline-project-library-v1";
@@ -73,6 +75,7 @@ function remapGraph(
   parts: Part[];
   joints: ProjectJoint[];
   connections: ProjectJoinConnection[];
+  partIdMap: Map<string, string>;
 } {
   const usedPartIds = new Set(parts.map((part) => part.id));
   const usedJointIds = new Set(joints.map((joint) => joint.id));
@@ -126,6 +129,7 @@ function remapGraph(
     parts: duplicatedParts,
     joints: duplicatedJoints,
     connections: duplicatedConnections,
+    partIdMap,
   };
 }
 
@@ -150,11 +154,16 @@ export function createEmptyProject(): Project {
       lumberProfile: "s4s_hardwood",
       offcutMode: "none",
     },
+    cutProgressByRoughInstanceId: {},
   };
 }
 
 export function cloneProject(project: Project, name: string): Project {
   const duplicated = remapGraph(project.parts, project.joints, project.connections, () => true);
+  const cutProgressByRoughInstanceId = remapCutProgressKeys(
+    project.cutProgressByRoughInstanceId,
+    duplicated.partIdMap
+  );
   return {
     ...project,
     id: newProjectId(),
@@ -166,6 +175,7 @@ export function cloneProject(project: Project, name: string): Project {
       materialAssumptionsReviewed: false,
       joineryReviewed: false,
     },
+    cutProgressByRoughInstanceId,
   };
 }
 
@@ -216,6 +226,7 @@ export function applyTemplate(template: ProjectTemplate, projectName: string): P
     parts: duplicated.parts,
     joints: duplicated.joints,
     connections: duplicated.connections,
+    cutProgressByRoughInstanceId: {},
   };
 }
 
@@ -391,6 +402,16 @@ export function importProjectFromJson(json: string): ImportProjectResult {
   };
 }
 
+function parseCutProgress(raw: unknown): Record<string, CutProgressValue> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, CutProgressValue> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof k !== "string" || k.length === 0) continue;
+    if (v === "cut") out[k] = "cut";
+  }
+  return out;
+}
+
 export function parseProject(json: string): Project | null {
   try {
     const normalized = normalizeProjectJsonInput(json);
@@ -419,6 +440,7 @@ export function parseProject(json: string): Project | null {
         ? o.maxPurchasableBoardWidthInches
         : 20;
     const stockWidthByMaterialGroup = parseStockWidthByMaterialGroup(o.stockWidthByMaterialGroup);
+    const cutProgressByRoughInstanceId = parseCutProgress(o.cutProgressByRoughInstanceId);
     return {
       ...(o as Project),
       id,
@@ -429,6 +451,7 @@ export function parseProject(json: string): Project | null {
       workshop,
       maxPurchasableBoardWidthInches,
       stockWidthByMaterialGroup,
+      cutProgressByRoughInstanceId,
     };
   } catch {
     return null;

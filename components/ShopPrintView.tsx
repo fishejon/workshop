@@ -11,6 +11,7 @@ import {
 } from "@/lib/board-feet";
 import { formatShopImperial } from "@/lib/imperial";
 import type { Dimension3, Project } from "@/lib/project-types";
+import { shopGuideRows } from "@/lib/shop-labels";
 import {
   STORAGE_KEY,
   createEmptyProject,
@@ -59,6 +60,8 @@ export function ShopPrintView() {
     project && canExportOrPrintProject(cutListExportCheckpointsReady(project), validationIssues)
   );
   const blockingIssues = useMemo(() => getBlockingValidationIssues(validationIssues), [validationIssues]);
+
+  const shopGuideTableRows = useMemo(() => (project ? shopGuideRows(project.parts) : []), [project]);
 
   const purchasePreview = useMemo(() => {
     if (!project) return null;
@@ -226,6 +229,53 @@ export function ShopPrintView() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="shop-print-section mt-8">
+          <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+            Shop labels &amp; assembly guide
+          </h2>
+          <p className="mb-3 text-xs shop-print-muted">
+            Write each <strong className="text-[var(--gl-ink)]">GL-</strong> code on the matching rough stick. Pack
+            order on the cut-layout strips is for stick efficiency and may differ from assembly order—check your case
+            drawings.
+          </p>
+          {shopGuideTableRows.length === 0 ? (
+            <p className="text-sm shop-print-muted">No rough instances to label (add parts with rough L and qty).</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="shop-print-table w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--gl-ink)]/30">
+                    <th className="py-2 pr-3 font-semibold">Label</th>
+                    <th className="py-2 pr-3 font-semibold">Assembly</th>
+                    <th className="py-2 pr-3 font-semibold">Part</th>
+                    <th className="py-2 pr-3 font-semibold">Rough L</th>
+                    <th className="py-2 pr-3 font-semibold">Finished T×W×L</th>
+                    <th className="py-2 font-semibold">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shopGuideTableRows.map((row) => (
+                    <tr key={row.roughInstanceId} className="shop-print-avoid-break border-b border-[var(--gl-border)]">
+                      <td className="py-2 pr-3 align-top font-mono text-xs font-semibold tabular-nums">
+                        {row.shopLabel}
+                      </td>
+                      <td className="py-2 pr-3 align-top">{row.assembly}</td>
+                      <td className="py-2 pr-3 align-top">{row.partName}</td>
+                      <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">
+                        {formatShopImperial(row.roughLInches)}
+                      </td>
+                      <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">
+                        {formatTxWxL(row.finished)}
+                      </td>
+                      <td className="py-2 align-top text-xs shop-print-muted">{row.grainNote || "—"}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
