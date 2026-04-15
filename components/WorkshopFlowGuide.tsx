@@ -4,9 +4,8 @@ import type { AppShellTabId } from "@/components/AppShellTabs";
 
 const FLOW: { id: AppShellTabId; title: string; blurb: string }[] = [
   { id: "setup", title: "Project", blurb: "Name, milling allowance, transport, max board stock, waste." },
-  { id: "build", title: "Plan", blurb: "Pick a preset, enter intent, generate or append parts." },
-  { id: "shop", title: "Cut list", blurb: "Parts table and optional lumber & buy list." },
-  { id: "about", title: "Review", blurb: "Issues, material checkpoint, then export CSV or shop print." },
+  { id: "build", title: "Plan", blurb: "Pick a preset and enter intent." },
+  { id: "shop", title: "Materials", blurb: "Cut list and rough-stick layout." },
 ];
 
 type WorkshopFlowGuideProps = {
@@ -61,8 +60,8 @@ export function WorkshopFlowGuide({
             Workshop flow
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[var(--gl-muted)]">
-            Work left to right through the tabs. Plan produces intent; Cut list validates what you will cut and buy;
-            Review unlocks export when the material checkpoint passes and there are no blocking issues.
+            Work left to right through the tabs. Project sets defaults, Plan defines intent, and Materials shows the
+            generated cut list and rough-stick layout.
           </p>
         </div>
       </div>

@@ -5,9 +5,8 @@ Use this alongside the main tabs. It describes what “ready for the shop” mea
 ## Guided sequence
 
 1. **Project** — Project name, milling allowance, max transport length, widest board you can buy (nominal / actual), waste %, workshop defaults.
-2. **Plan** — Choose a preset (dresser, board pack, sideboard shell, …). Enter intent. **Generate / replace parts** so rows land on the cut list.
-3. **Cut list** — Review finished vs rough; open **Lumber & buy list** for BF/LF + 2D estimate. Joinery history and 1D stick packing are optional on **`/labs`** only.
-4. **Review** — Expand **Show validation issues** if needed. Acknowledge **material assumptions**. Export CSV and/or open **shop print** when unlocked.
+2. **Plan** — Choose a preset (dresser, board pack, sideboard shell, …). Enter intent and confirm preview/proportions.
+3. **Materials** — Review yard list, cut layout, and source part rows. Fix blockers in Plan if this tab is locked.
 
 ## Pass / fail (mirrors the in-app checklist)
 
@@ -15,8 +14,8 @@ Use this alongside the main tabs. It describes what “ready for the shop” mea
 |------|----------------|
 | Named project | Non-empty name in Setup. |
 | Parts exist | At least one part row (from Plan generation or manual add on Cut list). |
-| Material assumptions reviewed | Checkbox on Review tab. |
-| Export / print allowed | Material checkpoint **and** no blocking validation issues. |
+| Blocking issues cleared | Materials tab opens only when blocking validation issues are resolved. |
+| Export / print available | Use the source parts section (CSV) or print page once the cut list reflects intent. |
 
 ## Not covered here (honest gaps)
 

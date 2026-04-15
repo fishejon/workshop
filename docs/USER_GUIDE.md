@@ -4,11 +4,10 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 
 ## Workshop journey (happy path)
 
-1. **Project** — Name the project and set milling allowance, max transport length, and waste % (plus reset or open **Print shop sheet** when you are ready for paper). Optional **`/labs`** link for joinery experiments.
-2. **Plan** — Pick a preset and enter target geometry, then use each planner’s handoffs so parts land in the shared project (dresser case/drawers, board pack, sideboard shell, etc.).
-3. **Cut list** — Validate the **cut list** table (finished vs rough). Open **Lumber & buy list** when you want BF/LF and purchase scenarios.
-4. **Review** — Clear blocking validation issues if any, acknowledge **material assumptions**, and confirm you are comfortable shipping the current numbers to the floor.
-5. **Print / CSV** — When export is unlocked, download **Export CSV** from the cut list header and/or open **shop print** from **Project** or **Cut list** (browser **Save as PDF** if you want a file).
+1. **Project** — Name the project, set milling/transport/waste defaults, and choose the preset family you want to plan.
+2. **Plan** — Enter target geometry and assumptions (dresser, board pack, sideboard shell, etc.). Dresser rows auto-sync into the shared cut list when inputs are valid.
+3. **Materials** — Validate the yard list, cut layout, and source parts table. Blocking validation issues keep this tab locked until fixed in Plan.
+4. **Print / CSV** — Export CSV from the source parts section and/or open **shop print** from Project (browser **Save as PDF** if you want a file).
 
 ---
 
@@ -16,10 +15,9 @@ How to use the planner in the browser: projects, presets, shop outputs, and prin
 
 | Tab | Purpose |
 |-----|--------|
-| **Project** | Project name, milling allowance, max transport length, waste %, **Print shop sheet** link, **Reset project**, link to **`/labs`**. |
-| **Plan** | **Define intent** only: presets and planners (dresser, board cuts, sideboard shell, …) plus the shared **decision strip** and next-step CTA. TV console is available only when you enable **Show experimental presets**. |
-| **Cut list** | **Validate procurement**. Cut list table; **Lumber & buy list** is a disclosure below the table. Same decision strip. |
-| **Review** | **Release to shop**. Material assumptions checkpoint before export/print handoff. |
+| **Project** | Project name, milling allowance, max transport length, waste %, preset selection, **Print shop sheet** link, **Reset project**, link to **`/labs`**. |
+| **Plan** | **Define intent** with planners (dresser, board cuts, sideboard shell, …) plus shared **decision strip** and next-step CTA. TV console is available only when you enable **Show experimental presets**. |
+| **Materials** | **Validate procurement**. Yard list + cut layout, then source parts table with CSV export. |
 
 Your data is **one shared project** across tabs: switching tabs does not start a new project.
 
@@ -38,11 +36,7 @@ Your data is **one shared project** across tabs: switching tabs does not start a
 
 ### Dresser
 
-Enter overall case dimensions, columns, drawer rows, kick, top/bottom stack, rails, back thickness, slide assumptions, etc. The planner shows **openings** and **drawer box** sizes per cell.
-
-- **Add drawer boxes to parts list** — Pushes drawer parts into the table.
-- **Add case parts to parts list** — Adds rectilinear **Case / Base / Back** parts from the carcass math (see grain notes on each part).
-- **Parts list handoff** — Use the combined handoff controls to either append a full dresser set or replace only dresser assemblies (`Case`, `Base`, `Back`, `Drawers`) while preserving non-dresser parts.
+Enter overall case dimensions, columns, drawer rows, kick, top/bottom stack, rails, back thickness, slide assumptions, etc. The planner shows a centered **front / side / top** preview and keeps dresser rows synced into Materials when math is valid.
 
 **Slides:** Clearances are rules of thumb. Always verify against your **hardware manufacturer’s** specs.
 
@@ -56,22 +50,14 @@ Enable **Show experimental presets** in Plan to access TV console. It generates 
 
 ---
 
-## Cut list table (Validate procurement)
+## Materials tab (Validate procurement)
 
+- **Yard list + cut layout** — Nominal lumber rows, board counts, transport-length assumptions, and stick-level cut layout.
 - **Read-only grid** — Component, assembly, qty, finished and rough T×W×L (shop **nearest 1/16″**), lumber (label · thickness category), status. Internal storage stays decimal; **`project.joints` is not applied** on the main path (see **`/labs`**).
 - **Edit** — Opens a modal with all fields (dimensions as numbers + live fraction preview), grain note, manual rough toggle, and a collapsible **Why these numbers?** (glue-up / rough derivation). Save applies changes; Cancel discards.
 - **Assembly** — Case, Drawers, Base, Back, Doors, Other.
 - **Clear all** — Removes every part **and** joinery history for this project.
-- **Export CSV** — Same columns as before export pipeline (BF/LF, glue-up, provenance). Locked until Review material checkpoint is acknowledged.
-
----
-
-## Buy list
-
-- **Exact BF/LF inputs** — From **rough T×W×L + quantity** (BF: 144 cu in = 1 BF; LF: quantity × rough L ÷ 12), grouped by material + thickness category.
-- **Estimate layer** — Waste % inflates BF/LF for purchasing cushion; transport cap and stock-width assumptions feed the 2D board estimator.
-- **2D board estimate** — Uses width-lane expansion (including panel glue-up strips) plus constrained length packing. Per-material stock width overrides are optional in the group card.
-- **Yard checkout** — Confirm nominal thickness, available stock lengths, and final board count with your supplier.
+- **Export CSV** — Available from the source parts section in this tab.
 
 ---
 

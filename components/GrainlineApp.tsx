@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BuyListPanel } from "@/components/BuyListPanel";
 import { DecisionStrip } from "@/components/DecisionStrip";
-import { IssuesPanel } from "@/components/IssuesPanel";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
 import { CutPlanner } from "@/components/CutPlanner";
 import { DresserPlanner } from "@/components/DresserPlanner";
@@ -13,9 +11,7 @@ import { ProjectSetupBar } from "@/components/ProjectSetupBar";
 import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
-import { cutListExportCheckpointsReady } from "@/lib/cut-list-scope";
 import { formatShopImperial } from "@/lib/imperial";
-import { canExportOrPrintProject } from "@/lib/validation";
 
 const PRESETS = [
   {
@@ -62,59 +58,41 @@ export function GrainlineApp() {
     project,
     blockingValidationIssues,
     warningValidationIssues,
-    validationIssues,
-    setCheckpointReviewed,
   } = useProject();
   const active = PRESETS.find((p) => p.id === preset);
   const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
-  const checkpointsReady = cutListExportCheckpointsReady(project);
-  const canExportOrPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
   const hasBlockingIssues = blockingValidationIssues.length > 0;
   const hasWarnings = warningValidationIssues.length > 0;
 
   const decisionStrip = (() => {
     const health = hasBlockingIssues
       ? "Blocked by validation issues"
-      : !checkpointsReady
-        ? "Awaiting review"
-        : hasWarnings
-          ? "Warnings need review"
-          : "Ready to export";
+      : hasWarnings
+        ? "Warnings to review"
+        : "Ready for materials";
 
     let recommendation: string;
     if (hasBlockingIssues) {
       recommendation =
-        "Fix blocking issues first (open Cut list → Show validation issues, or Review). Export stays locked until those clear.";
+        "Fix blocking issues in Plan first. Materials stays locked until blockers clear.";
     } else if (appTab === "setup") {
       recommendation =
-        "You are on Project: defaults and backups. Next, use Plan to describe the piece and add rows to the cut list.";
+        "You are on Project: choose preset and defaults. Next, use Plan to set dimensions.";
     } else if (appTab === "build") {
       recommendation =
-        "You are on Plan: presets and intent. When numbers look right, generate parts so they appear on Cut list, then check lumber there.";
-    } else if (appTab === "shop") {
-      recommendation = !checkpointsReady
-        ? "You are on Cut list: parts and optional buy list. When this looks right, go to Review and acknowledge material assumptions before print or CSV."
-        : hasWarnings
-          ? "You are on Cut list: resolve or accept warnings, then finish Review before treating outputs as final."
-          : "Cut list looks consistent; use Review when you are ready to hand off.";
+        "You are on Plan: update intent and geometry. Materials updates from your configuration automatically.";
     } else {
-      recommendation = !checkpointsReady
-        ? "You are on Review: confirm material assumptions when the cut list matches your intent."
-        : hasWarnings
-          ? "Review: warnings still need a pass before shop handoff."
-          : "Review: checkpoint satisfied and no blockers—export or print from Cut list when ready.";
+      recommendation = hasWarnings
+        ? "You are on Materials: review warnings and cut layout."
+        : "You are on Materials: cut list is ready.";
     }
 
     const ctaLabel =
       appTab === "setup"
         ? "Next: Plan"
         : appTab === "build"
-          ? "Next: Cut list"
-          : appTab === "shop"
-            ? "Next: Review"
-            : !checkpointsReady || hasBlockingIssues || hasWarnings
-              ? "Back to Cut list"
-              : "Open Cut list";
+          ? "Next: Materials"
+          : "Back to Plan";
 
     function handleDecisionCta() {
       if (appTab === "setup") {
@@ -125,11 +103,7 @@ export function GrainlineApp() {
         setAppTab("shop");
         return;
       }
-      if (appTab === "shop") {
-        setAppTab("about");
-        return;
-      }
-      setAppTab("shop");
+      setAppTab("build");
     }
 
     return (
@@ -138,13 +112,61 @@ export function GrainlineApp() {
         recommendation={recommendation}
         ctaLabel={ctaLabel}
         onCta={handleDecisionCta}
-        tone={hasBlockingIssues ? "blocked" : !checkpointsReady || hasWarnings ? "warning" : "ready"}
+        tone={hasBlockingIssues ? "blocked" : hasWarnings ? "warning" : "ready"}
       />
     );
   })();
 
   const explainAllowance = `Project milling allowance: ${formatShopImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
+  const setupPanel = (
+    <div className="space-y-4">
+      <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
+        Choose the project type here, then move to Plan to set dimensions. This keeps presets scoped to the first step
+        instead of floating across every tab.
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {visiblePresets.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            disabled={Boolean(p.disabled)}
+            onClick={() => !p.disabled && setPreset(p.id)}
+            className={`rounded-xl border p-3 text-left transition ${
+              preset === p.id
+                ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text)]"
+                : "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-text-soft)]"
+            } ${p.disabled ? "cursor-not-allowed opacity-40" : ""}`}
+          >
+            <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
+            <span className="block text-xs text-[var(--gl-muted)]">{p.tag}</span>
+            <span className="mt-1 block text-xs text-[var(--gl-muted)]">{p.blurb}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-end border-t border-[var(--gl-border)] pt-4">
+        <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
+          <input
+            id="show-experimental-presets"
+            type="checkbox"
+            className="mt-0.5"
+            checked={showExperimentalPresets}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setShowExperimentalPresets(checked);
+              if (!checked && preset === "tv-console") {
+                setPreset("dresser");
+              }
+            }}
+          />
+          <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
+            Show experimental presets (early access, not production-ready).
+          </label>
+        </div>
+      </div>
+      <ProjectSetupBar />
+    </div>
+  );
   const planPanel = (
     <>
       <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
@@ -164,57 +186,15 @@ export function GrainlineApp() {
     </>
   );
 
-  const setupPanel = <ProjectSetupBar />;
-  const issuesPanel = <IssuesPanel title="Project issues and warnings" />;
+  const activeTab: AppShellTabId = hasBlockingIssues && appTab === "shop" ? "build" : appTab;
 
-  const aboutPanel = (
-    <div
-      id="review-checkpoints-section"
-      className="gl-panel max-w-2xl space-y-4 p-8 text-sm leading-relaxed text-[var(--gl-muted)]"
-    >
-      <h2 className="font-display text-xl text-[var(--gl-cream)]">Review before shop</h2>
-      <p>
-        Before exporting or printing, acknowledge that material assumptions on the cut list match what you will buy
-        and mill.
-      </p>
-      {issuesPanel}
-      <div className="gl-panel-muted space-y-3 p-4">
-        <label className="flex items-start gap-2 text-sm text-[var(--gl-cream-soft)]">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={project.checkpoints.materialAssumptionsReviewed}
-            onChange={(e) => setCheckpointReviewed("materialAssumptionsReviewed", e.target.checked)}
-            aria-label="Acknowledge material assumptions review"
-          />
-          <span>
-            I reviewed rough vs finished sizes, material labels, thickness category, waste factor, and transport limits
-            on the cut list.
-          </span>
-        </label>
-      </div>
-      <p
-        className={`text-xs ${
-          canExportOrPrint ? "text-[var(--gl-accent)]" : "text-[var(--gl-muted)]"
-        }`}
-        aria-live="polite"
-      >
-        {canExportOrPrint
-          ? "Export and print are unlocked."
-          : checkpointsReady
-            ? "Export and print are blocked by high-severity validation issues."
-            : "Export and print stay locked until you acknowledge the checklist above."}
-      </p>
-      <p>Checkpoints reset when relevant project data changes so each export matches current assumptions.</p>
-      <p className="text-xs text-[var(--gl-muted)]">
-        Flow: Project → Plan → Cut list → Review. Joinery experiments:{" "}
-        <a className="text-[var(--gl-copper-bright)] underline-offset-2 hover:underline" href="/labs">
-          /labs
-        </a>
-        .
-      </p>
-    </div>
-  );
+  function handleAppTabChange(next: AppShellTabId) {
+    if (next === "shop" && hasBlockingIssues) {
+      setAppTab("build");
+      return;
+    }
+    setAppTab(next);
+  }
 
   return (
     <div className="relative min-h-full overflow-hidden">
@@ -229,73 +209,26 @@ export function GrainlineApp() {
                 Cut lists & lumber math
               </h1>
               <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--gl-muted)]">
-                Plan the piece, validate the cut list, then review once before CSV or shop print.
+                Plan the piece and review the materials cut list.
               </p>
-            </div>
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-              {visiblePresets.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  disabled={Boolean(p.disabled)}
-                  onClick={() => !p.disabled && setPreset(p.id)}
-                  className={`rounded-full border px-4 py-2 text-left text-sm transition ${
-                    preset === p.id
-                      ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text)]"
-                      : "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-text-soft)]"
-                  } ${p.disabled ? "cursor-not-allowed opacity-40" : ""}`}
-                >
-                  <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
-                  <span className="text-xs text-[var(--gl-muted)]">{p.tag}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex justify-end border-t border-[var(--gl-border)] pt-4">
-            <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-              <input
-                id="show-experimental-presets"
-                type="checkbox"
-                className="mt-0.5"
-                checked={showExperimentalPresets}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setShowExperimentalPresets(checked);
-                  if (!checked && preset === "tv-console") {
-                    setPreset("dresser");
-                  }
-                }}
-              />
-              <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
-                Show experimental presets (early access, not production-ready).
-              </label>
             </div>
           </div>
         </header>
 
         <AppShellTabs
-          active={appTab}
-          onChange={setAppTab}
+          active={activeTab}
+          onChange={handleAppTabChange}
           setupPanel={setupPanel}
-          issuesPanel={issuesPanel}
           planPanel={planPanel}
           cutListPartsTable={
             <div className="space-y-4">
               <CutListYardSummary />
-              <details className="gl-panel border border-[var(--gl-border)] p-4">
-                <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
-                  Source parts &amp; CSV export
-                </summary>
-                <div className="mt-4">
-                  <PartsTable explainAllowanceText={explainAllowance} />
-                </div>
-              </details>
+              <PartsTable explainAllowanceText={explainAllowance} />
             </div>
           }
-          cutListBuyListPanel={<BuyListPanel showDresserSummary={preset === "dresser"} />}
-          aboutPanel={aboutPanel}
           blockingValidationIssues={blockingValidationIssues}
           decisionStrip={decisionStrip}
+          disableShopTab={hasBlockingIssues}
         />
       </div>
     </div>

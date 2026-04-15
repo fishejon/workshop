@@ -5,7 +5,6 @@ import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
 import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 import {
-  DRESSER_ASSEMBLIES,
   DRESSER_CARCASS_ASSEMBLIES,
   DRESSER_DEFAULT_ROW_COUNT,
   DRESSER_DEFAULT_ROW_OPENING_HEIGHTS,
@@ -47,14 +46,8 @@ function fmtInches(inches: number): string {
   return formatImperial(inches, FRACTION_DENOMINATOR);
 }
 
-type GenerationSummary = {
-  mode: "append_all" | "replace_all" | "append_case" | "append_drawers";
-  addedCount: number;
-  replacedCount: number;
-};
-
 export function DresserPlanner() {
-  const { project, addParts, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
+  const { project, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
 
   const [outerW, setOuterW] = useState("48");
   const [outerH, setOuterH] = useState("34");
@@ -80,8 +73,6 @@ export function DresserPlanner() {
   const [slideHClr, setSlideHClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.h));
   const [drawerJoineryW, setDrawerJoineryW] = useState("0");
   const [drawerJoineryH, setDrawerJoineryH] = useState("0");
-  const [generationSummary, setGenerationSummary] = useState<GenerationSummary | null>(null);
-
   /** When true, auto-balance skips this row’s height. */
   const [rowOpeningLocked, setRowOpeningLocked] = useState<boolean[]>(() => []);
 
@@ -498,25 +489,6 @@ export function DresserPlanner() {
     }));
   }, [result, slideWClr, slideHClr, drawerJoineryW, drawerJoineryH]);
 
-  const existingDresserPartCount = useMemo(
-    () => project.parts.filter((part) => DRESSER_ASSEMBLIES.includes(part.assembly)).length,
-    [project.parts]
-  );
-
-  const generationSummaryText = useMemo(() => {
-    if (!generationSummary) return null;
-    if (generationSummary.mode === "replace_all") {
-      return `Replaced ${generationSummary.replacedCount} dresser row(s) with ${generationSummary.addedCount} newly generated row(s).`;
-    }
-    if (generationSummary.mode === "append_all") {
-      return `Added ${generationSummary.addedCount} dresser row(s) without removing existing rows.`;
-    }
-    if (generationSummary.mode === "append_case") {
-      return `Added ${generationSummary.addedCount} case/base/back row(s) without removing existing rows.`;
-    }
-    return `Added ${generationSummary.addedCount} drawer row(s) without removing existing rows.`;
-  }, [generationSummary]);
-
   /** Carcass sync runs whenever case math is valid — independent of drawer row / opening balance. */
   const carcassAutoSyncSignature = useMemo(() => {
     if (carcassResult.ok !== true || casePartsToAdd.length < 1) return null;
@@ -620,45 +592,6 @@ export function DresserPlanner() {
     return () => window.clearTimeout(handle);
   }, [drawerAutoSyncSignature]);
 
-  function handleAddCaseParts() {
-    if (casePartsToAdd.length < 1) return;
-    addParts(casePartsToAdd);
-    setGenerationSummary({ mode: "append_case", addedCount: casePartsToAdd.length, replacedCount: 0 });
-  }
-
-  function handleAddDrawerParts() {
-    if (drawerPartsToAdd.length < 1) return;
-    addParts(drawerPartsToAdd);
-    setGenerationSummary({ mode: "append_drawers", addedCount: drawerPartsToAdd.length, replacedCount: 0 });
-  }
-
-  function handleAppendAllDresserParts() {
-    if (casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1) return;
-    const combined = [...casePartsToAdd, ...drawerPartsToAdd];
-    addParts(combined);
-    setGenerationSummary({ mode: "append_all", addedCount: combined.length, replacedCount: 0 });
-  }
-
-  function handleReplaceDresserParts() {
-    if (casePartsToAdd.length < 1 && drawerPartsToAdd.length < 1) return;
-    let added = 0;
-    if (casePartsToAdd.length >= 1) {
-      replacePartsInAssemblies(DRESSER_CARCASS_ASSEMBLIES, casePartsToAdd);
-      added += casePartsToAdd.length;
-    }
-    if (drawerPartsToAdd.length >= 1) {
-      replacePartsInAssemblies(["Drawers"], drawerPartsToAdd);
-      added += drawerPartsToAdd.length;
-    } else {
-      replacePartsInAssemblies(["Drawers"], []);
-    }
-    setGenerationSummary({
-      mode: "replace_all",
-      addedCount: added,
-      replacedCount: existingDresserPartCount,
-    });
-  }
-
   return (
     <div className="space-y-8">
       <div className="space-y-8">
@@ -677,9 +610,7 @@ export function DresserPlanner() {
             <strong className="text-[var(--gl-cream-soft)]">case / base / back</strong> rows sync to the shared{" "}
             <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> as soon as the carcass computes (even if
             drawer opening heights are not balanced yet). <strong className="text-[var(--gl-cream-soft)]">Drawer</strong>{" "}
-            rows sync when slide and opening math is valid. Rough sizes follow Project milling allowance. Use{" "}
-            <strong className="text-[var(--gl-cream-soft)]">Append</strong> below only to stack another generation
-            without removing prior rows.
+            rows sync when slide and opening math is valid. Rough sizes follow Project milling allowance.
           </p>
           <details className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-muted)]">
             <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">
@@ -892,20 +823,7 @@ export function DresserPlanner() {
             </p>
           ) : null}
 
-          {carcassResult.ok === false ? (
-            <p className="mt-4 text-sm text-[var(--gl-danger)]">{carcassResult.message}</p>
-          ) : null}
-          <button
-            type="button"
-            className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={carcassResult.ok !== true}
-            onClick={handleAddCaseParts}
-          >
-            1) Add case parts (append)
-          </button>
-          <p className="mt-2 text-xs text-[var(--gl-muted)]">
-            Appends only case/base/back rows and keeps any existing drawer rows untouched.
-          </p>
+          {carcassResult.ok === false ? <p className="mt-4 text-sm text-[var(--gl-danger)]">{carcassResult.message}</p> : null}
 
           <div className="mt-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -990,6 +908,7 @@ export function DresserPlanner() {
           <DresserPreview
             outerW={parsePositive(outerW) ?? 48}
             outerH={parsePositive(outerH) ?? 34}
+            outerD={parsePositive(outerD) ?? 18}
             columnCount={columns}
             rowCount={Number.isFinite(rowCount) && rowCount > 0 ? rowCount : 3}
             rowOpeningHeightsInches={previewOpeningHeights}
@@ -1000,78 +919,6 @@ export function DresserPlanner() {
             materialT={parsePositive(sideT) ?? 0.75}
           />
         </div>
-
-        <div className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-5">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-            Numbers &amp; cut list
-          </p>
-          <p className="mt-2 text-xs text-[var(--gl-muted)]">
-            Live measurements and the per-opening table are summarized in{" "}
-            <strong className="text-[var(--gl-cream-soft)]">Materials</strong> (Dresser math) so this column stays light.
-          </p>
-          <div className="mt-3 space-y-2">
-            {carcassResult.ok === false ? (
-              <p className="text-sm text-[var(--gl-danger)]">{carcassResult.message}</p>
-            ) : null}
-            {result.ok === false ? <p className="text-sm text-[var(--gl-danger)]">{result.message}</p> : null}
-            {carcassResult.ok === true && result.ok === true ? (
-              <p className="text-xs text-[var(--gl-cream-soft)]">
-                Case carcass and drawer math are valid — add drawer boxes when you are ready.
-              </p>
-            ) : null}
-          </div>
-          {result.ok === true ? (
-            <>
-              <button
-                type="button"
-                className="mt-4 rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)]"
-                onClick={handleAddDrawerParts}
-              >
-                2) Add drawer boxes (append)
-              </button>
-              <p className="mt-2 text-xs text-[var(--gl-muted)]">
-                Appends only drawer rows so you can stage generation if you prefer.
-              </p>
-            </>
-          ) : null}
-        </div>
-
-        <section className="rounded-2xl border border-[var(--gl-copper)]/30 bg-[var(--gl-copper)]/8 p-5">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-            Parts list handoff
-          </p>
-          <p className="mt-2 text-sm text-[var(--gl-muted)]">
-            The cut list already replaces dresser assemblies automatically when case + drawer math is valid. Use{" "}
-            <strong className="text-[var(--gl-cream-soft)]">Append</strong> only if you intentionally want a second
-            dresser generation stacked on the first, or <strong className="text-[var(--gl-cream-soft)]">Replace</strong>{" "}
-            for an immediate full replace without waiting for the debounced sync.
-          </p>
-          <p className="mt-2 text-xs text-[var(--gl-muted)]">
-            Ready now: {casePartsToAdd.length} case/base/back part(s) + {drawerPartsToAdd.length} drawer box part(s).
-            Existing dresser-tagged rows in parts list: {existingDresserPartCount}.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
-              onClick={handleAppendAllDresserParts}
-            >
-              Add full dresser set (append)
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-cream)] transition hover:bg-[var(--gl-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1}
-              onClick={handleReplaceDresserParts}
-            >
-              Replace dresser rows (case/base/back/drawers)
-            </button>
-          </div>
-          {generationSummaryText ? (
-            <p className="mt-3 text-xs text-[var(--gl-cream-soft)]">{generationSummaryText}</p>
-          ) : null}
-        </section>
       </div>
     </div>
   );
@@ -1163,8 +1010,8 @@ function Field({
   source?: "manual";
 }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
-      <span className="flex flex-wrap items-center gap-2 font-medium text-[var(--gl-cream-soft)]">
+    <label className="flex h-full flex-col gap-1.5 text-sm">
+      <span className="flex min-h-[2.8rem] flex-wrap content-start items-start gap-2 font-medium text-[var(--gl-cream-soft)]">
         {label}
         {source === "manual" ? (
           <span className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-1.5 py-0.5 text-[10px] font-normal tracking-wide text-[var(--gl-muted)] uppercase">
@@ -1173,7 +1020,7 @@ function Field({
         ) : null}
       </span>
       {children}
-      {hint ? <span className="text-xs leading-snug text-[var(--gl-muted)]">{hint}</span> : null}
+      {hint ? <span className="min-h-[2.3rem] text-xs leading-snug text-[var(--gl-muted)]">{hint}</span> : null}
     </label>
   );
 }

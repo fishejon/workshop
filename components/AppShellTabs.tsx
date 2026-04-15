@@ -3,14 +3,13 @@
 import { useCallback, type KeyboardEvent, type ReactNode } from "react";
 import type { ValidationIssue } from "@/lib/validation/types";
 
-export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
+export const APP_SHELL_TAB_IDS = ["setup", "build", "shop"] as const;
 export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
 
 const TAB_META: Record<AppShellTabId, { label: string; task: string }> = {
   setup: { label: "Project", task: "Name & shop defaults" },
   build: { label: "Plan", task: "Presets & parts" },
-  shop: { label: "Cut list", task: "Parts & lumber" },
-  about: { label: "Review", task: "Checklist & print" },
+  shop: { label: "Materials", task: "Cut list" },
 };
 
 function focusTabButton(id: AppShellTabId) {
@@ -24,24 +23,20 @@ export function AppShellTabs({
   active,
   onChange,
   setupPanel,
-  issuesPanel,
   planPanel,
   cutListPartsTable,
-  cutListBuyListPanel,
-  aboutPanel,
   blockingValidationIssues,
   decisionStrip,
+  disableShopTab = false,
 }: {
   active: AppShellTabId;
   onChange: (id: AppShellTabId) => void;
   setupPanel: ReactNode;
-  issuesPanel: ReactNode;
   planPanel: ReactNode;
   cutListPartsTable: ReactNode;
-  cutListBuyListPanel: ReactNode;
-  aboutPanel: ReactNode;
   blockingValidationIssues: ValidationIssue[];
   decisionStrip: ReactNode;
+  disableShopTab?: boolean;
 }) {
   const handleTabListKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
@@ -81,11 +76,12 @@ export function AppShellTabs({
       <div
         role="tablist"
         aria-label="Main sections"
-        className="flex flex-wrap gap-2 border-b border-[var(--gl-border)] pb-4"
+        className="flex flex-wrap gap-2"
         onKeyDown={handleTabListKeyDown}
       >
         {APP_SHELL_TAB_IDS.map((id) => {
           const selected = id === active;
+          const disabled = id === "shop" && disableShopTab;
           return (
             <button
               key={id}
@@ -94,13 +90,16 @@ export function AppShellTabs({
               id={`tab-${id}`}
               aria-selected={selected}
               aria-controls="panel-main"
+              aria-disabled={disabled}
               tabIndex={selected ? 0 : -1}
-              onClick={() => onChange(id)}
-              className={`rounded-t-lg border border-b-0 px-4 py-2.5 text-sm font-medium transition ${
+              onClick={() => {
+                if (!disabled) onChange(id);
+              }}
+              className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
                 selected
                   ? "border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] text-[var(--gl-cream)]"
-                  : "border-transparent bg-transparent text-[var(--gl-muted)] hover:border-[var(--gl-border)] hover:text-[var(--gl-cream-soft)]"
-              }`}
+                  : "border-[var(--gl-border)] bg-transparent text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-cream-soft)]"
+              } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
             >
               <span className="block">{TAB_META[id].label}</span>
               <span className="block text-xs font-normal text-[var(--gl-muted)]">{TAB_META[id].task}</span>
@@ -110,9 +109,7 @@ export function AppShellTabs({
       </div>
 
       <div role="tabpanel" id="panel-main" aria-labelledby={`tab-${active}`} className="min-w-0">
-        {active === "about" ? (
-          aboutPanel
-        ) : active === "setup" ? (
+        {active === "setup" ? (
           <div className="mx-auto max-w-4xl">{setupPanel}</div>
         ) : active === "build" ? (
           <div className="space-y-6">
@@ -122,12 +119,6 @@ export function AppShellTabs({
         ) : (
           <div className="space-y-6">
             {decisionStrip}
-            <details className="gl-panel-muted p-4">
-              <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
-                Show validation issues
-              </summary>
-              <div className="mt-3">{issuesPanel}</div>
-            </details>
             {blockingValidationIssues.length > 0 ? (
               <ul
                 className="list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]"
@@ -140,19 +131,6 @@ export function AppShellTabs({
             ) : null}
             <div className="min-w-0 space-y-4">
               {cutListPartsTable}
-              <details className="gl-panel border border-[var(--gl-border)] p-4">
-                <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
-                  Lumber & buy list
-                </summary>
-                <p className="mt-2 text-xs text-[var(--gl-muted)]">
-                  Optional <strong className="text-[var(--gl-cream-soft)]">BF &amp; width estimate</strong> and cost
-                  fields for yard quotes. The <strong className="text-[var(--gl-cream-soft)]">yard list</strong> and cut
-                  layout bars stay on the main Cut list column above. Use{" "}
-                  <span className="font-medium text-[var(--gl-cream-soft)]">Export CSV</span> under source parts when
-                  Review unlocks export.
-                </p>
-                <div className="mt-4">{cutListBuyListPanel}</div>
-              </details>
             </div>
           </div>
         )}
