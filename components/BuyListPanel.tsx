@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DimensionalLumberPurchaseTable, ProjectCutRollup } from "@/components/LumberPurchaseSummary";
 import { useProject } from "@/components/ProjectContext";
 import {
   groupPartsByMaterial,
@@ -11,7 +10,6 @@ import {
   totalLinearFeet,
 } from "@/lib/board-feet";
 import { formatShopImperial } from "@/lib/imperial";
-import { buildLumberVehicleRows } from "@/lib/lumber-vehicle-summary";
 import {
   evaluateAllPurchaseScenarios,
   PURCHASE_SCENARIO_META,
@@ -70,11 +68,6 @@ export function BuyListPanel() {
     [plan]
   );
 
-  const vehicleRows = useMemo(
-    () => buildLumberVehicleRows(groups, project.parts, project.maxTransportLengthInches),
-    [groups, project.parts, project.maxTransportLengthInches]
-  );
-
   const twoDGroupByKey = useMemo(
     () => new Map(plan.twoDimensional.groups.map((row) => [row.key, row])),
     [plan.twoDimensional.groups]
@@ -101,11 +94,11 @@ export function BuyListPanel() {
     <section className="gl-panel p-5">
       <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Lumber & buy list</p>
       <p className="mt-1 text-sm text-[var(--gl-muted)]">
-        First: how many sticks per lumber type and a <strong className="text-[var(--gl-cream)]">visual cut layout</strong> along
-        each stick&apos;s length (max transport from Project). Optional section below adds{" "}
-        <strong className="text-[var(--gl-cream-soft)]">board feet</strong>, a{" "}
-        <strong className="text-[var(--gl-cream-soft)]">width + length</strong> board-count estimate, and cost fields for
-        yard quotes—not required to read the board counts above.
+        Stick counts and the <strong className="text-[var(--gl-cream)]">cut layout</strong> for each rack line live on
+        the <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> tab (yard list at the top). This panel is
+        for optional <strong className="text-[var(--gl-cream-soft)]">board feet</strong>,{" "}
+        <strong className="text-[var(--gl-cream-soft)]">width + length</strong> board-count estimates, and cost fields
+        for quotes.
       </p>
       <p className="mt-1 text-xs text-[var(--gl-muted)]">
         Default max board face width is{" "}
@@ -114,12 +107,9 @@ export function BuyListPanel() {
       </p>
 
       {groups.length === 0 ? (
-        <p className="mt-4 text-sm text-[var(--gl-muted)]">Add parts to see dimensional lumber and cuts.</p>
+        <p className="mt-4 text-sm text-[var(--gl-muted)]">Add parts to see purchase scenarios and board-foot estimates.</p>
       ) : (
         <div className="mt-4 space-y-6">
-          <DimensionalLumberPurchaseTable rows={vehicleRows} vehicleMaxInches={project.maxTransportLengthInches} />
-          <ProjectCutRollup parts={project.parts} />
-
           <details className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
             <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
               Board feet &amp; width estimate (optional)
@@ -127,8 +117,8 @@ export function BuyListPanel() {
             <p className="mt-3 text-xs text-[var(--gl-muted)]">
               Open when you want <strong className="text-[var(--gl-cream-soft)]">BF/LF</strong> subtotals, scenario
               labels, the <strong className="text-[var(--gl-cream-soft)]">width × length</strong> board-count model
-              (rips / glue strips), or <strong className="text-[var(--gl-cream-soft)]">cost</strong> inputs. The board
-              counts in the table above already come from length-only packing on your transport cap.
+              (rips / glue strips), or <strong className="text-[var(--gl-cream-soft)]">cost</strong> inputs. Length-only
+              stick counts are computed on the Cut list tab from the same transport cap and kerf model.
             </p>
             <div className="mt-4 space-y-4">
           <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">

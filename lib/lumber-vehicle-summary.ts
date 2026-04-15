@@ -7,8 +7,14 @@ import type { BoardFootGroup } from "./board-feet";
 import { materialGroupKey } from "./board-feet";
 import type { BoardPlan, CutPiece } from "./optimize-cuts";
 import { packUniformStock, totalWaste } from "./optimize-cuts";
+import {
+  projectDefaultPurchasableStockWidthInches,
+  purchasableStockWidthInchesForPart,
+  type PartAssumptionsProjectInput,
+} from "./part-assumptions";
 import type { Part } from "./project-types";
 import { roughCutsFromParts } from "./rough-sticks";
+import { formatYardLumberLine, nominalBoardForPurchasableFaceWidth } from "./yard-lumber-display";
 
 const DEFAULT_PACK_KERF_IN = 0.125;
 
@@ -18,6 +24,10 @@ export type LumberVehicleRow = {
   thicknessCategory: string;
   /** e.g. "White oak — 4/4" */
   lumberTypeLabel: string;
+  /** Yard rack callout, e.g. "1×8 White oak — 4/4 (¾″ × 7¼″)" */
+  yardLumberLabel: string;
+  /** Face width (in) used to pick nominal 1×N / 2×N */
+  stockWidthUsedInches: number;
   adjustedLinearFeet: number;
   /** adjusted LF × 12 */
   totalLinealInches: number;
@@ -77,10 +87,17 @@ export function buildLumberVehicleRows(
   groups: BoardFootGroup[],
   allParts: Part[],
   vehicleMaxInches: number,
+  project: PartAssumptionsProjectInput,
   kerfInches: number = DEFAULT_PACK_KERF_IN
 ): LumberVehicleRow[] {
   return groups.map((g) => {
     const groupParts = partsInMaterialGroup(allParts, g.key);
+    const sample = groupParts[0];
+    const stockWidthUsedInches = sample
+      ? purchasableStockWidthInchesForPart(sample, project).value
+      : projectDefaultPurchasableStockWidthInches(project);
+    const nominal = nominalBoardForPurchasableFaceWidth(stockWidthUsedInches, g.thicknessCategory);
+    const yardLumberLabel = formatYardLumberLine(nominal, g.materialLabel, g.thicknessCategory);
     const totalLinealInches = g.adjustedLinearFeet * 12;
     const boardsByVehicleLength = boardsNeededByVehicleLength(totalLinealInches, vehicleMaxInches);
     const { boards, error, waste } = packGroupToBoardPlans(groupParts, vehicleMaxInches, kerfInches);
@@ -89,6 +106,8 @@ export function buildLumberVehicleRows(
       materialLabel: g.materialLabel,
       thicknessCategory: g.thicknessCategory,
       lumberTypeLabel: `${g.materialLabel} — ${g.thicknessCategory}`,
+      yardLumberLabel,
+      stockWidthUsedInches,
       adjustedLinearFeet: g.adjustedLinearFeet,
       totalLinealInches,
       vehicleMaxInches,

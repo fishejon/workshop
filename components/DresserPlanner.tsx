@@ -1,12 +1,13 @@
 "use client";
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- manual memo deps are intentional; React Compiler rule misfires here */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
 import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 import {
   DRESSER_ASSEMBLIES,
+  DRESSER_CARCASS_ASSEMBLIES,
   DRESSER_DEFAULT_ROW_COUNT,
   DRESSER_DEFAULT_ROW_OPENING_HEIGHTS,
   DRESSER_PRIMARY_HARDWOOD_4_4,
@@ -549,6 +550,69 @@ export function DresserPlanner() {
     return `Added ${generationSummary.addedCount} drawer row(s) without removing existing rows.`;
   }, [generationSummary]);
 
+  /** Carcass sync runs whenever case math is valid — independent of drawer row / opening balance. */
+  const carcassAutoSyncSignature = useMemo(() => {
+    if (carcassResult.ok !== true || casePartsToAdd.length < 1) return null;
+    return JSON.stringify({
+      millingAllowanceInches: project.millingAllowanceInches,
+      parts: casePartsToAdd.map((p) => ({
+        name: p.name,
+        assembly: p.assembly,
+        quantity: p.quantity,
+        finished: p.finished,
+        roughManual: p.rough.manual,
+        material: p.material,
+        grainNote: p.grainNote,
+        status: p.status,
+      })),
+    });
+  }, [carcassResult.ok, casePartsToAdd, project.millingAllowanceInches]);
+
+  const drawerAutoSyncSignature = useMemo(() => {
+    if (result.ok !== true || drawerPartsToAdd.length < 1) return null;
+    return JSON.stringify({
+      millingAllowanceInches: project.millingAllowanceInches,
+      parts: drawerPartsToAdd.map((p) => ({
+        name: p.name,
+        assembly: p.assembly,
+        quantity: p.quantity,
+        finished: p.finished,
+        roughManual: p.rough.manual,
+        material: p.material,
+        grainNote: p.grainNote,
+        status: p.status,
+      })),
+    });
+  }, [result.ok, drawerPartsToAdd, project.millingAllowanceInches]);
+
+  const casePartsForSyncRef = useRef(casePartsToAdd);
+  casePartsForSyncRef.current = casePartsToAdd;
+  const drawerPartsForSyncRef = useRef(drawerPartsToAdd);
+  drawerPartsForSyncRef.current = drawerPartsToAdd;
+
+  const replaceDresserPartsRef = useRef(replacePartsInAssemblies);
+  replaceDresserPartsRef.current = replacePartsInAssemblies;
+
+  useEffect(() => {
+    if (carcassAutoSyncSignature === null) return;
+    const handle = window.setTimeout(() => {
+      const c = casePartsForSyncRef.current;
+      if (c.length < 1) return;
+      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+    }, 450);
+    return () => window.clearTimeout(handle);
+  }, [carcassAutoSyncSignature]);
+
+  useEffect(() => {
+    if (drawerAutoSyncSignature === null) return;
+    const handle = window.setTimeout(() => {
+      const d = drawerPartsForSyncRef.current;
+      if (d.length < 1) return;
+      replaceDresserPartsRef.current(["Drawers"], d);
+    }, 450);
+    return () => window.clearTimeout(handle);
+  }, [drawerAutoSyncSignature]);
+
   function handleAddCaseParts() {
     if (casePartsToAdd.length < 1) return;
     addParts(casePartsToAdd);
@@ -569,12 +633,21 @@ export function DresserPlanner() {
   }
 
   function handleReplaceDresserParts() {
-    if (casePartsToAdd.length < 1 || drawerPartsToAdd.length < 1) return;
-    const combined = [...casePartsToAdd, ...drawerPartsToAdd];
-    replacePartsInAssemblies(DRESSER_ASSEMBLIES, combined);
+    if (casePartsToAdd.length < 1 && drawerPartsToAdd.length < 1) return;
+    let added = 0;
+    if (casePartsToAdd.length >= 1) {
+      replacePartsInAssemblies(DRESSER_CARCASS_ASSEMBLIES, casePartsToAdd);
+      added += casePartsToAdd.length;
+    }
+    if (drawerPartsToAdd.length >= 1) {
+      replacePartsInAssemblies(["Drawers"], drawerPartsToAdd);
+      added += drawerPartsToAdd.length;
+    } else {
+      replacePartsInAssemblies(["Drawers"], []);
+    }
     setGenerationSummary({
       mode: "replace_all",
-      addedCount: combined.length,
+      addedCount: added,
       replacedCount: existingDresserPartCount,
     });
   }
@@ -592,9 +665,12 @@ export function DresserPlanner() {
             <strong className="text-[var(--gl-cream-soft)]">What you type vs what the app fills in:</strong> every
             field in this intent section is yours to enter or choose. The{" "}
             <strong className="text-[var(--gl-cream-soft)]">Calculated outputs</strong> block below is read-only math
-            from those inputs. Cutlist parts do not change until you press{" "}
-            <strong className="text-[var(--gl-cream-soft)]">Generate / replace dresser parts</strong> — see the
-            Cut list tab for parts, lumber & buy list, and procurement.
+            from those inputs.             Valid <strong className="text-[var(--gl-cream-soft)]">case / base / back</strong> rows sync to the shared{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> as soon as the carcass computes (even if
+            drawer opening heights are not balanced yet). <strong className="text-[var(--gl-cream-soft)]">Drawer</strong>{" "}
+            rows sync when slide and opening math is valid. Rough sizes follow Project milling allowance. Use{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Append</strong> below only to stack another generation
+            without removing prior rows.
           </p>
           <details className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-muted)]">
             <summary className="cursor-pointer font-medium text-[var(--gl-cream-soft)]">
@@ -991,6 +1067,49 @@ export function DresserPlanner() {
             fields to fill in.
           </p>
           <div className="mt-4 space-y-4">
+            {carcassResult.ok === true ? (
+              <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
+                <p className="text-xs font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
+                  Case carcass (finished sizes)
+                </p>
+                <p className="mt-1 text-xs text-[var(--gl-muted)]">
+                  Rectilinear case shell: sides, top, bottom, dividers, toe kick, and back (when thickness &gt; 0). Same
+                  rows sync to the cut list as Case / Base / Back. Axes are T × W × L (thickness × width × length).
+                </p>
+                <div className="mt-2 overflow-x-auto rounded-lg border border-[var(--gl-border)]">
+                  <table className="gl-numeric w-full min-w-[520px] text-left text-xs">
+                    <thead className="bg-[var(--gl-surface-inset)] text-[var(--gl-muted)] uppercase tracking-wide">
+                      <tr>
+                        <th className="px-2 py-2 font-medium">Part</th>
+                        <th className="px-2 py-2 font-medium">Asm</th>
+                        <th className="px-2 py-2 font-medium">Qty</th>
+                        <th className="px-2 py-2 font-medium">Finished T×W×L</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--gl-border)] text-[var(--gl-cream)]">
+                      {carcassResult.parts.map((row, idx) => (
+                        <tr key={`${row.name}-${idx}`}>
+                          <td className="px-2 py-2 font-medium text-[var(--gl-cream-soft)]">{row.name}</td>
+                          <td className="px-2 py-2">{row.assembly}</td>
+                          <td className="px-2 py-2 tabular-nums">{row.quantity}</td>
+                          <td className="px-2 py-2 font-mono">
+                            {fmtInches(row.finished.t)} × {fmtInches(row.finished.w)} × {fmtInches(row.finished.l)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-[var(--gl-muted)]">
+                  Drawer-zone / back panel height:{" "}
+                  <strong className="text-[var(--gl-cream)]">{fmtInches(carcassResult.drawerZoneHeight)}</strong>
+                </p>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-danger)]">
+                Case carcass cannot be computed: {carcassResult.message}
+              </p>
+            )}
             <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs leading-relaxed text-[var(--gl-muted)]">
               <p className="font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
                 Intent-derived case outputs
@@ -1143,8 +1262,10 @@ export function DresserPlanner() {
             Parts list handoff
           </p>
           <p className="mt-2 text-sm text-[var(--gl-muted)]">
-            For a clean dresser pass, generate both together. This uses the current case + slide settings and makes the
-            add vs replace behavior explicit.
+            The cut list already replaces dresser assemblies automatically when case + drawer math is valid. Use{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Append</strong> only if you intentionally want a second
+            dresser generation stacked on the first, or <strong className="text-[var(--gl-cream-soft)]">Replace</strong>{" "}
+            for an immediate full replace without waiting for the debounced sync.
           </p>
           <p className="mt-2 text-xs text-[var(--gl-muted)]">
             Ready now: {casePartsToAdd.length} case/base/back part(s) + {drawerPartsToAdd.length} drawer box part(s).

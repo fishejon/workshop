@@ -26,11 +26,13 @@ describe("lumber-vehicle-summary", () => {
       },
     ];
     const groups = groupPartsByMaterial(parts, 0);
-    const rows = buildLumberVehicleRows(groups, parts, 96, 0.125);
+    const rows = buildLumberVehicleRows(groups, parts, 96, { maxPurchasableBoardWidthInches: 20 }, 0.125);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.boardsByVehicleLength).toBe(1);
     // Two 48″ cuts do not both fit on one 96″ stick with kerf — pack uses two boards.
     expect(rows[0]?.packedBoards?.length).toBe(2);
     expect(partsInMaterialGroup(parts, rows[0]!.key)).toHaveLength(1);
+    expect(rows[0]?.yardLumberLabel).toMatch(/Oak/);
+    expect(rows[0]?.stockWidthUsedInches).toBe(20);
   });
 });

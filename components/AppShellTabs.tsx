@@ -145,10 +145,11 @@ export function AppShellTabs({
                   Lumber & buy list
                 </summary>
                 <p className="mt-2 text-xs text-[var(--gl-muted)]">
-                  Stick counts and the <strong className="text-[var(--gl-cream-soft)]">cut layout</strong> bars, then
-                  component lineal rollup. Optional <strong className="text-[var(--gl-cream-soft)]">BF &amp; width estimate</strong>{" "}
-                  for yard quotes. Use <span className="font-medium text-[var(--gl-cream-soft)]">Export CSV</span> on
-                  the cut list when Review unlocks export.
+                  Optional <strong className="text-[var(--gl-cream-soft)]">BF &amp; width estimate</strong> and cost
+                  fields for yard quotes. The <strong className="text-[var(--gl-cream-soft)]">yard list</strong> and cut
+                  layout bars stay on the main Cut list column above. Use{" "}
+                  <span className="font-medium text-[var(--gl-cream-soft)]">Export CSV</span> under source parts when
+                  Review unlocks export.
                 </p>
                 <div className="mt-4">{cutListBuyListPanel}</div>
               </details>

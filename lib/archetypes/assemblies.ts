@@ -3,6 +3,9 @@ import type { AssemblyId, MaterialSpec } from "@/lib/project-types";
 /** Assemblies used together for a full dresser handoff (case shell + drawers). */
 export const DRESSER_ASSEMBLIES: AssemblyId[] = ["Case", "Base", "Back", "Drawers"];
 
+/** Case shell + plinth + back — synced independently of drawer rows when drawer math is still invalid. */
+export const DRESSER_CARCASS_ASSEMBLIES: AssemblyId[] = ["Case", "Base", "Back"];
+
 /** Default case / drawer box material line used by dresser and console stubs. */
 export const DRESSER_PRIMARY_HARDWOOD_4_4: MaterialSpec = {
   label: "Primary hardwood",

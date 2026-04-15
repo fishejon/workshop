@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
-import { buildConsoleShellCasework } from "@/lib/archetypes/casework";
-import { formatShopImperial, parseInches } from "@/lib/imperial";
+import {
+  buildConsoleShellCasework,
+  CONSOLE_SHELL_REPLACE_ASSEMBLIES,
+} from "@/lib/archetypes/casework";
+import { parseInches } from "@/lib/imperial";
 
 function parsePositive(s: string): number | null {
   const n = parseInches(s);
@@ -12,7 +15,7 @@ function parsePositive(s: string): number | null {
 }
 
 export function SideboardPlanner() {
-  const { addParts, project } = useProject();
+  const { project, replacePartsInAssemblies } = useProject();
   const [outerW, setOuterW] = useState("66");
   const [outerH, setOuterH] = useState("30");
   const [outerD, setOuterD] = useState("18");
@@ -35,6 +38,39 @@ export function SideboardPlanner() {
       shelfDepthBacksetInches: backset,
     });
   }, [outerW, outerH, outerD, materialT, shelfBackset]);
+
+  const consoleShellSyncSignature = useMemo(() => {
+    if (!buildResult || buildResult.ok !== true) return null;
+    return JSON.stringify({
+      millingAllowanceInches: project.millingAllowanceInches,
+      parts: buildResult.parts.map((p) => ({
+        name: p.name,
+        assembly: p.assembly,
+        quantity: p.quantity,
+        finished: p.finished,
+        roughManual: p.rough.manual,
+        material: p.material,
+        grainNote: p.grainNote,
+        status: p.status,
+      })),
+    });
+  }, [buildResult, project.millingAllowanceInches]);
+
+  const buildResultRef = useRef(buildResult);
+  buildResultRef.current = buildResult;
+
+  const replaceConsoleRef = useRef(replacePartsInAssemblies);
+  replaceConsoleRef.current = replacePartsInAssemblies;
+
+  useEffect(() => {
+    if (consoleShellSyncSignature === null) return;
+    const handle = window.setTimeout(() => {
+      const br = buildResultRef.current;
+      if (!br || br.ok !== true) return;
+      replaceConsoleRef.current([...CONSOLE_SHELL_REPLACE_ASSEMBLIES], br.parts);
+    }, 450);
+    return () => window.clearTimeout(handle);
+  }, [consoleShellSyncSignature]);
 
   const warnings = useMemo(() => {
     const W = parsePositive(outerW);
@@ -68,19 +104,13 @@ export function SideboardPlanner() {
     setLastExplain("Applied general hardwood defaults for sideboard shell.");
   }
 
-  function handleAdd() {
-    if (!buildResult || !buildResult.ok) return;
-    addParts(buildResult.parts);
-    setLastExplain(
-      `Added ${buildResult.parts.length} sideboard shell part rows using ${formatShopImperial(parsePositive(materialT) ?? 0)} stock.`
-    );
-  }
-
   return (
     <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6 shadow-[0_0_0_1px_var(--gl-border)]">
       <h2 className="font-display text-lg tracking-tight text-[var(--gl-cream)]">Sideboard console</h2>
       <p className="mt-2 text-sm text-[var(--gl-muted)]">
-        Archetype-backed shell planner using the shared casework pipeline (parts, joinery panel, buy list, print).
+        Archetype-backed shell planner. While dimensions are valid, <strong className="text-[var(--gl-cream-soft)]">Case</strong>{" "}
+        rows on the shared cut list stay in sync (other assemblies are left alone). Rough sizes follow Project milling
+        allowance.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="Overall width" value={outerW} setValue={setOuterW} />
@@ -96,14 +126,6 @@ export function SideboardPlanner() {
           onClick={applyRecommendation}
         >
           Apply workshop defaults
-        </button>
-        <button
-          type="button"
-          disabled={!buildResult || buildResult.ok !== true}
-          className="rounded-xl bg-[var(--gl-copper)] px-4 py-2.5 text-sm font-semibold text-[var(--gl-on-accent)] transition hover:bg-[var(--gl-copper-bright)] disabled:cursor-not-allowed disabled:opacity-40"
-          onClick={handleAdd}
-        >
-          Add sideboard shell parts
         </button>
       </div>
       {buildResult && buildResult.ok === false ? (

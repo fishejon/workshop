@@ -7,6 +7,7 @@ import { IssuesPanel } from "@/components/IssuesPanel";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
 import { CutPlanner } from "@/components/CutPlanner";
 import { DresserPlanner } from "@/components/DresserPlanner";
+import { CutListYardSummary } from "@/components/CutListYardSummary";
 import { PartsTable } from "@/components/PartsTable";
 import { ProjectSetupBar } from "@/components/ProjectSetupBar";
 import { SideboardPlanner } from "@/components/SideboardPlanner";
@@ -147,7 +148,8 @@ export function GrainlineApp() {
   const planPanel = (
     <>
       <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
-        Pick a preset and enter sizes; generated parts land on the shared cut list.
+        Pick a preset and enter sizes; dresser and console archetypes keep the shared cut list in sync with the planner
+        math (debounced). Board cut list stays in its own 1D tool until you add rows under Source parts.
       </div>
       {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
       <div id="build-planner-section">
@@ -277,7 +279,19 @@ export function GrainlineApp() {
           setupPanel={setupPanel}
           issuesPanel={issuesPanel}
           planPanel={planPanel}
-          cutListPartsTable={<PartsTable explainAllowanceText={explainAllowance} />}
+          cutListPartsTable={
+            <div className="space-y-4">
+              <CutListYardSummary />
+              <details className="gl-panel border border-[var(--gl-border)] p-4">
+                <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
+                  Source parts &amp; CSV export
+                </summary>
+                <div className="mt-4">
+                  <PartsTable explainAllowanceText={explainAllowance} />
+                </div>
+              </details>
+            </div>
+          }
           cutListBuyListPanel={<BuyListPanel />}
           aboutPanel={aboutPanel}
           blockingValidationIssues={blockingValidationIssues}
