@@ -12,6 +12,7 @@ import { ProjectToolbar } from "@/components/ProjectToolbar";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { CaseworkPlanner } from "@/components/casework/CaseworkPlanner";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
+import { useDresserPlanSync } from "@/components/DresserPlanSyncContext";
 import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial } from "@/lib/imperial";
 import {
@@ -79,6 +80,7 @@ export function GrainlineApp() {
     warningValidationIssues,
     replacePartsInAssemblies,
   } = useProject();
+  const { flushDresserPartsNow } = useDresserPlanSync();
   const active = PRESETS.find((p) => p.id === preset);
   const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
   const hasBlockingIssues = blockingValidationIssues.length > 0;
@@ -222,7 +224,8 @@ export function GrainlineApp() {
     <>
       <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
         Pick a preset and enter sizes; dresser and console archetypes keep the shared cut list in sync with the planner
-        math (debounced). Board cut list stays in its own 1D tool until you add rows under Source parts.
+        math (short debounce; Materials tab applies pending dresser changes immediately). Board cut list stays in its own
+        1D tool until you add rows under Source parts.
       </div>
       {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
       <div id="build-planner-section">
@@ -258,6 +261,9 @@ export function GrainlineApp() {
     if (next === "shop" && hasBlockingIssues) {
       setAppTab("build");
       return;
+    }
+    if (next === "shop" && preset === "dresser") {
+      flushDresserPartsNow();
     }
     setAppTab(next);
   }

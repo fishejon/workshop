@@ -25,6 +25,7 @@ import { balanceRowOpeningHeights } from "@/lib/dresser-row-balance";
 import type { Part } from "@/lib/project-types";
 import { formatImperial, formatImperialInput, parseInches } from "@/lib/imperial";
 import { useSetDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
+import { useDresserPlanSync } from "@/components/DresserPlanSyncContext";
 import { DresserPlannerField } from "@/components/dresser/DresserPlannerField";
 import { DresserImperialInput } from "@/components/dresser/DresserImperialInput";
 import { DresserRowOpeningBudgetHint } from "@/components/dresser/DresserRowOpeningBudgetHint";
@@ -49,8 +50,17 @@ function fmtInches(inches: number): string {
   return formatImperial(inches, FRACTION_DENOMINATOR);
 }
 
+/** Debounced write to `project.parts`; Materials tab flushes immediately via `DresserPlanSyncContext`. */
+const DRESSER_PARTS_SYNC_DEBOUNCE_MS = 150;
+
 export function DresserPlanner() {
   const { project, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
+  const { setDresserPartsFlush } = useDresserPlanSync();
+
+  const carcassTimerRef = useRef<number | null>(null);
+  const drawerTimerRef = useRef<number | null>(null);
+  const carcassSignatureRef = useRef<string | null>(null);
+  const drawerSignatureRef = useRef<string | null>(null);
 
   const [outerW, setOuterW] = useState("48");
   const [outerH, setOuterH] = useState("34");
@@ -576,24 +586,92 @@ export function DresserPlanner() {
   }, [replacePartsInAssemblies]);
 
   useEffect(() => {
-    if (carcassAutoSyncSignature === null) return;
-    const handle = window.setTimeout(() => {
-      const c = casePartsForSyncRef.current;
-      if (c.length < 1) return;
-      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
-    }, 450);
-    return () => window.clearTimeout(handle);
+    carcassSignatureRef.current = carcassAutoSyncSignature;
   }, [carcassAutoSyncSignature]);
 
   useEffect(() => {
-    if (drawerAutoSyncSignature === null) return;
-    const handle = window.setTimeout(() => {
+    drawerSignatureRef.current = drawerAutoSyncSignature;
+  }, [drawerAutoSyncSignature]);
+
+  const flushAllDresserParts = useCallback(() => {
+    if (carcassTimerRef.current !== null) {
+      window.clearTimeout(carcassTimerRef.current);
+      carcassTimerRef.current = null;
+    }
+    if (drawerTimerRef.current !== null) {
+      window.clearTimeout(drawerTimerRef.current);
+      drawerTimerRef.current = null;
+    }
+    if (carcassSignatureRef.current !== null) {
+      const c = casePartsForSyncRef.current;
+      if (c.length >= 1) {
+        replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+      }
+    }
+    if (drawerSignatureRef.current !== null) {
+      const d = drawerPartsForSyncRef.current;
+      if (d.length >= 1) {
+        replaceDresserPartsRef.current(["Drawers"], d);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (carcassAutoSyncSignature === null) {
+      if (carcassTimerRef.current !== null) {
+        window.clearTimeout(carcassTimerRef.current);
+        carcassTimerRef.current = null;
+      }
+      return;
+    }
+    if (carcassTimerRef.current !== null) {
+      window.clearTimeout(carcassTimerRef.current);
+    }
+    carcassTimerRef.current = window.setTimeout(() => {
+      carcassTimerRef.current = null;
+      const c = casePartsForSyncRef.current;
+      if (c.length < 1) return;
+      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+    }, DRESSER_PARTS_SYNC_DEBOUNCE_MS);
+    return () => {
+      if (carcassTimerRef.current !== null) {
+        window.clearTimeout(carcassTimerRef.current);
+        carcassTimerRef.current = null;
+      }
+    };
+  }, [carcassAutoSyncSignature]);
+
+  useEffect(() => {
+    if (drawerAutoSyncSignature === null) {
+      if (drawerTimerRef.current !== null) {
+        window.clearTimeout(drawerTimerRef.current);
+        drawerTimerRef.current = null;
+      }
+      return;
+    }
+    if (drawerTimerRef.current !== null) {
+      window.clearTimeout(drawerTimerRef.current);
+    }
+    drawerTimerRef.current = window.setTimeout(() => {
+      drawerTimerRef.current = null;
       const d = drawerPartsForSyncRef.current;
       if (d.length < 1) return;
       replaceDresserPartsRef.current(["Drawers"], d);
-    }, 450);
-    return () => window.clearTimeout(handle);
+    }, DRESSER_PARTS_SYNC_DEBOUNCE_MS);
+    return () => {
+      if (drawerTimerRef.current !== null) {
+        window.clearTimeout(drawerTimerRef.current);
+        drawerTimerRef.current = null;
+      }
+    };
   }, [drawerAutoSyncSignature]);
+
+  useEffect(() => {
+    setDresserPartsFlush(flushAllDresserParts);
+    return () => {
+      setDresserPartsFlush(null);
+    };
+  }, [setDresserPartsFlush, flushAllDresserParts]);
 
   return (
     <div className="space-y-8">
@@ -611,8 +689,9 @@ export function DresserPlanner() {
             <strong className="text-[var(--gl-cream-soft)]">Dresser math</strong> readout lives in{" "}
             <strong className="text-[var(--gl-cream-soft)]">Materials</strong> (same column as the cut list). Valid{" "}
             <strong className="text-[var(--gl-cream-soft)]">case / base / back</strong> rows sync to the shared{" "}
-            <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> as soon as the carcass computes (even if
-            drawer opening heights are not balanced yet). <strong className="text-[var(--gl-cream-soft)]">Drawer</strong>{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> shortly after the carcass computes (even if
+            drawer opening heights are not balanced yet); opening <strong className="text-[var(--gl-cream-soft)]">Materials</strong>{" "}
+            applies any pending dresser sync immediately. <strong className="text-[var(--gl-cream-soft)]">Drawer</strong>{" "}
             rows sync when slide and opening math is valid. Rough sizes follow Project milling allowance.
           </p>
           <details className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-muted)]">
