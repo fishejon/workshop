@@ -127,11 +127,12 @@ export function ProjectSetupBar() {
   return (
     <section
       id="project-setup-section"
-      className="gl-panel mb-8 p-5"
+      className="gl-panel mb-8 w-full min-w-0 p-5"
       aria-labelledby="project-setup-title"
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex-1 space-y-3">
+      {/* Single lg:flex-row + several flex-1 grids can shrink to a hairline when flex basis is 0. */}
+      <div className="flex w-full min-w-0 flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:items-start xl:gap-8">
+        <div className="min-w-0 space-y-3">
           <p id="project-setup-title" className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
             Project
           </p>
@@ -144,7 +145,8 @@ export function ProjectSetupBar() {
             />
           </label>
         </div>
-        <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Milling allowance (in)</span>
             <input
@@ -224,8 +226,8 @@ export function ProjectSetupBar() {
               ))}
             </div>
           </label>
-        </div>
-        <div className="grid flex-1 gap-3 sm:grid-cols-2">
+          </div>
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:max-w-2xl">
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Lumber profile memory</span>
             <select
@@ -254,8 +256,8 @@ export function ProjectSetupBar() {
               ))}
             </select>
           </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button
             type="button"
             className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
@@ -341,6 +343,7 @@ export function ProjectSetupBar() {
           >
             Reset project
           </button>
+          </div>
         </div>
       </div>
       {transferStatus ? (

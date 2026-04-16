@@ -280,11 +280,11 @@ export function GrainlineApp() {
         </section>
       ) : null}
 
-      <details className="gl-panel p-5">
-        <summary className="cursor-pointer text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+      <details className="gl-panel w-full min-w-0 p-5">
+        <summary className="cursor-pointer list-none text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase [&::-webkit-details-marker]:hidden">
           Advanced project settings
         </summary>
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 w-full min-w-0 space-y-4">
           <div className="flex w-full flex-wrap items-center justify-between gap-2">
             <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
               <input

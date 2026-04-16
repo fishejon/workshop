@@ -109,7 +109,7 @@ export function AppShellTabs({
 
       <div role="tabpanel" id="panel-main" aria-labelledby={`tab-${active}`} className="min-w-0">
         {active === "setup" ? (
-          <div className="mx-auto max-w-4xl">{setupPanel}</div>
+          <div className="mx-auto w-full min-w-0 max-w-4xl">{setupPanel}</div>
         ) : active === "build" ? (
           <div className="space-y-6">
             {decisionStrip}
