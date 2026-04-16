@@ -28,6 +28,8 @@ Woodworkers often have dimensional designs but must still **manually derive** pa
 - Curved parts, compound angles, upholstery, bent lamination, room layouts  
 - Machine-specific cut strategies for every setup (defer to **shop presets** later)
 
+**Roadmap (not MVP scope until promoted here):** Phased **CAD-lite** (2D / 2.5D views tied to the same part graph) and deeper workshop features are described in [`docs/VISION_TRUSTED_COMPANION_AND_CAD.md`](./VISION_TRUSTED_COMPANION_AND_CAD.md) and execution checklists in [`docs/plans/pm-roadmap-execution-ladder.md`](./plans/pm-roadmap-execution-ladder.md).
+
 ## Product principles
 
 - **Three dimension layers**, always labeled: **design → finished part → rough stock**  

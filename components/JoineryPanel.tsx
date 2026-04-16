@@ -18,7 +18,7 @@ import {
 } from "@/lib/joinery/recommended-params";
 import type { JointRuleId } from "@/lib/joinery/types";
 import { formatJointRuleLabel } from "@/lib/part-provenance";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { formatShopImperial, parseInches } from "@/lib/imperial";
 import { newPartId } from "@/lib/project-utils";
 
 const RULE_OPTIONS: { id: JointRuleId; label: string }[] = [
@@ -35,11 +35,11 @@ const PRESET_OPTIONS: { id: ConstructionPresetId; label: string }[] = [
 ];
 
 function formatTxWxL(t: number, w: number, l: number): string {
-  return `${formatImperial(t)} × ${formatImperial(w)} × ${formatImperial(l)}`;
+  return `${formatShopImperial(t)} × ${formatShopImperial(w)} × ${formatShopImperial(l)}`;
 }
 
 export function JoineryPanel() {
-  const { project, updatePart, addJointRecord, addConnectionRecord } = useProject();
+  const { project, validationIssues, updatePart, addJointRecord, addConnectionRecord } = useProject();
   const [open, setOpen] = useState(true);
   const [presetId, setPresetId] = useState<ConstructionPresetId>("frame_and_panel");
   const [ruleId, setRuleId] = useState<JointRuleId>("groove_quarter_back");
@@ -55,6 +55,7 @@ export function JoineryPanel() {
   const [mateEdgeLabel, setMateEdgeLabel] = useState("");
   const [expandedJointId, setExpandedJointId] = useState<string | null>(null);
   const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
+  const [edgeMetadataOpen, setEdgeMetadataOpen] = useState(false);
   const [useCustomJoineryParams, setUseCustomJoineryParams] = useState(false);
   const [drawerPresetId, setDrawerPresetId] = useState<DrawerJoineryPresetId>("butt");
   const [drawerMaterialThicknessStr, setDrawerMaterialThicknessStr] = useState("0.5");
@@ -425,7 +426,11 @@ export function JoineryPanel() {
         : invalidTenon;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+    <section
+      id="joinery-panel-section"
+      className="gl-panel p-5"
+      aria-labelledby="joinery-panel-title"
+    >
       <button
         type="button"
         className="flex w-full items-center justify-between gap-2 text-left"
@@ -433,16 +438,33 @@ export function JoineryPanel() {
         aria-expanded={open}
       >
         <div>
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Joinery</p>
+          <p id="joinery-panel-title" className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+            Joinery
+          </p>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">Rules, history, and before/after finished sizes.</p>
         </div>
         <span className="text-[var(--gl-muted)]">{open ? "−" : "+"}</span>
       </button>
 
       {open ? (
-        <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+        <div className="mt-4 space-y-4 border-t border-[var(--gl-border)] pt-4">
+          {validationIssues.some((issue) => issue.source === "joinery") ? (
+            <div className="rounded-xl border border-[color-mix(in_srgb,var(--gl-warning)_30%,var(--gl-border))] bg-[var(--gl-warning-bg)] p-3">
+              <p className="text-xs font-medium text-[var(--gl-warning)]">Joinery validation issues</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]" aria-label="Joinery issues">
+                {validationIssues
+                  .filter((issue) => issue.source === "joinery")
+                  .slice(0, 5)
+                  .map((issue) => (
+                    <li key={issue.id}>
+                      [{issue.severity}] {issue.message}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
           {groupedHistory.length > 0 ? (
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
               <p className="text-xs font-medium text-[var(--gl-cream)]">
                 Construction logic trace ({project.joints.length} records)
               </p>
@@ -453,7 +475,7 @@ export function JoineryPanel() {
                     <li key={group.applicationId} className="text-xs text-[var(--gl-muted)]">
                       <button
                         type="button"
-                        className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
+                        className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[var(--gl-surface-inset)]"
                         onClick={() => setExpandedJointId(isOpen ? null : group.applicationId)}
                       >
                         <span className="text-[var(--gl-cream-soft)]">
@@ -462,10 +484,10 @@ export function JoineryPanel() {
                         <span className="text-[var(--gl-muted)]">{isOpen ? "−" : "+"}</span>
                       </button>
                       {isOpen ? (
-                        <div className="ml-2 mt-1 space-y-2 border-l border-white/10 pl-3">
+                        <div className="ml-2 mt-1 space-y-2 border-l border-[var(--gl-border)] pl-3">
                           {group.assemblyGroups.map(([assembly, joints]) => (
-                            <div key={`${group.applicationId}-${assembly}`} className="rounded-lg border border-white/10 bg-black/20 p-2">
-                              <p className="text-[11px] font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
+                            <div key={`${group.applicationId}-${assembly}`} className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-2">
+                              <p className="text-xs font-medium tracking-wide text-[var(--gl-cream-soft)] uppercase">
                                 {assembly}
                               </p>
                               <ul className="mt-1 space-y-1">
@@ -481,23 +503,23 @@ export function JoineryPanel() {
                                   };
                                   const linkedConnections = group.connectionByJointId.get(j.id) ?? [];
                                   return (
-                                    <li key={j.id} className="rounded border border-white/10 bg-black/20 p-2">
-                                      <p className="text-[11px] text-[var(--gl-cream-soft)]">
+                                    <li key={j.id} className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-2">
+                                      <p className="text-xs text-[var(--gl-cream-soft)]">
                                         {formatJointRuleLabel(j.ruleId)} → {(part?.name || "Part").trim()}
                                         {mate ? ` ↔ ${(mate.name || "Part").trim()}` : ""}
                                       </p>
-                                      <p className="mt-0.5 text-[11px] text-[var(--gl-muted)]">{j.explanation}</p>
-                                      <p className="mt-0.5 font-mono text-[11px] text-[var(--gl-cream)]">
+                                      <p className="mt-0.5 text-xs text-[var(--gl-muted)]">{j.explanation}</p>
+                                      <p className="mt-0.5 font-mono text-xs text-[var(--gl-cream)]">
                                         ΔT {d.t.toFixed(3)}&quot; · ΔW {d.w.toFixed(3)}&quot; · ΔL {d.l.toFixed(3)}&quot;
                                       </p>
-                                      <p className="font-mono text-[11px] text-[var(--gl-muted)]">
+                                      <p className="font-mono text-xs text-[var(--gl-muted)]">
                                         Before {formatTxWxL(j.finishedBefore.t, j.finishedBefore.w, j.finishedBefore.l)}
                                       </p>
-                                      <p className="font-mono text-[11px] text-[var(--gl-copper-bright)]">
+                                      <p className="font-mono text-xs text-[var(--gl-copper-bright)]">
                                         After {formatTxWxL(j.finishedAfter.t, j.finishedAfter.w, j.finishedAfter.l)}
                                       </p>
                                       {linkedConnections.length > 0 ? (
-                                        <p className="mt-0.5 text-[11px] text-[var(--gl-muted)]">
+                                        <p className="mt-0.5 text-xs text-[var(--gl-muted)]">
                                           Connection:{" "}
                                           {linkedConnections
                                             .map((conn) => {
@@ -523,7 +545,7 @@ export function JoineryPanel() {
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
             <p className="text-xs font-medium text-[var(--gl-cream)]">Construction presets</p>
             <p className="mt-1 text-xs text-[var(--gl-muted)]">
               Presets apply a coordinated bundle of joinery rules and linked connections in one traceable action.
@@ -531,7 +553,7 @@ export function JoineryPanel() {
             <label className="mt-2 block text-xs text-[var(--gl-muted)]">
               Preset
               <select
-                className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                 value={presetId}
                 onChange={(e) => setPresetId(e.target.value as ConstructionPresetId)}
               >
@@ -560,13 +582,13 @@ export function JoineryPanel() {
               Apply preset
             </button>
             {presetAffectedPartCount < 1 ? (
-              <p className="mt-2 text-xs text-amber-200/90">
+              <p className="mt-2 text-xs text-[var(--gl-warning)]">
                 No matching parts found for this preset yet. Add rails/stiles, drawers, shelves, or back parts first.
               </p>
             ) : null}
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
             <p className="text-xs font-medium text-[var(--gl-cream)]">Drawer joinery allowance presets</p>
             <p className="mt-1 text-xs text-[var(--gl-muted)]">
               Engineering presets compute allowance from drawer side thickness and joint strategy.
@@ -574,7 +596,7 @@ export function JoineryPanel() {
             <label className="mt-2 block text-xs text-[var(--gl-muted)]">
               Joint strategy
               <select
-                className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                 value={drawerPresetId}
                 onChange={(e) => setDrawerPresetId(e.target.value as DrawerJoineryPresetId)}
               >
@@ -589,7 +611,7 @@ export function JoineryPanel() {
               <label className="text-xs text-[var(--gl-muted)]">
                 Material thickness t
                 <input
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                  className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                   value={drawerMaterialThicknessStr}
                   onChange={(e) => setDrawerMaterialThicknessStr(e.target.value)}
                 />
@@ -598,7 +620,7 @@ export function JoineryPanel() {
                 <label className="text-xs text-[var(--gl-muted)]">
                   Half-lap ratio
                   <input
-                    className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                    className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                     value={drawerHalfLapRatioStr}
                     onChange={(e) => setDrawerHalfLapRatioStr(e.target.value)}
                   />
@@ -609,7 +631,7 @@ export function JoineryPanel() {
               <label className="mt-2 block text-xs text-[var(--gl-muted)]">
                 Half-lap depth per side (optional)
                 <input
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                  className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                   value={drawerHalfLapDepthStr}
                   onChange={(e) => setDrawerHalfLapDepthStr(e.target.value)}
                 />
@@ -617,19 +639,19 @@ export function JoineryPanel() {
             ) : null}
             {drawerPresetPreview ? (
               <p className="mt-2 text-xs text-[var(--gl-cream-soft)]">
-                Width allowance {formatImperial(drawerPresetPreview.widthAllowance)}; formula{" "}
+                Width allowance {formatShopImperial(drawerPresetPreview.widthAllowance)}; formula{" "}
                 <span className="font-mono">{drawerPresetPreview.formulaId}</span>; provenance{" "}
                 {drawerPresetPreview.provenance}
               </p>
             ) : (
-              <p className="mt-2 text-xs text-amber-200/90">Enter valid non-negative values to preview allowance.</p>
+              <p className="mt-2 text-xs text-[var(--gl-warning)]">Enter valid non-negative values to preview allowance.</p>
             )}
           </div>
 
           <label className="block text-xs text-[var(--gl-muted)]">
             Rule
             <select
-              className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+              className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
               value={ruleId}
               onChange={(e) => {
                 setRuleId(e.target.value as JointRuleId);
@@ -644,7 +666,7 @@ export function JoineryPanel() {
             </select>
           </label>
 
-          <div className="space-y-2 rounded-xl border border-white/10 bg-black/15 px-3 py-3">
+          <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-3">
             <p className="text-sm leading-relaxed text-[var(--gl-cream-soft)]">
               {useCustomJoineryParams ? (
                 <>Using custom parameters — expand Advanced below to edit.</>
@@ -658,7 +680,7 @@ export function JoineryPanel() {
                 </>
               )}
             </p>
-            <div className="rounded-lg border border-white/10 bg-black/20">
+            <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-medium text-[var(--gl-cream)]"
@@ -669,8 +691,8 @@ export function JoineryPanel() {
                 <span className="text-[var(--gl-muted)]">{advancedParamsOpen ? "−" : "+"}</span>
               </button>
               {advancedParamsOpen ? (
-                <div className="space-y-3 border-t border-white/10 px-3 py-3">
-                  <p className="text-[11px] leading-relaxed text-[var(--gl-muted)]">
+                <div className="space-y-3 border-t border-[var(--gl-border)] px-3 py-3">
+                  <p className="text-xs leading-relaxed text-[var(--gl-muted)]">
                     Override groove, panel, dado, or tenon numbers. Rule changes reset to recommended values.
                   </p>
                   {ruleId === "groove_quarter_back" ? (
@@ -678,7 +700,7 @@ export function JoineryPanel() {
                       <label className="block text-xs text-[var(--gl-muted)]">
                         Groove depth
                         <input
-                          className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                          className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                           value={
                             useCustomJoineryParams
                               ? grooveDepthStr
@@ -704,7 +726,7 @@ export function JoineryPanel() {
                       <label className="block text-xs text-[var(--gl-muted)]">
                         Panel thickness (label)
                         <input
-                          className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                          className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                           value={
                             useCustomJoineryParams
                               ? panelThickStr
@@ -732,7 +754,7 @@ export function JoineryPanel() {
                     <label className="block text-xs text-[var(--gl-muted)]">
                       Dado depth (in)
                       <input
-                        className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                         value={
                           useCustomJoineryParams
                             ? dadoDepthStr
@@ -759,7 +781,7 @@ export function JoineryPanel() {
                     <label className="block text-xs text-[var(--gl-muted)]">
                       Tenon length per end (in)
                       <input
-                        className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                         value={
                           useCustomJoineryParams
                             ? tenonLenStr
@@ -798,7 +820,7 @@ export function JoineryPanel() {
           </div>
 
           {invalidInputs ? (
-            <p className="text-sm text-amber-200/90">Enter valid non-negative dimensions (e.g. 0.25 or 1/4).</p>
+            <p className="text-sm text-[var(--gl-warning)]">Enter valid non-negative dimensions (e.g. 0.25 or 1/4).</p>
           ) : ruleResult ? (
             <p className="text-sm leading-relaxed text-[var(--gl-cream-soft)]">{ruleResult.explanation}</p>
           ) : null}
@@ -812,7 +834,7 @@ export function JoineryPanel() {
           ) : null}
 
           {ruleId === "groove_quarter_back" && ruleResult && !invalidInputs ? (
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
               <p className="text-xs font-medium text-[var(--gl-cream)]">Hypothetical opening (read-only)</p>
               <p className="mt-1 text-xs text-[var(--gl-muted)]">
                 If inner opening W×L were flush-sized, recommended panel finished T×W×L:
@@ -821,7 +843,7 @@ export function JoineryPanel() {
                 <label className="text-xs text-[var(--gl-muted)]">
                   Opening W
                   <input
-                    className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-[var(--gl-cream)]"
+                    className="mt-1 w-full rounded border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-2 py-1.5 text-sm text-[var(--gl-cream)]"
                     value={hypoW}
                     onChange={(e) => setHypoW(e.target.value)}
                     placeholder="e.g. 32"
@@ -830,7 +852,7 @@ export function JoineryPanel() {
                 <label className="text-xs text-[var(--gl-muted)]">
                   Opening L
                   <input
-                    className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-[var(--gl-cream)]"
+                    className="mt-1 w-full rounded border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-2 py-1.5 text-sm text-[var(--gl-cream)]"
                     value={hypoL}
                     onChange={(e) => setHypoL(e.target.value)}
                     placeholder="e.g. 28"
@@ -839,8 +861,8 @@ export function JoineryPanel() {
               </div>
               {recommendedHypo && panelThickness !== null ? (
                 <p className="mt-2 text-sm text-[var(--gl-copper-bright)]">
-                  T {formatImperial(recommendedHypo.t)} × W {formatImperial(recommendedHypo.w)} × L{" "}
-                  {formatImperial(recommendedHypo.l)}
+                  T {formatShopImperial(recommendedHypo.t)} × W {formatShopImperial(recommendedHypo.w)} × L{" "}
+                  {formatShopImperial(recommendedHypo.l)}
                 </p>
               ) : (
                 <p className="mt-2 text-xs text-[var(--gl-muted)]">Enter positive W and L to see a recommendation.</p>
@@ -848,47 +870,11 @@ export function JoineryPanel() {
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
             <p className="text-xs font-medium text-[var(--gl-cream)]">Apply to a part</p>
             <p className="mt-1 text-xs text-[var(--gl-muted)]">
-              Adds the rule’s deltas to the part’s finished T×W×L. Rough recomputes unless rough is manual.
+              Recommended flow: choose rule + part, then apply. Rough recomputes unless rough is manual.
             </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <label className="block text-xs text-[var(--gl-muted)]">
-                Mate part (optional)
-                <select
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                  value={resolvedMateId}
-                  onChange={(e) => setMatePartId(e.target.value)}
-                  disabled={!resolvedPartId}
-                >
-                  <option value="">None</option>
-                  {mateCandidates.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name.trim() || "Unnamed"} ({p.assembly})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs text-[var(--gl-muted)]">
-                Primary edge / face (optional)
-                <input
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                  value={primaryEdgeLabel}
-                  onChange={(e) => setPrimaryEdgeLabel(e.target.value)}
-                  placeholder='e.g. "long grain / L"'
-                />
-              </label>
-              <label className="block text-xs text-[var(--gl-muted)] sm:col-span-2">
-                Mate edge / face (optional)
-                <input
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
-                  value={mateEdgeLabel}
-                  onChange={(e) => setMateEdgeLabel(e.target.value)}
-                  placeholder='e.g. "inside face, dado bottom"'
-                />
-              </label>
-            </div>
             {selectableParts.length === 0 ? (
               <p className="mt-2 text-sm text-[var(--gl-muted)]">
                 {ruleId === "groove_quarter_back"
@@ -900,14 +886,14 @@ export function JoineryPanel() {
             ) : (
               <>
                 <select
-                  className="mt-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--gl-cream)]"
+                  className="mt-2 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
                   value={resolvedPartId}
                   onChange={(e) => setSelectedPartId(e.target.value)}
                 >
                   <option value="">Select part…</option>
                   {selectableParts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name.trim() || "Unnamed"} ({p.assembly}) — L {formatImperial(p.finished.l)}
+                      {p.name.trim() || "Unnamed"} ({p.assembly}) — L {formatShopImperial(p.finished.l)}
                     </option>
                   ))}
                 </select>
@@ -921,6 +907,60 @@ export function JoineryPanel() {
                 </button>
               </>
             )}
+            <div className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-[var(--gl-cream)]"
+                onClick={() => setEdgeMetadataOpen((o) => !o)}
+                aria-expanded={edgeMetadataOpen}
+              >
+                <span>Advanced edge metadata (optional)</span>
+                <span className="text-[var(--gl-muted)]">{edgeMetadataOpen ? "−" : "+"}</span>
+              </button>
+              {edgeMetadataOpen ? (
+                <div className="space-y-2 border-t border-[var(--gl-border)] px-3 py-3">
+                  <p className="text-xs leading-relaxed text-[var(--gl-muted)]">
+                    Add mate/edge notes only when you need traceable edge-level provenance in the joint log.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="block text-xs text-[var(--gl-muted)]">
+                      Mate part (optional)
+                      <select
+                        className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        value={resolvedMateId}
+                        onChange={(e) => setMatePartId(e.target.value)}
+                        disabled={!resolvedPartId}
+                      >
+                        <option value="">None</option>
+                        {mateCandidates.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name.trim() || "Unnamed"} ({p.assembly})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-xs text-[var(--gl-muted)]">
+                      Primary edge / face (optional)
+                      <input
+                        className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        value={primaryEdgeLabel}
+                        onChange={(e) => setPrimaryEdgeLabel(e.target.value)}
+                        placeholder='e.g. "long grain / L"'
+                      />
+                    </label>
+                    <label className="block text-xs text-[var(--gl-muted)] sm:col-span-2">
+                      Mate edge / face (optional)
+                      <input
+                        className="mt-1 w-full rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-sm text-[var(--gl-cream)]"
+                        value={mateEdgeLabel}
+                        onChange={(e) => setMateEdgeLabel(e.target.value)}
+                        placeholder='e.g. "inside face, dado bottom"'
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}

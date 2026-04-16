@@ -44,7 +44,13 @@ function effectiveProjectMaxBoardWidthInches(project: PartAssumptionsProjectInpu
   return { value: DEFAULT_MAX_PURCHASABLE_BOARD_WIDTH_IN, source: "project_default" };
 }
 
-function effectiveMaxBoardWidthForPart(
+/** Project-level max board face width when no part exists in a group (edge case). */
+export function projectDefaultPurchasableStockWidthInches(project: PartAssumptionsProjectInput): number {
+  return effectiveProjectMaxBoardWidthInches(project).value;
+}
+
+/** Dressed stock width (in) used for glue-up / buy math for this part's material group. */
+export function purchasableStockWidthInchesForPart(
   part: Part,
   project: PartAssumptionsProjectInput
 ): { value: number; source: GlueUpBoardWidthSource } {
@@ -63,7 +69,7 @@ export function derivePartAssumptionsDetailed(
   project: PartAssumptionsProjectInput
 ): DerivedPartAssumptions {
   const provenance = summarizePartProvenance(part, joints);
-  const boardWidth = effectiveMaxBoardWidthForPart(part, project);
+  const boardWidth = purchasableStockWidthInchesForPart(part, project);
   const maxBoardWidth = boardWidth.value;
 
   let joinery = "No recorded joinery dimension deltas.";

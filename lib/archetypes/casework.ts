@@ -9,7 +9,7 @@ import {
   type DresserEngineError,
   type DresserEngineResult,
 } from "@/lib/dresser-engine";
-import type { Part } from "@/lib/project-types";
+import type { AssemblyId, Part } from "@/lib/project-types";
 import { formatImperial } from "@/lib/imperial";
 import { DRESSER_PRIMARY_HARDWOOD_4_4 } from "@/lib/archetypes/assemblies";
 
@@ -36,6 +36,9 @@ export const dresserCasework = {
 
 /** Back-set from full depth for fixed shelf (matches legacy TV console stub). */
 export const CONSOLE_SHELL_SHELF_DEPTH_BACKSET_IN = 0.25;
+
+/** Console shell archetypes only emit `Case` rows; live sync replaces this assembly on the shared cut list. */
+export const CONSOLE_SHELL_REPLACE_ASSEMBLIES = ["Case"] as const satisfies readonly AssemblyId[];
 
 export type ConsoleShellCaseworkInput = {
   outerWidth: number;

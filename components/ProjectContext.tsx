@@ -22,13 +22,13 @@ import {
   MAX_PROJECT_LIBRARY_RECORDS,
   PROJECT_LIBRARY_STORAGE_KEY,
   STORAGE_KEY,
+  importProjectFromJson,
   applyTemplate as applyProjectTemplate,
   cloneProject,
   createEmptyProject,
   deriveRough,
   duplicateAssemblyGroup as duplicateAssemblyGroupInProject,
   newPartId,
-  normalizeProjectJsonInput,
   parseProject,
   parseProjectLibrary,
   recomputeAllRoughParts,
@@ -36,9 +36,20 @@ import {
   serializeProject,
   type StoredProjectRecord,
 } from "@/lib/project-utils";
+import { pruneCutProgressForPartIds } from "@/lib/rough-instance-id";
+import {
+  getBlockingValidationIssues,
+  getWarningValidationIssues,
+  validateProject,
+} from "@/lib/validation";
+import type { ValidationIssue } from "@/lib/validation/types";
 
 type ProjectContextValue = {
   project: Project;
+  validationIssues: ValidationIssue[];
+  blockingValidationIssues: ValidationIssue[];
+  warningValidationIssues: ValidationIssue[];
+  hasBlockingValidationIssues: boolean;
   setProjectName: (name: string) => void;
   setMillingAllowanceInches: (n: number) => void;
   setMaxTransportLengthInches: (n: number) => void;
@@ -64,10 +75,10 @@ type ProjectContextValue = {
   applyTemplate: (template: ProjectTemplate, projectName: string) => void;
   duplicateAssemblyGroup: (assembly: AssemblyId) => void;
   exportProjectJson: () => string;
-  importProjectJson: (json: string) => { ok: true } | { ok: false; reason: string };
+  importProjectJson: (json: string) => ImportResult;
   projectLibrary: StoredProjectRecord[];
-  backupCurrentProject: (name?: string) => void;
-  restoreFromLibrary: (id: string) => void;
+  backupCurrentProject: (name?: string) => BackupResult;
+  restoreFromLibrary: (id: string) => RestoreResult;
   setLibraryArchived: (id: string, archived: boolean) => void;
   addJointRecord: (joint: Omit<ProjectJoint, "id"> & { id?: string }) => void;
   addConnectionRecord: (c: Omit<ProjectJoinConnection, "id"> & { id?: string }) => void;
@@ -75,9 +86,58 @@ type ProjectContextValue = {
     checkpoint: "materialAssumptionsReviewed" | "joineryReviewed",
     reviewed: boolean
   ) => void;
+  /** Toggle “cut” progress for one rough-length instance (`partId:instanceIndex`). */
+  toggleCutProgress: (roughInstanceId: string) => void;
+  clearCutProgress: () => void;
 };
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
+
+type ChangeSummary = {
+  nameChanged: boolean;
+  partsDelta: number;
+  jointsDelta: number;
+  connectionsDelta: number;
+};
+
+type ImportResult =
+  | {
+      ok: true;
+      source: "direct" | "envelope";
+      importedAtIso: string;
+      exportedAtIso?: string;
+      summary: ChangeSummary;
+      warnings: string[];
+    }
+  | { ok: false; reason: string; details?: string[] };
+
+type RestoreResult =
+  | {
+      ok: true;
+      source: "library";
+      restoredAtIso: string;
+      backupUpdatedAtIso: string;
+      backupName: string;
+      summary: ChangeSummary;
+    }
+  | { ok: false; reason: string };
+
+type BackupResult = {
+  createdRecordId: string;
+  retainedCount: number;
+  retentionCap: number;
+  droppedOldest: boolean;
+  createdAtIso: string;
+};
+
+function summarizeProjectDiff(before: Project, after: Project): ChangeSummary {
+  return {
+    nameChanged: before.name !== after.name,
+    partsDelta: after.parts.length - before.parts.length,
+    jointsDelta: after.joints.length - before.joints.length,
+    connectionsDelta: after.connections.length - before.connections.length,
+  };
+}
 
 function loadInitial(): Project {
   if (typeof window === "undefined") return createEmptyProject();
@@ -261,8 +321,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const connections = p.connections.filter(
           (c) => !removedIds.has(c.partAId) && !removedIds.has(c.partBId)
         );
+        const cutProgressByRoughInstanceId = pruneCutProgressForPartIds(
+          p.cutProgressByRoughInstanceId,
+          removedIds
+        );
         return resetJoineryCheckpoint(
-          resetMaterialCheckpoint({ ...p, parts: nextParts, joints, connections })
+          resetMaterialCheckpoint({ ...p, parts: nextParts, joints, connections, cutProgressByRoughInstanceId })
         );
       });
     },
@@ -284,21 +348,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const removePart = useCallback((id: string) => {
-    setProject((p) =>
-      resetJoineryCheckpoint(
+    setProject((p) => {
+      const cutProgressByRoughInstanceId = pruneCutProgressForPartIds(p.cutProgressByRoughInstanceId, new Set([id]));
+      return resetJoineryCheckpoint(
         resetMaterialCheckpoint({
           ...p,
           parts: p.parts.filter((x) => x.id !== id),
           joints: p.joints.filter((j) => j.primaryPartId !== id && j.matePartId !== id),
           connections: p.connections.filter((c) => c.partAId !== id && c.partBId !== id),
+          cutProgressByRoughInstanceId,
         })
-      )
-    );
+      );
+    });
   }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
   const clearParts = useCallback(() => {
     setProject((p) =>
-      resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: [], joints: [], connections: [] }))
+      resetJoineryCheckpoint(
+        resetMaterialCheckpoint({ ...p, parts: [], joints: [], connections: [], cutProgressByRoughInstanceId: {} })
+      )
     );
   }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
 
@@ -326,13 +394,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const exportProjectJson = useCallback(() => serializeProject(project), [project]);
 
   const importProjectJson = useCallback((json: string) => {
-    const normalized = normalizeProjectJsonInput(json);
-    if (!normalized) return { ok: false as const, reason: "Import file was empty." };
-    const parsed = parseProject(normalized);
-    if (!parsed) return { ok: false as const, reason: "Could not parse a valid Grainline project JSON file." };
-    setProject(parsed);
-    return { ok: true as const };
-  }, []);
+    const parsed = importProjectFromJson(json);
+    if (!parsed.ok) return { ok: false as const, reason: parsed.reason, details: parsed.details };
+    const summary = summarizeProjectDiff(project, parsed.project);
+    setProject(parsed.project);
+    return {
+      ok: true as const,
+      source: parsed.source,
+      importedAtIso: new Date().toISOString(),
+      exportedAtIso: parsed.exportedAt,
+      summary,
+      warnings: parsed.warnings,
+    };
+  }, [project]);
 
   const backupCurrentProject = useCallback(
     (name?: string) => {
@@ -344,10 +418,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         archived: false,
         project,
       };
+      let droppedOldest = false;
+      let retainedCount = 1;
       setProjectLibrary((prev) => {
         const next = [record, ...prev];
-        return next.length > MAX_PROJECT_LIBRARY_RECORDS ? next.slice(0, MAX_PROJECT_LIBRARY_RECORDS) : next;
+        if (next.length > MAX_PROJECT_LIBRARY_RECORDS) {
+          droppedOldest = true;
+          retainedCount = MAX_PROJECT_LIBRARY_RECORDS;
+          return next.slice(0, MAX_PROJECT_LIBRARY_RECORDS);
+        }
+        retainedCount = next.length;
+        return next;
       });
+      return {
+        createdRecordId: record.id,
+        retainedCount,
+        retentionCap: MAX_PROJECT_LIBRARY_RECORDS,
+        droppedOldest,
+        createdAtIso: nowIso,
+      };
     },
     [project]
   );
@@ -355,9 +444,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const restoreFromLibrary = useCallback(
     (id: string) => {
       const record = projectLibrary.find((row) => row.id === id);
-      if (record) setProject(record.project);
+      if (!record) return { ok: false as const, reason: "Backup could not be found." };
+      const summary = summarizeProjectDiff(project, record.project);
+      setProject(record.project);
+      return {
+        ok: true as const,
+        source: "library" as const,
+        restoredAtIso: new Date().toISOString(),
+        backupUpdatedAtIso: record.updatedAt,
+        backupName: record.name,
+        summary,
+      };
     },
-    [projectLibrary]
+    [project, projectLibrary]
   );
 
   const setLibraryArchived = useCallback((id: string, archived: boolean) => {
@@ -403,9 +502,34 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const toggleCutProgress = useCallback((roughInstanceId: string) => {
+    setProject((p) => {
+      const cur = p.cutProgressByRoughInstanceId ?? {};
+      const next = { ...cur };
+      if (next[roughInstanceId] === "cut") {
+        delete next[roughInstanceId];
+      } else {
+        next[roughInstanceId] = "cut";
+      }
+      return { ...p, cutProgressByRoughInstanceId: next };
+    });
+  }, []);
+
+  const clearCutProgress = useCallback(() => {
+    setProject((p) => ({ ...p, cutProgressByRoughInstanceId: {} }));
+  }, []);
+
   const value = useMemo(
-    () => ({
+    () => {
+      const validationIssues = validateProject(project);
+      const blockingValidationIssues = getBlockingValidationIssues(validationIssues);
+      const warningValidationIssues = getWarningValidationIssues(validationIssues);
+      return {
       project,
+      validationIssues,
+      blockingValidationIssues,
+      warningValidationIssues,
+      hasBlockingValidationIssues: blockingValidationIssues.length > 0,
       setProjectName,
       setMillingAllowanceInches,
       setMaxTransportLengthInches,
@@ -435,7 +559,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addJointRecord,
       addConnectionRecord,
       setCheckpointReviewed,
-    }),
+      toggleCutProgress,
+      clearCutProgress,
+      };
+    },
     [
       project,
       setProjectName,
@@ -467,6 +594,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       addJointRecord,
       addConnectionRecord,
       setCheckpointReviewed,
+      toggleCutProgress,
+      clearCutProgress,
     ]
   );
 

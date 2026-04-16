@@ -16,6 +16,14 @@ Grainline is positioned as a **woodworking intelligence layer**: the planning br
 
 ---
 
+## Vision alignment (hobbyist & yard language)
+
+Many makers first encounter Grainline with **DIY mental models**: a board-foot widget, a cut list, or a dresser calculator that “just works” in one screen. That expectation is useful—it sets a **simplicity bar** for the default path—but it must not flatten the product into a disposable calculator. The same user still buys **US-style dimensional stock** where **nominal** labels (e.g. “1×6”) diverge from **surfaced or rough actuals**, and still needs to **trust** that shop outputs match what they will cut, not a hidden spreadsheet.
+
+We keep **joinery intelligence** and **material intelligence** as the pillars: joinery is why the numbers change; material intelligence is how those numbers become **yard-purchasable language** (thickness class, BF/LF from rough, transport limits, waste as labeled multipliers—not magic totals). Copy and UI should repeatedly signal **assumption → derivation → override**, so hobbyists get calculator-simple *entry* without losing **explainable depth** when they open joinery or procurement. The north star stays the same: outputs you can build from without redoing core math elsewhere—now framed so a careful hobbyist and a yard run both recognize the same story.
+
+---
+
 ## North star
 
 **Outcome:** Move from idea → material purchase → shop execution with **confidence**, not merely efficiency.
@@ -167,3 +175,5 @@ The landscape spans cut-list optimizers, cabinet configurators, board-foot calcu
 ## Document maintenance
 
 When strategy shifts, update this file first; then reconcile [PRD.md](./PRD.md) for scope changes and [PLAN.md](./PLAN.md) for task breakdown. The PRD remains the **requirements source of truth**; this memo is the **narrative and prioritization** layer.
+
+**Companion synthesis (trusted shop companion + phased CAD-lite):** [VISION_TRUSTED_COMPANION_AND_CAD.md](./VISION_TRUSTED_COMPANION_AND_CAD.md) — cross-functional vision, UX/UI implications, and architecture milestones. Reconcile this memo and that doc when prioritization changes.

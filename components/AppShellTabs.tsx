@@ -1,82 +1,86 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useCallback, type KeyboardEvent, type ReactNode } from "react";
+import { MaterialsAssumptionsCheckpoint } from "@/components/MaterialsAssumptionsCheckpoint";
+import type { ValidationIssue } from "@/lib/validation/types";
 
-export const APP_SHELL_TAB_IDS = ["setup", "build", "shop", "about"] as const;
+export const APP_SHELL_TAB_IDS = ["setup", "build", "shop"] as const;
 export type AppShellTabId = (typeof APP_SHELL_TAB_IDS)[number];
 
-const TAB_LABELS: Record<AppShellTabId, string> = {
-  setup: "Setup",
-  build: "Construction",
-  shop: "Materials",
-  about: "Review",
+const TAB_META: Record<AppShellTabId, { label: string; task: string }> = {
+  setup: { label: "Project", task: "Name & shop defaults" },
+  build: { label: "Plan", task: "Presets & parts" },
+  shop: { label: "Materials", task: "Cut list" },
 };
 
-/**
- * IA shell: Setup (project + transport), Build (planners + shop column), Shop (two-column shop), About.
- * `shopMaterialsLeft` / `shopMaterialsRight` are the same panels as the Build aside, split for Materials’ wide grid.
- */
+function focusTabButton(id: AppShellTabId) {
+  document.getElementById(`tab-${id}`)?.focus();
+}
+
+/** Main shell: Project, Plan, Materials (yard list + parts; material assumptions gate export/print). */
 export function AppShellTabs({
   active,
   onChange,
   setupPanel,
-  buildLeft,
-  shopMaterialsLeft,
-  shopMaterialsRight,
-  aboutPanel,
-  canExportOrPrint,
+  planPanel,
+  cutListPartsTable,
+  blockingValidationIssues,
+  decisionStrip,
+  disableShopTab = false,
 }: {
   active: AppShellTabId;
   onChange: (id: AppShellTabId) => void;
   setupPanel: ReactNode;
-  buildLeft: ReactNode;
-  shopMaterialsLeft: ReactNode;
-  shopMaterialsRight: ReactNode;
-  aboutPanel: ReactNode;
-  canExportOrPrint: boolean;
+  planPanel: ReactNode;
+  cutListPartsTable: ReactNode;
+  blockingValidationIssues: ValidationIssue[];
+  decisionStrip: ReactNode;
+  disableShopTab?: boolean;
 }) {
-  const activeStepIndex = APP_SHELL_TAB_IDS.indexOf(active);
-  const remaining = APP_SHELL_TAB_IDS.slice(activeStepIndex + 1).map((id) => TAB_LABELS[id]);
+  const handleTabListKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      const el = document.activeElement;
+      if (!el || el.getAttribute("role") !== "tab" || !el.id.startsWith("tab-")) return;
+      const raw = el.id.slice("tab-".length);
+      if (!APP_SHELL_TAB_IDS.includes(raw as AppShellTabId)) return;
+      const currentId = raw as AppShellTabId;
+      const idx = APP_SHELL_TAB_IDS.indexOf(currentId);
+      let nextIdx = idx;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        nextIdx = (idx + 1) % APP_SHELL_TAB_IDS.length;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        nextIdx = (idx - 1 + APP_SHELL_TAB_IDS.length) % APP_SHELL_TAB_IDS.length;
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        nextIdx = 0;
+      } else if (e.key === "End") {
+        e.preventDefault();
+        nextIdx = APP_SHELL_TAB_IDS.length - 1;
+      }
+
+      if (nextIdx !== idx) {
+        const nextId = APP_SHELL_TAB_IDS[nextIdx];
+        onChange(nextId);
+        requestAnimationFrame(() => focusTabButton(nextId));
+      }
+    },
+    [onChange]
+  );
 
   return (
     <div className="space-y-6">
       <div
-        className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
-        aria-label="Guided sequence progress"
-      >
-        <ol className="flex flex-wrap gap-2" aria-label="Guided sequence steps">
-          {APP_SHELL_TAB_IDS.map((id, idx) => {
-            const isCurrent = id === active;
-            const isComplete = idx < activeStepIndex;
-            return (
-              <li
-                key={id}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  isCurrent
-                    ? "border-[var(--gl-copper-bright)] bg-[var(--gl-copper)]/20 text-[var(--gl-cream)]"
-                    : isComplete
-                      ? "border-white/20 bg-white/[0.06] text-[var(--gl-cream-soft)]"
-                      : "border-white/10 text-[var(--gl-muted)]"
-                }`}
-                aria-current={isCurrent ? "step" : undefined}
-              >
-                {idx + 1}. {TAB_LABELS[id]}
-              </li>
-            );
-          })}
-        </ol>
-        <p className="mt-2 text-xs text-[var(--gl-muted)]">
-          {remaining.length > 0 ? `Remaining: ${remaining.join(" -> ")}` : "Final step reached."}
-        </p>
-      </div>
-
-      <div
         role="tablist"
         aria-label="Main sections"
-        className="flex flex-wrap gap-2 border-b border-white/10 pb-4"
+        className="flex flex-wrap gap-2"
+        onKeyDown={handleTabListKeyDown}
       >
         {APP_SHELL_TAB_IDS.map((id) => {
-          const selected = active === id;
+          const selected = id === active;
+          const disabled = id === "shop" && disableShopTab;
           return (
             <button
               key={id}
@@ -85,63 +89,48 @@ export function AppShellTabs({
               id={`tab-${id}`}
               aria-selected={selected}
               aria-controls="panel-main"
+              aria-disabled={disabled}
               tabIndex={selected ? 0 : -1}
-              onClick={() => onChange(id)}
-              className={`rounded-t-lg border border-b-0 px-4 py-2.5 text-sm font-medium transition ${
+              onClick={() => {
+                if (!disabled) onChange(id);
+              }}
+              className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
                 selected
-                  ? "border-white/20 bg-white/[0.08] text-[var(--gl-cream)]"
-                  : "border-transparent bg-transparent text-[var(--gl-muted)] hover:border-white/10 hover:text-[var(--gl-cream-soft)]"
-              }`}
+                  ? "border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] text-[var(--gl-cream)]"
+                  : "border-[var(--gl-border)] bg-transparent text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-cream-soft)]"
+              } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
             >
-              {TAB_LABELS[id]}
+              <span className="block">{TAB_META[id].label}</span>
+              <span className="block text-xs font-normal text-[var(--gl-muted)]">{TAB_META[id].task}</span>
             </button>
           );
         })}
       </div>
 
       <div role="tabpanel" id="panel-main" aria-labelledby={`tab-${active}`} className="min-w-0">
-        {active === "about" ? (
-          aboutPanel
-        ) : active === "setup" ? (
+        {active === "setup" ? (
           <div className="mx-auto max-w-4xl">{setupPanel}</div>
         ) : active === "build" ? (
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
-            <div className="min-w-0 space-y-6">{buildLeft}</div>
-            <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
-              <div className="space-y-6">
-                {shopMaterialsLeft}
-                {shopMaterialsRight}
-              </div>
-            </aside>
+          <div className="space-y-6">
+            {decisionStrip}
+            <div className="min-w-0 space-y-6">{planPanel}</div>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-[var(--gl-muted)]">
-              <p>
-                Parts list, buy list, joinery, and rough-stick layout. Project name, milling allowance, transport cap,
-                and waste % live under <strong className="text-[var(--gl-cream-soft)]">Setup</strong>. Export CSV from
-                the parts header, or open{" "}
-                {canExportOrPrint ? (
-                  <a
-                    href="/print"
-                    className="font-medium text-[var(--gl-copper-bright)] underline-offset-2 hover:underline"
-                  >
-                    shop print
-                  </a>
-                ) : (
-                  <span
-                    className="font-medium text-[var(--gl-muted)]"
-                    aria-label="Shop print locked until review checkpoints are acknowledged"
-                  >
-                    shop print (locked until Review)
-                  </span>
-                )}{" "}
-                for a paper-friendly sheet.
-              </p>
-            </div>
-            <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,380px)] lg:items-start">
-              <div className="min-w-0 space-y-6">{shopMaterialsLeft}</div>
-              <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">{shopMaterialsRight}</aside>
+            {decisionStrip}
+            {blockingValidationIssues.length > 0 ? (
+              <ul
+                className="list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]"
+                aria-label="Blocking issues summary"
+              >
+                {blockingValidationIssues.slice(0, 4).map((issue) => (
+                  <li key={issue.id}>{issue.message}</li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="min-w-0 space-y-4">
+              <MaterialsAssumptionsCheckpoint />
+              {cutListPartsTable}
             </div>
           </div>
         )}

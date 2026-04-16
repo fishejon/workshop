@@ -6,7 +6,7 @@
 
 import { packUniformStock, totalWaste, type CutPiece } from "./optimize-cuts";
 import type { Part } from "./project-types";
-import { roughCutsFromParts } from "./rough-sticks";
+import { roughCutPiecesForPack } from "./rough-sticks";
 
 export type PackMetrics = {
   stockLength: number;
@@ -47,7 +47,7 @@ export function tryPackCutPieces(pieces: CutPiece[], stockLength: number, kerf: 
 }
 
 export function tryPackGroupParts(groupParts: Part[], stockLength: number, kerf: number): PackMetrics | null {
-  const pieces = roughCutsFromParts(groupParts);
+  const pieces = roughCutPiecesForPack(groupParts);
   return tryPackCutPieces(pieces, stockLength, kerf);
 }
 
@@ -97,6 +97,6 @@ export function bestPackGroupParts(
   kerf: number,
   mode: "minWaste" | "minBoardCount"
 ): PackMetrics | null {
-  const pieces = roughCutsFromParts(groupParts);
+  const pieces = roughCutPiecesForPack(groupParts);
   return bestPackCutPieces(pieces, maxTransport, kerf, mode);
 }

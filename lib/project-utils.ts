@@ -1,5 +1,6 @@
 import type {
   AssemblyId,
+  CutProgressValue,
   Dimension3,
   Part,
   Project,
@@ -8,6 +9,8 @@ import type {
   ProjectTemplate,
   RoughSpec,
 } from "./project-types";
+import { isCaseOutlineV0 } from "./geometry/validate";
+import { remapCutProgressKeys } from "./rough-instance-id";
 
 export const STORAGE_KEY = "grainline-project-v1";
 export const PROJECT_LIBRARY_STORAGE_KEY = "grainline-project-library-v1";
@@ -73,6 +76,7 @@ function remapGraph(
   parts: Part[];
   joints: ProjectJoint[];
   connections: ProjectJoinConnection[];
+  partIdMap: Map<string, string>;
 } {
   const usedPartIds = new Set(parts.map((part) => part.id));
   const usedJointIds = new Set(joints.map((joint) => joint.id));
@@ -126,6 +130,7 @@ function remapGraph(
     parts: duplicatedParts,
     joints: duplicatedJoints,
     connections: duplicatedConnections,
+    partIdMap,
   };
 }
 
@@ -150,11 +155,16 @@ export function createEmptyProject(): Project {
       lumberProfile: "s4s_hardwood",
       offcutMode: "none",
     },
+    cutProgressByRoughInstanceId: {},
   };
 }
 
 export function cloneProject(project: Project, name: string): Project {
   const duplicated = remapGraph(project.parts, project.joints, project.connections, () => true);
+  const cutProgressByRoughInstanceId = remapCutProgressKeys(
+    project.cutProgressByRoughInstanceId,
+    duplicated.partIdMap
+  );
   return {
     ...project,
     id: newProjectId(),
@@ -166,6 +176,7 @@ export function cloneProject(project: Project, name: string): Project {
       materialAssumptionsReviewed: false,
       joineryReviewed: false,
     },
+    cutProgressByRoughInstanceId,
   };
 }
 
@@ -216,6 +227,7 @@ export function applyTemplate(template: ProjectTemplate, projectName: string): P
     parts: duplicated.parts,
     joints: duplicated.joints,
     connections: duplicated.connections,
+    cutProgressByRoughInstanceId: {},
   };
 }
 
@@ -270,9 +282,142 @@ export function serializeProject(p: Project): string {
   return JSON.stringify(p);
 }
 
+type ParsedEnvelope = {
+  source: "direct" | "envelope";
+  payload: unknown;
+  exportedAt?: string;
+  warnings: string[];
+};
+
+export type ImportProjectFailureCode =
+  | "empty_input"
+  | "invalid_json"
+  | "invalid_shape"
+  | "integrity_mismatch";
+
+export type ImportProjectResult =
+  | {
+      ok: true;
+      project: Project;
+      source: "direct" | "envelope";
+      exportedAt?: string;
+      warnings: string[];
+    }
+  | {
+      ok: false;
+      code: ImportProjectFailureCode;
+      reason: string;
+      details?: string[];
+    };
+
+function stableHashFNV1a(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function parseEnvelope(raw: unknown): ParsedEnvelope {
+  if (!raw || typeof raw !== "object") return { source: "direct", payload: raw, warnings: [] };
+  const asRecord = raw as Record<string, unknown>;
+  if (asRecord.format !== "grainline-project-export-v1") return { source: "direct", payload: raw, warnings: [] };
+
+  const payload = asRecord.project;
+  const warnings: string[] = [];
+  const exportedAt = typeof asRecord.exportedAt === "string" ? asRecord.exportedAt : undefined;
+  const integrity = asRecord.integrity;
+  if (integrity && typeof integrity === "object") {
+    const i = integrity as Record<string, unknown>;
+    const algorithm = i.algorithm;
+    const checksum = i.checksum;
+    if (algorithm === "fnv1a-32" && typeof checksum === "string") {
+      const expected = stableHashFNV1a(JSON.stringify(payload));
+      if (expected !== checksum) {
+        throw new Error("integrity_mismatch");
+      }
+    } else {
+      warnings.push("Unrecognized integrity block; checksum verification skipped.");
+    }
+  }
+  return { source: "envelope", payload, exportedAt, warnings };
+}
+
+function collectProjectShapeIssues(v: unknown): string[] {
+  if (!v || typeof v !== "object") return ["Root value must be an object."];
+  const o = v as Record<string, unknown>;
+  const issues: string[] = [];
+  if (o.version !== 1) issues.push("`version` must equal 1.");
+  if (!Array.isArray(o.parts)) issues.push("`parts` must be an array.");
+  if (typeof o.name !== "string") issues.push("`name` must be a string.");
+  if (typeof o.millingAllowanceInches !== "number") issues.push("`millingAllowanceInches` must be a number.");
+  if (typeof o.maxTransportLengthInches !== "number") issues.push("`maxTransportLengthInches` must be a number.");
+  if (typeof o.wasteFactorPercent !== "number") issues.push("`wasteFactorPercent` must be a number.");
+  return issues;
+}
+
+export function importProjectFromJson(json: string): ImportProjectResult {
+  const normalized = normalizeProjectJsonInput(json);
+  if (!normalized) return { ok: false, code: "empty_input", reason: "Import file was empty." };
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(normalized) as unknown;
+  } catch {
+    return { ok: false, code: "invalid_json", reason: "Invalid JSON. Check for a truncated or malformed export file." };
+  }
+
+  let parsedEnvelope: ParsedEnvelope;
+  try {
+    parsedEnvelope = parseEnvelope(decoded);
+  } catch {
+    return {
+      ok: false,
+      code: "integrity_mismatch",
+      reason: "Import integrity check failed. The export payload appears to have been modified or corrupted.",
+    };
+  }
+  const shapeIssues = collectProjectShapeIssues(parsedEnvelope.payload);
+  if (shapeIssues.length > 0) {
+    return {
+      ok: false,
+      code: "invalid_shape",
+      reason: "JSON parsed, but the project schema is incomplete or invalid.",
+      details: shapeIssues,
+    };
+  }
+  const parsed = parseProject(JSON.stringify(parsedEnvelope.payload));
+  if (!parsed) {
+    return {
+      ok: false,
+      code: "invalid_shape",
+      reason: "Could not parse a valid Grainline project JSON file.",
+    };
+  }
+  return {
+    ok: true,
+    project: parsed,
+    source: parsedEnvelope.source,
+    exportedAt: parsedEnvelope.exportedAt,
+    warnings: parsedEnvelope.warnings,
+  };
+}
+
+function parseCutProgress(raw: unknown): Record<string, CutProgressValue> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, CutProgressValue> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof k !== "string" || k.length === 0) continue;
+    if (v === "cut") out[k] = "cut";
+  }
+  return out;
+}
+
 export function parseProject(json: string): Project | null {
   try {
-    const v = JSON.parse(normalizeProjectJsonInput(json)) as unknown;
+    const normalized = normalizeProjectJsonInput(json);
+    if (!normalized) return null;
+    const v = JSON.parse(normalized) as unknown;
     if (!v || typeof v !== "object") return null;
     const o = v as Partial<Project>;
     if (o.version !== 1 || !Array.isArray(o.parts)) return null;
@@ -296,6 +441,8 @@ export function parseProject(json: string): Project | null {
         ? o.maxPurchasableBoardWidthInches
         : 20;
     const stockWidthByMaterialGroup = parseStockWidthByMaterialGroup(o.stockWidthByMaterialGroup);
+    const cutProgressByRoughInstanceId = parseCutProgress(o.cutProgressByRoughInstanceId);
+    const geometry = isCaseOutlineV0(o.geometry) ? o.geometry : undefined;
     return {
       ...(o as Project),
       id,
@@ -306,6 +453,8 @@ export function parseProject(json: string): Project | null {
       workshop,
       maxPurchasableBoardWidthInches,
       stockWidthByMaterialGroup,
+      cutProgressByRoughInstanceId,
+      geometry,
     };
   } catch {
     return null;

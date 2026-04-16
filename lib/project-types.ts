@@ -3,6 +3,8 @@
  * Dimensions are decimal inches: T = thickness, W = width, L = length of the part as cut.
  */
 
+import type { CaseOutlineV0 } from "@/lib/geometry/types";
+
 export const ASSEMBLY_IDS = ["Case", "Drawers", "Base", "Back", "Doors", "Other"] as const;
 export type AssemblyId = (typeof ASSEMBLY_IDS)[number];
 
@@ -113,6 +115,9 @@ export type WorkshopPreferences = {
   offcutMode: OffcutModeId;
 };
 
+/** Progress for one rough stick instance (`partId:instanceIndex`). */
+export type CutProgressValue = "cut";
+
 export type Project = {
   id: string;
   version: 1;
@@ -147,6 +152,16 @@ export type Project = {
    * Falls back to `maxPurchasableBoardWidthInches` when a key is absent.
    */
   stockWidthByMaterialGroup?: Record<string, number>;
+  /**
+   * Which rough-length instances are already cut (keys from `makeRoughInstanceId`).
+   * Omitted keys mean not cut; only `"cut"` is stored today.
+   */
+  cutProgressByRoughInstanceId?: Record<string, CutProgressValue>;
+  /**
+   * Optional cached case outline (CAD-lite v0). Today the app may derive previews from parts instead;
+   * field reserved for future persistence / round-trip.
+   */
+  geometry?: CaseOutlineV0 | null;
 };
 
 export type ProjectTemplate = {

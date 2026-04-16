@@ -9,18 +9,28 @@ import {
   totalBoardFeet,
   totalLinearFeet,
 } from "@/lib/board-feet";
-import { formatImperial } from "@/lib/imperial";
+import { formatShopImperial } from "@/lib/imperial";
 import type { Dimension3, Project } from "@/lib/project-types";
+import { shopGuideRows } from "@/lib/shop-labels";
 import {
   STORAGE_KEY,
   createEmptyProject,
   parseProject,
 } from "@/lib/project-utils";
+import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
+import { isMainPathJoineryEnabled } from "@/lib/main-path-joinery-flag";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
-import { evaluatePurchaseScenario } from "@/lib/purchase-scenarios";
+import { evaluateAllPurchaseScenarios } from "@/lib/purchase-scenarios";
+import {
+  canExportOrPrintProject,
+  getBlockingValidationIssues,
+  validateProject,
+} from "@/lib/validation";
+import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
+import { summarizeDrawerHardwareFromParts } from "@/lib/shop-hardware-summary";
 
 function formatTxWxL(d: Dimension3): string {
-  return `${formatImperial(d.t)} × ${formatImperial(d.w)} × ${formatImperial(d.l)}`;
+  return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
 }
 
 export function ShopPrintView() {
@@ -47,20 +57,33 @@ export function ShopPrintView() {
   const adjustedBf = useMemo(() => totalAdjustedBoardFeet(groups), [groups]);
   const subtotalLf = useMemo(() => totalLinearFeet(groups), [groups]);
   const adjustedLf = useMemo(() => totalAdjustedLinearFeet(groups), [groups]);
+  const validationIssues = useMemo(() => (project ? validateProject(project) : []), [project]);
+  const jointsForCutList = useMemo(() => (project ? jointsEffectiveForCutList(project) : []), [project]);
   const canPrint = Boolean(
-    project?.checkpoints.materialAssumptionsReviewed && project?.checkpoints.joineryReviewed
+    project && canExportOrPrintProject(cutListExportCheckpointsReady(project), validationIssues)
+  );
+  const blockingIssues = useMemo(() => getBlockingValidationIssues(validationIssues), [validationIssues]);
+
+  const shopGuideTableRows = useMemo(() => (project ? shopGuideRows(project.parts) : []), [project]);
+
+  const drawerHardware = useMemo(
+    () => (project ? summarizeDrawerHardwareFromParts(project.parts) : null),
+    [project]
   );
 
   const purchasePreview = useMemo(() => {
     if (!project) return null;
-    return evaluatePurchaseScenario("fitTransport", {
+    return (
+      evaluateAllPurchaseScenarios({
       parts: project.parts,
       wasteFactorPercent: project.wasteFactorPercent,
       maxTransportLengthInches: project.maxTransportLengthInches,
       maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
       stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+      costRatesByGroup: project.costRatesByGroup,
       kerfInches: 0.125,
-    });
+      }).find((plan) => plan.scenario === "fitTransport") ?? null
+    );
   }, [project]);
 
   if (!project) {
@@ -83,23 +106,54 @@ export function ShopPrintView() {
               Back to planner
             </Link>
           </p>
-          <section className="rounded-xl border border-[var(--gl-ink)]/20 bg-white/80 p-5">
-            <h1 className="font-display text-2xl text-[var(--gl-ink)]">Print locked pending review checkpoints</h1>
+          <section
+            id="print-lock-section"
+            className="rounded-xl border border-[var(--gl-border)] bg-white/80 p-5"
+            aria-labelledby="print-lock-title"
+          >
+            <h1 id="print-lock-title" className="font-display text-2xl text-[var(--gl-ink)]">
+              Print locked
+            </h1>
             <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
-              Go to the Review step and acknowledge both checkpoints before printing/exporting.
+              Open the <strong>Materials</strong> tab, acknowledge <strong>Material assumptions</strong> at the top,
+              and resolve any blocking validation issues before printing or exporting.
             </p>
-            <ul className="mt-4 space-y-2 text-sm">
+            <p className="mt-3 text-sm">
+              Lock summary: Blocking issues {blockingIssues.length}. Material assumptions{" "}
+              {project.checkpoints.materialAssumptionsReviewed ? "acknowledged" : "not acknowledged"}.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm" aria-label="Print lock checkpoint status">
               <li>
                 Material assumptions:{" "}
                 <strong>
                   {project.checkpoints.materialAssumptionsReviewed ? "Acknowledged" : "Not acknowledged"}
                 </strong>
               </li>
-              <li>
-                Joinery review:{" "}
-                <strong>{project.checkpoints.joineryReviewed ? "Acknowledged" : "Not acknowledged"}</strong>
-              </li>
             </ul>
+            {blockingIssues.length > 0 ? (
+              <>
+                <p className="mt-4 text-sm font-medium text-[var(--gl-ink)]">Blocking validation reasons</p>
+                <ul
+                  className="mt-2 list-disc space-y-1 pl-5 text-sm"
+                  aria-label={`Blocking validation reasons: ${blockingIssues.length}`}
+                >
+                  {blockingIssues.map((issue) => (
+                    <li key={issue.id}>
+                      <span className="block">{issue.message}</span>
+                      <span className="mt-0.5 block text-sm text-[var(--gl-ink)]/70">
+                        {validationIssueWhereHint(issue)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            <p className="mt-4 text-sm">
+              <Link href="/" className="underline underline-offset-2">
+                Back to planner
+              </Link>{" "}
+              — then switch to <strong>Materials</strong> to fix blockers and check material assumptions.
+            </p>
           </section>
         </div>
       </div>
@@ -118,16 +172,16 @@ export function ShopPrintView() {
           </Link>
         </p>
 
-        <header className="shop-print-section shop-print-avoid-break border-b border-[var(--gl-ink)]/20 pb-4">
+        <header className="shop-print-section shop-print-avoid-break border-b border-[var(--gl-border)] pb-4">
           <h1 className="font-display text-2xl tracking-tight text-[var(--gl-ink)]">{project.name}</h1>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex gap-2">
               <dt className="shop-print-muted">Milling allowance</dt>
-              <dd className="font-medium">{formatImperial(project.millingAllowanceInches)} per axis</dd>
+              <dd className="font-medium">{formatShopImperial(project.millingAllowanceInches)} per axis</dd>
             </div>
             <div className="flex gap-2">
               <dt className="shop-print-muted">Max transport</dt>
-              <dd className="font-medium">{formatImperial(project.maxTransportLengthInches)}</dd>
+              <dd className="font-medium">{formatShopImperial(project.maxTransportLengthInches)}</dd>
             </div>
             <div className="flex gap-2">
               <dt className="shop-print-muted">Waste factor</dt>
@@ -135,7 +189,7 @@ export function ShopPrintView() {
             </div>
             <div className="flex gap-2">
               <dt className="shop-print-muted">Max purchasable board width</dt>
-              <dd className="font-medium">{formatImperial(project.maxPurchasableBoardWidthInches)}</dd>
+              <dd className="font-medium">{formatShopImperial(project.maxPurchasableBoardWidthInches)}</dd>
             </div>
           </dl>
         </header>
@@ -145,8 +199,11 @@ export function ShopPrintView() {
             Finished parts
           </h2>
           <p className="mb-2 text-xs shop-print-muted">
-            Assumptions column calls out joinery sizing provenance and panel glue-up checks (max single-board panel
-            width: {formatImperial(project.maxPurchasableBoardWidthInches)}).
+            Assumptions column reflects the same cut-list scope as the app (panel glue-up checks
+            {isMainPathJoineryEnabled()
+              ? "; joinery audit rows are included because NEXT_PUBLIC_GL_MAIN_PATH_JOINERY is enabled."
+              : "; joinery history from Labs is omitted unless NEXT_PUBLIC_GL_MAIN_PATH_JOINERY is set)."}
+            Max single-board panel width: {formatShopImperial(project.maxPurchasableBoardWidthInches)}.
           </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
@@ -165,9 +222,9 @@ export function ShopPrintView() {
                 </thead>
                 <tbody>
                   {project.parts.map((p) => {
-                    const derived = derivePartAssumptionsDetailed(p, project.joints, project);
+                    const derived = derivePartAssumptionsDetailed(p, jointsForCutList, project);
                     return (
-                      <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-ink)]/15">
+                      <tr key={p.id} className="shop-print-avoid-break border-b border-[var(--gl-border)]">
                         <td className="py-2 pr-3 align-top">{p.name}</td>
                         <td className="py-2 pr-3 align-top">{p.assembly}</td>
                         <td className="py-2 pr-3 align-top tabular-nums">{p.quantity}</td>
@@ -189,6 +246,73 @@ export function ShopPrintView() {
           )}
         </section>
 
+        {drawerHardware && drawerHardware.drawerBoxPartCount > 0 ? (
+          <section className="shop-print-section mt-8">
+            <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+              Hardware checklist (v0)
+            </h2>
+            <p className="mb-2 text-xs shop-print-muted">
+              Derived from cut-list rows named like dresser drawer boxes—confirm every quantity against your
+              manufacturer&apos;s install docs (slides, bumpers, pulls).
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--gl-ink)]/90">
+              <li>
+                Drawer box rows: <strong>{drawerHardware.drawerBoxLineCount}</strong> part line(s),{" "}
+                <strong>{drawerHardware.drawerBoxPartCount}</strong> total box qty (sum of quantities).
+              </li>
+              <li>Slides / pairs: verify against drawer depth and opening height from Plan—not modeled as SKUs here.</li>
+              <li>Pulls, screws, catches: add your own field notes or hardware bag list before the build.</li>
+            </ul>
+          </section>
+        ) : null}
+
+        <section className="shop-print-section mt-8">
+          <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+            Shop labels &amp; assembly guide
+          </h2>
+          <p className="mb-3 text-xs shop-print-muted">
+            Write each <strong className="text-[var(--gl-ink)]">GL-</strong> code on the matching rough stick. Pack
+            order on the cut-layout strips is for stick efficiency and may differ from assembly order—check your case
+            drawings.
+          </p>
+          {shopGuideTableRows.length === 0 ? (
+            <p className="text-sm shop-print-muted">No rough instances to label (add parts with rough L and qty).</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="shop-print-table w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--gl-ink)]/30">
+                    <th className="py-2 pr-3 font-semibold">Label</th>
+                    <th className="py-2 pr-3 font-semibold">Assembly</th>
+                    <th className="py-2 pr-3 font-semibold">Part</th>
+                    <th className="py-2 pr-3 font-semibold">Rough L</th>
+                    <th className="py-2 pr-3 font-semibold">Finished T×W×L</th>
+                    <th className="py-2 font-semibold">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shopGuideTableRows.map((row) => (
+                    <tr key={row.roughInstanceId} className="shop-print-avoid-break border-b border-[var(--gl-border)]">
+                      <td className="py-2 pr-3 align-top font-mono text-xs font-semibold tabular-nums">
+                        {row.shopLabel}
+                      </td>
+                      <td className="py-2 pr-3 align-top">{row.assembly}</td>
+                      <td className="py-2 pr-3 align-top">{row.partName}</td>
+                      <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">
+                        {formatShopImperial(row.roughLInches)}
+                      </td>
+                      <td className="py-2 pr-3 align-top font-mono text-xs tabular-nums">
+                        {formatTxWxL(row.finished)}
+                      </td>
+                      <td className="py-2 align-top text-xs shop-print-muted">{row.grainNote || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         <section className="shop-print-section mt-10">
           <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
             Buy list summary
@@ -199,14 +323,14 @@ export function ShopPrintView() {
               Thickness category
             </strong>{" "}
             is nominal yard language—pricing often still uses nominal thickness after surfacing. Waste ({project.wasteFactorPercent}%)
-            applies to those rough subtotals; transport cap {formatImperial(project.maxTransportLengthInches)} is for
+            applies to those rough subtotals; transport cap {formatShopImperial(project.maxTransportLengthInches)} is for
             planning only. Board-count estimation uses width-lane expansion with max purchasable width{" "}
-            {formatImperial(project.maxPurchasableBoardWidthInches)} (solids on rough width; panels via glue-up strip
+            {formatShopImperial(project.maxPurchasableBoardWidthInches)} (solids on rough width; panels via glue-up strip
             expansion) plus constrained length packing. Verify surfaced vs rough and actual stock widths/lengths before
             procurement.
           </p>
           {purchasePreview ? (
-            <div className="mb-4 rounded-lg border border-[var(--gl-ink)]/25 bg-white/70 p-3 text-xs shop-print-muted">
+            <div className="mb-4 rounded-lg border border-[var(--gl-border)] bg-white/70 p-3 text-xs shop-print-muted">
               <p className="font-semibold text-[var(--gl-ink)]">2D board estimate (engineering model)</p>
               <p className="mt-1 text-[var(--gl-ink)]/90">{purchasePreview.twoDimensional.headline}</p>
               <p className="mt-1">{purchasePreview.twoDimensional.detail}</p>
@@ -237,21 +361,59 @@ export function ShopPrintView() {
                 </span>
               </p>
               <ul className="space-y-4">
-                {groups.map((g) => (
-                  <li
-                    key={g.key}
-                    className="shop-print-avoid-break rounded-lg border border-[var(--gl-ink)]/20 bg-white/60 p-4 text-sm"
-                  >
+                {groups.map((g) => {
+                  const twoDGroup = purchasePreview?.twoDimensional.groups.find((row) => row.key === g.key);
+                  const costGroup = purchasePreview?.groupCosts.find((row) => row.key === g.key);
+                  return (
+                    <li
+                      key={g.key}
+                      className="shop-print-avoid-break rounded-lg border border-[var(--gl-border)] bg-white/60 p-4 text-sm"
+                    >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-semibold text-[var(--gl-ink)]">{g.materialLabel}</span>
                       <span className="text-xs shop-print-muted">{g.thicknessCategory}</span>
                     </div>
-                    <p className="mt-1 text-xs shop-print-muted">
-                      Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from
-                      rough sizes/qty. Yard estimate with waste:{" "}
-                      <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong> BF and{" "}
-                      <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
-                    </p>
+                    <div className="mt-2 rounded border border-[var(--gl-border)] bg-white/70 p-2 text-xs shop-print-muted">
+                      <p className="font-semibold text-[var(--gl-ink)]">2D estimate first</p>
+                      <p className="mt-0.5 text-[var(--gl-ink)]/90">
+                        ~{twoDGroup?.estimatedBoards2d ?? 0} board(s) by width + length packing
+                      </p>
+                      <p className="mt-0.5">{twoDGroup?.detail}</p>
+                    </div>
+                    <div className="mt-2 rounded border border-[var(--gl-border)] bg-white/70 p-2 text-xs shop-print-muted">
+                      <p className="font-semibold text-[var(--gl-ink)]">Assumptions</p>
+                      <p className="mt-0.5">
+                        Stock width assumed:{" "}
+                        {formatShopImperial(
+                          twoDGroup?.stockWidthAssumedInches ?? project.maxPurchasableBoardWidthInches
+                        )}
+                      </p>
+                      {purchasePreview?.twoDimensional.assumptions.slice(0, 2).map((assumption) => (
+                        <p key={assumption} className="mt-0.5">
+                          {assumption}
+                        </p>
+                      ))}
+                      {(twoDGroup?.flags ?? []).map((flag) => (
+                        <p key={flag} className="mt-0.5 text-[var(--gl-ink)]/90">
+                          {flag}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="mt-2 rounded border border-[var(--gl-border)] bg-white/70 p-2 text-xs shop-print-muted">
+                      <p className="font-semibold text-[var(--gl-ink)]">BF / LF / cost diagnostics</p>
+                      <p className="mt-0.5">
+                        Exact subtotal: {g.subtotalBoardFeet.toFixed(2)} BF and {g.subtotalLinearFeet.toFixed(2)} LF from rough
+                        sizes/qty.
+                      </p>
+                      <p className="mt-0.5">
+                        Yard estimate with waste: <strong className="text-[var(--gl-ink)]">{g.adjustedBoardFeet.toFixed(2)}</strong>{" "}
+                        BF and <strong className="text-[var(--gl-ink)]">{g.adjustedLinearFeet.toFixed(2)}</strong> LF.
+                      </p>
+                      <p className="mt-0.5">
+                        Estimated group cost:{" "}
+                        <strong className="text-[var(--gl-ink)]">${(costGroup?.totalCost ?? 0).toFixed(2)}</strong>
+                      </p>
+                    </div>
                     <ul className="mt-2 space-y-0.5 text-xs shop-print-muted">
                       {g.lines.map((ln) => (
                         <li key={ln.partId}>
@@ -260,8 +422,9 @@ export function ShopPrintView() {
                         </li>
                       ))}
                     </ul>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}

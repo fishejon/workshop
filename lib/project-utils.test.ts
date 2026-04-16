@@ -4,6 +4,7 @@ import {
   cloneProject,
   createEmptyProject,
   duplicateAssemblyGroup,
+  importProjectFromJson,
   normalizeProjectJsonInput,
   parseProject,
   parseProjectLibrary,
@@ -72,6 +73,20 @@ describe("parseProject", () => {
     const p = parseProject(JSON.stringify(withRates));
     expect(p?.costRatesByGroup["White oak||4/4"]?.perBoardFoot).toBe(14.5);
     expect(p?.costRatesByGroup["White oak||4/4"]?.perLinearFoot).toBe(0.25);
+  });
+
+  it("parses and sanitizes cutProgressByRoughInstanceId", () => {
+    const base = createEmptyProject();
+    const raw = {
+      ...base,
+      cutProgressByRoughInstanceId: {
+        "part-a:1": "cut",
+        bad: "nope",
+        "part-b:2": 99 as unknown as string,
+      },
+    };
+    const p = parseProject(JSON.stringify(raw));
+    expect(p?.cutProgressByRoughInstanceId).toEqual({ "part-a:1": "cut" });
   });
 
   it("assigns a project id for legacy projects missing id", () => {
@@ -162,6 +177,18 @@ describe("project clone/template/assembly duplication", () => {
     expect(cloned.parts).toHaveLength(source.parts.length);
     expect(cloned.parts.some((part) => part.id === "p1")).toBe(false);
     expect(cloned.connections[0]?.jointId).toBe(cloned.joints[0]?.id);
+  });
+
+  it("remaps cut progress when cloning", () => {
+    const source = makeProject();
+    const withProgress: Project = {
+      ...source,
+      cutProgressByRoughInstanceId: { "p1:1": "cut" },
+    };
+    const cloned = cloneProject(withProgress, "Clone");
+    const newSide = cloned.parts.find((part) => part.name === "Side");
+    expect(newSide).toBeDefined();
+    expect(cloned.cutProgressByRoughInstanceId?.[`${newSide!.id}:1`]).toBe("cut");
   });
 
   it("applies template to produce a fresh project graph", () => {
@@ -316,5 +343,67 @@ describe("parseProject BOM handling", () => {
     const out = parseProject(withBom);
     expect(out).not.toBeNull();
     expect(out?.name).toBe(p.name);
+  });
+});
+
+describe("importProjectFromJson", () => {
+  it("returns invalid_json for malformed JSON", () => {
+    const out = importProjectFromJson("{");
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("invalid_json");
+  });
+
+  it("returns shape details for partial schema input", () => {
+    const out = importProjectFromJson(JSON.stringify({ version: 1, name: "Partial", parts: [] }));
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("invalid_shape");
+    expect((out.details ?? []).length).toBeGreaterThan(0);
+  });
+
+  it("accepts legacy plain project JSON for backward compatibility", () => {
+    const project = createEmptyProject();
+    const out = importProjectFromJson(JSON.stringify(project));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.source).toBe("direct");
+    expect(out.project.id).toBe(project.id);
+  });
+
+  it("accepts enveloped export with matching checksum", () => {
+    const project = createEmptyProject();
+    const payload = JSON.stringify(project);
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < payload.length; i += 1) {
+      hash ^= payload.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    const checksum = (hash >>> 0).toString(16).padStart(8, "0");
+    const envelope = {
+      format: "grainline-project-export-v1",
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      integrity: { algorithm: "fnv1a-32", checksum },
+      project,
+    };
+    const out = importProjectFromJson(JSON.stringify(envelope));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.source).toBe("envelope");
+    expect(out.exportedAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("fails safely when envelope checksum does not match", () => {
+    const project = createEmptyProject();
+    const out = importProjectFromJson(
+      JSON.stringify({
+        format: "grainline-project-export-v1",
+        integrity: { algorithm: "fnv1a-32", checksum: "deadbeef" },
+        project,
+      })
+    );
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.code).toBe("integrity_mismatch");
   });
 });

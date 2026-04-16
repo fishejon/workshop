@@ -1,9 +1,11 @@
 "use client";
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- manual memo deps are intentional; React Compiler rule misfires here */
-import { useMemo, useState } from "react";
-import { formatImperial, parseInches } from "@/lib/imperial";
+import { useCallback, useMemo, useState } from "react";
+import { PackedStickCutBoardList } from "@/components/PackedStickCutStrip";
+import { formatShopImperial, parseInches } from "@/lib/imperial";
 import { packUniformStock, totalWaste, type CutPiece } from "@/lib/optimize-cuts";
+import { buildPlannerGroupedShopLabels } from "@/lib/shop-labels";
 
 type PartRow = { id: string; label: string; length: string; qty: string };
 
@@ -21,6 +23,7 @@ export function CutPlanner() {
     { id: nextId(), label: "Stretcher", length: "24", qty: "4" },
   ]);
   const [submitted, setSubmitted] = useState(false);
+  const [plannerCutProgress, setPlannerCutProgress] = useState<Record<string, "cut">>({});
 
   const parsed = useMemo(() => {
     const kerfN = parseInches(kerf);
@@ -34,7 +37,7 @@ export function CutPlanner() {
     if (stockN > carryN + 1e-6) {
       return {
         ok: false as const,
-        reason: `Stock board (${formatImperial(stockN)}) is longer than max carry (${formatImperial(carryN)}).`,
+        reason: `Stock board (${formatShopImperial(stockN)}) is longer than max carry (${formatShopImperial(carryN)}).`,
       };
     }
 
@@ -53,6 +56,7 @@ export function CutPlanner() {
           pieces.push({
             lengthInches: len,
             label: row.label.trim() || undefined,
+            roughInstanceId: `${row.id}:${i + 1}`,
           });
         }
       }
@@ -62,6 +66,30 @@ export function CutPlanner() {
     }
     return { ok: true as const, kerfN, stockN, carryN, pieces };
   }, [kerf, stockLength, maxCarry, parts]);
+
+  const plannerLabelMap = useMemo(() => {
+    const rows: { rowId: string; qty: number }[] = [];
+    for (const row of parts) {
+      const len = parseInches(row.length);
+      const q = Number.parseInt(row.qty, 10);
+      if (len !== null && len > 0 && Number.isFinite(q) && q >= 1) {
+        rows.push({ rowId: row.id, qty: q });
+      }
+    }
+    return buildPlannerGroupedShopLabels(rows);
+  }, [parts]);
+
+  const togglePlannerCut = useCallback((roughInstanceId: string) => {
+    setPlannerCutProgress((prev) => {
+      const next = { ...prev };
+      if (next[roughInstanceId] === "cut") {
+        delete next[roughInstanceId];
+      } else {
+        next[roughInstanceId] = "cut";
+      }
+      return next;
+    });
+  }, []);
 
   const result = useMemo(() => {
     if (!parsed.ok) return null;
@@ -101,7 +129,7 @@ export function CutPlanner() {
         </p>
       </header>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+      <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6">
         <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Shop setup</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">
@@ -127,12 +155,12 @@ export function CutPlanner() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+      <section className="rounded-2xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Parts</h3>
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-[var(--gl-cream)] transition hover:bg-white/15"
+            className="inline-flex items-center justify-center rounded-xl border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm font-medium text-[var(--gl-cream)] transition hover:bg-[var(--gl-surface-muted)]"
             onClick={() => setParts((rows) => [...rows, { id: nextId(), label: "", length: "", qty: "1" }])}
           >
             Add part
@@ -178,7 +206,7 @@ export function CutPlanner() {
               />
               <button
                 type="button"
-                className="rounded-lg p-2 text-sm text-white/35 transition hover:bg-white/10 hover:text-[var(--gl-cream)]"
+                className="rounded-lg p-2 text-sm text-[var(--gl-muted)] transition hover:bg-[var(--gl-surface-muted)] hover:text-[var(--gl-cream)]"
                 aria-label="Remove part"
                 onClick={() => setParts((rows) => rows.filter((r) => r.id !== row.id))}
               >
@@ -191,7 +219,7 @@ export function CutPlanner() {
         <div className="mt-6">
           <button
             type="button"
-            className="rounded-xl bg-[var(--gl-copper)] px-5 py-3 text-sm font-semibold text-[var(--gl-bg)] shadow-lg shadow-black/30 transition hover:bg-[var(--gl-copper-bright)]"
+            className="rounded-xl bg-[var(--gl-copper)] px-5 py-3 text-sm font-semibold text-[var(--gl-on-accent)] shadow-md shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition hover:bg-[var(--gl-copper-bright)]"
             onClick={runPlan}
           >
             Layout cuts
@@ -200,13 +228,19 @@ export function CutPlanner() {
       </section>
 
       {showError ? (
-        <p className="rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-200" role="alert">
+        <p
+          className="rounded-xl border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] px-4 py-3 text-sm text-[var(--gl-danger)]"
+          role="alert"
+        >
           {showError}
         </p>
       ) : null}
 
       {parsed.ok && result && "error" in result ? (
-        <p className="rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-3 text-sm text-red-200" role="alert">
+        <p
+          className="rounded-xl border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] px-4 py-3 text-sm text-[var(--gl-danger)]"
+          role="alert"
+        >
           {result.error}
         </p>
       ) : null}
@@ -214,61 +248,32 @@ export function CutPlanner() {
       {showResult && result && "boards" in result ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Cut layout</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--gl-cream)]">Cut layout</h3>
+              <p className="mt-1 max-w-xl text-xs text-[var(--gl-muted)]">
+                Tap segments to track what is cut. Labels are for this session only—they are not saved with the
+                project until you use parts on the Plan tab.
+              </p>
+            </div>
             <p className="text-sm text-[var(--gl-muted)]">
               {result.boards.length} board{result.boards.length === 1 ? "" : "s"} ×{" "}
-              {formatImperial(parsed.stockN)} — combined waste ≈ {formatImperial(result.waste)} (after kerf)
+              {formatShopImperial(parsed.stockN)} — combined waste ≈ {formatShopImperial(result.waste)} (after kerf)
             </p>
           </div>
 
-          <ul className="space-y-5">
-            {result.boards.map((board) => (
-              <li
-                key={board.index}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--gl-muted)]">
-                  <span className="font-medium text-[var(--gl-cream)]">Board {board.index}</span>
-                  <span>
-                    Waste ~ <span className="text-[var(--gl-cream)]">{formatImperial(board.wasteInches)}</span>
-                  </span>
-                </div>
-
-                <div className="mt-4 flex h-14 w-full overflow-hidden rounded-lg bg-black/40 ring-1 ring-white/10">
-                  {board.cuts.map((cut, i) => {
-                    const pct = Math.max(4, (cut.lengthInches / board.stockLengthInches) * 100);
-                    return (
-                      <div
-                        key={`${board.index}-${i}-${cut.lengthInches}`}
-                        className="flex min-w-[2.5rem] flex-col justify-center border-r border-[var(--gl-copper)]/20 bg-gradient-to-b from-[var(--gl-copper)]/35 to-[var(--gl-copper)]/15 px-1 text-center last:border-r-0"
-                        style={{ width: `${pct}%` }}
-                        title={cut.label ?? formatImperial(cut.lengthInches)}
-                      >
-                        <span className="text-[10px] font-medium leading-tight text-[var(--gl-cream)] sm:text-xs">
-                          {formatImperial(cut.lengthInches)}
-                        </span>
-                        {cut.label ? (
-                          <span className="hidden truncate text-[9px] text-[var(--gl-muted)] sm:block">{cut.label}</span>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-                <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--gl-muted)]">
-                  {board.cuts.map((cut, i) => (
-                    <li key={`${board.index}-list-${i}`}>
-                      {i + 1}. {formatImperial(cut.lengthInches)}
-                      {cut.label ? ` — ${cut.label}` : ""}
-                    </li>
-                  ))}
-                </ol>
-              </li>
-            ))}
-          </ul>
+          <PackedStickCutBoardList
+            boards={result.boards}
+            skin="planner"
+            listClassName="space-y-5"
+            shopLabelByRoughInstanceId={plannerLabelMap}
+            showPartLabel={false}
+            cutProgressByRoughInstanceId={plannerCutProgress}
+            onToggleCut={togglePlannerCut}
+          />
         </section>
       ) : null}
 
-      <footer className="border-t border-white/10 pt-8 text-xs leading-relaxed text-[var(--gl-muted)]">
+      <footer className="border-t border-[var(--gl-border)] pt-8 text-xs leading-relaxed text-[var(--gl-muted)]">
         <p>
           Sheet-good nesting and joinery allowances are still manual. Export from dresser cells into parts here when
           you want a stick layout.

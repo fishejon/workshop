@@ -1,9 +1,13 @@
 /**
  * Imperial helpers: internal math uses decimal inches;
  * display rounds to the nearest 1/4" by default (hobby-friendly).
+ * Shop-facing strings use `formatShopImperial` (nearest 1/16″).
  */
 
 const DEFAULT_DENOM = 4;
+
+/** Denominator for user-visible shop dimensions (parts, print, buy list, joinery summaries). */
+export const SHOP_FRACTION_DENOMINATOR = 16;
 
 export function roundToFraction(inches: number, denominator: number = DEFAULT_DENOM): number {
   const step = 1 / denominator;
@@ -55,6 +59,30 @@ export function formatImperial(inches: number, denominator: number = DEFAULT_DEN
 /** Input-friendly imperial string without the trailing quote mark. */
 export function formatImperialInput(inches: number, denominator: number = DEFAULT_DENOM): string {
   return formatImperial(inches, denominator).replace(/"$/, "");
+}
+
+export function formatShopImperial(inches: number): string {
+  return formatImperial(inches, SHOP_FRACTION_DENOMINATOR);
+}
+
+export function formatShopImperialInput(inches: number): string {
+  return formatImperialInput(inches, SHOP_FRACTION_DENOMINATOR);
+}
+
+/**
+ * Total lineal demand in feet, shown as whole feet plus remainder in nearest 1/16″ (no board-foot volume).
+ */
+export function formatLinearFeetShop(linearFeet: number): string {
+  if (!Number.isFinite(linearFeet) || linearFeet <= 0) {
+    return "0 lineal ft";
+  }
+  const totalInches = linearFeet * 12;
+  const wholeFeet = Math.floor(totalInches / 12 + 1e-9);
+  const remainderInches = totalInches - wholeFeet * 12;
+  if (remainderInches < 1e-6) {
+    return `${wholeFeet} lineal ft`;
+  }
+  return `${wholeFeet} ft ${formatShopImperial(remainderInches)} lineal`;
 }
 
 export function parseInches(input: string): number | null {

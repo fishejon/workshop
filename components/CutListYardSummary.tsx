@@ -1,0 +1,148 @@
+"use client";
+
+import { useMemo } from "react";
+import { PackedStickCutBoardList } from "@/components/PackedStickCutStrip";
+import { useProject } from "@/components/ProjectContext";
+import { groupPartsByMaterial } from "@/lib/board-feet";
+import { formatLinearFeetShop, formatShopImperial } from "@/lib/imperial";
+import { buildLumberVehicleRows, type LumberVehicleRow } from "@/lib/lumber-vehicle-summary";
+import { buildRoughInstanceLabelMap } from "@/lib/shop-labels";
+
+function boardsToBuyForRow(row: LumberVehicleRow): { display: string; title?: string } {
+  if (row.totalLinealInches <= 0) {
+    return { display: "0" };
+  }
+  if (row.packError) {
+    return { display: "—", title: row.packError };
+  }
+  if (row.packedBoards) {
+    return { display: String(row.packedBoards.length) };
+  }
+  return { display: "0" };
+}
+
+/**
+ * Yard shopping strip: nominal lumber line, total lineal, board count, stick length, interactive cut layout.
+ */
+export function CutListYardSummary() {
+  const { project, toggleCutProgress } = useProject();
+
+  const shopLabelByRoughInstanceId = useMemo(
+    () => buildRoughInstanceLabelMap(project.parts),
+    [project.parts]
+  );
+
+  const groups = useMemo(
+    () => groupPartsByMaterial(project.parts, project.wasteFactorPercent),
+    [project.parts, project.wasteFactorPercent]
+  );
+
+  const rows = useMemo(
+    () =>
+      buildLumberVehicleRows(
+        groups,
+        project.parts,
+        project.maxTransportLengthInches,
+        {
+          maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
+          stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+        }
+      ),
+    [
+      groups,
+      project.parts,
+      project.maxTransportLengthInches,
+      project.maxPurchasableBoardWidthInches,
+      project.stockWidthByMaterialGroup,
+    ]
+  );
+
+  const vehicleMaxInches = project.maxTransportLengthInches;
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4 text-sm text-[var(--gl-muted)]">
+        Add parts on the Plan tab to see what dimensional sticks to buy.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
+      <div className="border-b border-[var(--gl-border)] px-4 py-3">
+        <h2 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Yard list</h2>
+        <p className="mt-1 text-xs text-[var(--gl-muted)]">
+          One row per rack call (nominal 1× / 2× from your max board face width and thickness category). Board count
+          packs each part&apos;s <strong className="text-[var(--gl-cream-soft)]">rough length</strong> along the stick
+          at your max haul length of{" "}
+          <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
+          <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same stick.
+        </p>
+      </div>
+      <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
+        <thead className="bg-[var(--gl-surface-inset)] text-xs text-[var(--gl-muted)] uppercase tracking-wide">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Lumber type</th>
+            <th className="px-4 py-2.5 text-right font-medium">Total lineal</th>
+            <th className="px-4 py-2.5 text-right font-medium">Boards</th>
+            <th className="px-4 py-2.5 text-right font-medium">Each board length</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--gl-border)]">
+          {rows.map((row) => {
+            const { display, title } = boardsToBuyForRow(row);
+            return (
+              <tr key={row.key}>
+                <td className="px-4 py-3 font-medium text-[var(--gl-cream-soft)]">{row.yardLumberLabel}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream)]">
+                  {formatLinearFeetShop(row.adjustedLinearFeet)}
+                </td>
+                <td
+                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-[var(--gl-cream)]"
+                  title={title}
+                >
+                  {display}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream-soft)]">
+                  {formatShopImperial(vehicleMaxInches)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="border-t border-[var(--gl-border)] px-4 py-3">
+        <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>
+        <p className="mt-1 text-xs text-[var(--gl-muted)]">
+          How cuts nest on each stick (same lengths as the table). Tap segments to mark rough pieces cut—same marks as
+          the rough stick layout on Plan. Width and thickness are not re-ripped here; optional board-foot math lives under{" "}
+          <strong className="text-[var(--gl-cream-soft)]">Lumber &amp; buy list</strong>.
+        </p>
+      </div>
+      <div className="space-y-4 p-4 pt-0">
+        {rows.map((row) => (
+          <div key={`vis-${row.key}`} className="space-y-2">
+            <p className="text-sm font-medium text-[var(--gl-cream)]">{row.yardLumberLabel}</p>
+            {row.packError ? (
+              <p className="text-xs text-[var(--gl-warning)]">{row.packError}</p>
+            ) : row.packedBoards && row.packedBoards.length > 0 ? (
+              <PackedStickCutBoardList
+                boards={row.packedBoards}
+                skin="yard"
+                boardMeta="stockCuts"
+                listClassName="space-y-2"
+                shopLabelByRoughInstanceId={shopLabelByRoughInstanceId}
+                showPartLabel={false}
+                cutProgressByRoughInstanceId={project.cutProgressByRoughInstanceId}
+                onToggleCut={toggleCutProgress}
+              />
+            ) : (
+              <p className="text-xs text-[var(--gl-muted)]">No rough lengths to pack for this type.</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
