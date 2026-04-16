@@ -16,12 +16,15 @@ import {
   buildDresserCaseworkCarcass,
   computeDresserCaseworkEngine,
 } from "@/lib/archetypes/casework";
+import { buildDresserDrawerBoxParts } from "@/lib/dresser-drawer-parts";
 import {
   budgetForRowOpeningHeights,
   outerHeightFromRowOpenings,
   type DresserColumnCount,
 } from "@/lib/dresser-engine";
 import { balanceRowOpeningHeights } from "@/lib/dresser-row-balance";
+import type { DrawerJoineryPresetId } from "@/lib/joinery/drawer-allowances";
+import { DRAWER_JOINERY_PRESET_META } from "@/lib/joinery/drawer-allowances";
 import type { Part } from "@/lib/project-types";
 import { formatImperial, formatImperialInput, parseInches } from "@/lib/imperial";
 import { useSetDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
@@ -54,7 +57,12 @@ function fmtInches(inches: number): string {
 const DRESSER_PARTS_SYNC_DEBOUNCE_MS = 0;
 
 export function DresserPlanner() {
-  const { project, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
+  const {
+    project,
+    replacePartsInAssemblies,
+    setMaxPurchasableBoardWidthInches,
+    setOmitDresserCaseBackFromHardwoodCutList,
+  } = useProject();
   const { setDresserPartsFlush } = useDresserPlanSync();
 
   const carcassTimerRef = useRef<number | null>(null);
@@ -86,6 +94,8 @@ export function DresserPlanner() {
   const [slideHClr, setSlideHClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.h));
   const [drawerJoineryW, setDrawerJoineryW] = useState("0");
   const [drawerJoineryH, setDrawerJoineryH] = useState("0");
+  /** Drives engine opening→box allowances and cut-list side/back stock thickness. */
+  const [drawerBoxJoineryPreset, setDrawerBoxJoineryPreset] = useState<DrawerJoineryPresetId>("butt");
   /** When true, auto-balance skips this row’s height. */
   const [rowOpeningLocked, setRowOpeningLocked] = useState<boolean[]>(() => []);
 
@@ -326,6 +336,7 @@ export function DresserPlanner() {
       slideHeightClearance: sh,
       drawerJoineryWidthAllowance: jw,
       drawerJoineryHeightAllowance: jh,
+      drawerJoineryPreset: drawerBoxJoineryPreset,
     });
   }, [
     outerW,
@@ -347,6 +358,7 @@ export function DresserPlanner() {
     slideHClr,
     drawerJoineryW,
     drawerJoineryH,
+    drawerBoxJoineryPreset,
   ]);
 
   const previewOpeningHeights = useMemo(() => {
@@ -481,26 +493,24 @@ export function DresserPlanner() {
     }));
   }, [carcassResult]);
 
-  const drawerPartsToAdd = useMemo<Omit<Part, "id">[]>(() => {
+  const drawerPartsToAdd = useMemo<Array<Omit<Part, "id"> & { id: string }>>(() => {
     if (result.ok !== true) return [];
+    const materialThickness = parseInches(sideT) ?? 0.75;
     const sw = parseInches(slideWClr) ?? 0;
     const sh = parseInches(slideHClr) ?? 0;
     const jw = parseInches(drawerJoineryW) ?? 0;
     const jh = parseInches(drawerJoineryH) ?? 0;
     const joineryTrace = result.drawerJoineryApplied.provenance;
-    return result.cells.map((c) => ({
-      name: `Drawer box (${c.label})`,
-      assembly: "Drawers",
-      quantity: 1,
-      finished: { t: 0.5, w: c.boxWidth, l: c.boxHeight },
-      rough: { t: 0, w: 0, l: 0, manual: false },
-      material: DRESSER_PRIMARY_HARDWOOD_4_4,
-      grainNote:
+    return result.cells.flatMap((c) => {
+      const drawerNote =
         `Depth (slide run) ${fmtInches(c.boxDepth)} · opening ${fmtInches(c.openingWidth)} × ${fmtInches(c.openingHeight)} · ` +
-        `box formula: W−${fmtInches(sw)}−${fmtInches(jw)}, H−${fmtInches(sh)}−${fmtInches(jh)} · ${joineryTrace}`,
-      status: "needs_milling",
-    }));
-  }, [result, slideWClr, slideHClr, drawerJoineryW, drawerJoineryH]);
+        `box interior ${fmtInches(c.boxWidth)} × ${fmtInches(c.boxHeight)} · box formula: W−${fmtInches(sw)}−${fmtInches(jw)}, H−${fmtInches(sh)}−${fmtInches(jh)} · ${joineryTrace}`;
+      return buildDresserDrawerBoxParts(c, materialThickness, drawerNote, {
+        joineryPreset: result.drawerJoineryApplied.preset,
+        joineryMaterialThickness: result.drawerJoineryApplied.materialThickness,
+      });
+    });
+  }, [result, slideWClr, slideHClr, drawerJoineryW, drawerJoineryH, sideT]);
 
   /** Carcass sync runs whenever case math is valid — independent of drawer row / opening balance. */
   const carcassAutoSyncSignature = useMemo(() => {
@@ -843,6 +853,20 @@ export function DresserPlanner() {
             >
               <DresserImperialInput value={backT} onChange={setBackT} />
             </DresserPlannerField>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--gl-muted)]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={Boolean(project.omitDresserCaseBackFromHardwoodCutList)}
+                  onChange={(e) => setOmitDresserCaseBackFromHardwoodCutList(e.target.checked)}
+                />
+                <span>
+                  Omit <strong className="text-[var(--gl-cream-soft)]">Case back</strong> from the hardwood yard cut
+                  list (buy plywood or sheet goods separately; the part still appears in your component list).
+                </span>
+              </label>
+            </div>
             <DresserPlannerField
               label="Rear clearance (behind drawer box)"
               source="manual"
@@ -907,6 +931,23 @@ export function DresserPlanner() {
                 onChange={setDrawerJoineryH}
                 hint="Extra total height removed from opening beyond slide clearance."
               />
+            </DresserPlannerField>
+            <DresserPlannerField
+              label="Drawer box joinery (cut list stock)"
+              source="manual"
+              hint="Matches opening→box width math and sets side/back board thickness on the Materials cut list (dovetail = primary thickness; butt/rabbet = ½″ secondary)."
+            >
+              <select
+                className="input-wood"
+                value={drawerBoxJoineryPreset}
+                onChange={(e) => setDrawerBoxJoineryPreset(e.target.value as DrawerJoineryPresetId)}
+              >
+                {(Object.keys(DRAWER_JOINERY_PRESET_META) as DrawerJoineryPresetId[]).map((id) => (
+                  <option key={id} value={id}>
+                    {DRAWER_JOINERY_PRESET_META[id].label}
+                  </option>
+                ))}
+              </select>
             </DresserPlannerField>
           </div>
           <p className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">

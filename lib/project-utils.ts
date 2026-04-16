@@ -199,6 +199,7 @@ export function serializeTemplate(project: Project, templateName: string): Proje
     ...(project.stockWidthByMaterialGroup && Object.keys(project.stockWidthByMaterialGroup).length > 0
       ? { stockWidthByMaterialGroup: { ...project.stockWidthByMaterialGroup } }
       : {}),
+    ...(project.omitDresserCaseBackFromHardwoodCutList ? { omitDresserCaseBackFromHardwoodCutList: true } : {}),
   };
 }
 

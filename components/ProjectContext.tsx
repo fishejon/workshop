@@ -59,6 +59,7 @@ type ProjectContextValue = {
   setMaterialGroupStockWidth: (groupKey: string, widthInches: number | null) => void;
   setWorkshopLumberProfile: (profile: Project["workshop"]["lumberProfile"]) => void;
   setWorkshopOffcutMode: (mode: Project["workshop"]["offcutMode"]) => void;
+  setOmitDresserCaseBackFromHardwoodCutList: (omit: boolean) => void;
   addPart: (part: Omit<Part, "id"> & { id?: string }) => void;
   addParts: (parts: Array<Omit<Part, "id"> & { id?: string }>) => void;
   replacePartsInAssemblies: (
@@ -310,6 +311,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const setWorkshopOffcutMode = useCallback((mode: Project["workshop"]["offcutMode"]) => {
     setProject((p) => ({ ...p, workshop: { ...p.workshop, offcutMode: mode } }));
+  }, [setProject]);
+
+  const setOmitDresserCaseBackFromHardwoodCutList = useCallback((omit: boolean) => {
+    setProject((p) => ({ ...p, omitDresserCaseBackFromHardwoodCutList: omit }));
   }, [setProject]);
 
   const addPart = useCallback((part: Omit<Part, "id"> & { id?: string }) => {
@@ -576,6 +581,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setMaterialGroupStockWidth,
     setWorkshopLumberProfile,
     setWorkshopOffcutMode,
+    setOmitDresserCaseBackFromHardwoodCutList,
     addPart,
     addParts,
     replacePartsInAssemblies,

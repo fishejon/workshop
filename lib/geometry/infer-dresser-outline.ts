@@ -1,7 +1,6 @@
+import { dresserDrawerCellLabelFromPartName } from "@/lib/dresser-drawer-parts";
 import type { Part } from "@/lib/project-types";
 import type { CaseOutlineV0 } from "@/lib/geometry/types";
-
-const DRAWER_BOX_RE = /^Drawer box \(Col (\d+) · Row (\d+)\)$/;
 
 const STACK_ROW_RE = /(\d+)\s+drawer row/;
 const STACK_RAIL_RE = /at\s+([\d.]+)"/;
@@ -58,7 +57,9 @@ function drawerColumnRowMax(parts: Part[]): { maxCol: number; maxRow: number } |
   let maxRow = 0;
   for (const p of parts) {
     if (p.assembly !== "Drawers") continue;
-    const m = p.name.match(DRAWER_BOX_RE);
+    const label = dresserDrawerCellLabelFromPartName(p.name);
+    if (!label) continue;
+    const m = label.match(/^Col (\d+) · Row (\d+)$/);
     if (!m) continue;
     const col = Number.parseInt(m[1], 10);
     const row = Number.parseInt(m[2], 10);

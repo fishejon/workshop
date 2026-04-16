@@ -5,6 +5,7 @@ import { PackedStickCutBoardList } from "@/components/PackedStickCutStrip";
 import { useProject } from "@/components/ProjectContext";
 import { groupPartsByMaterial } from "@/lib/board-feet";
 import { formatLinearFeetShop, formatShopImperial } from "@/lib/imperial";
+import { partsForHardwoodYardCutList } from "@/lib/cut-list-yard-parts";
 import { buildLumberVehicleRows, type LumberVehicleRow } from "@/lib/lumber-vehicle-summary";
 import { buildRoughInstanceLabelMap } from "@/lib/shop-labels";
 
@@ -29,21 +30,23 @@ export function CutListYardSummary() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [drawerPackAxis, setDrawerPackAxis] = useState<"height" | "width">("height");
 
+  const yardParts = useMemo(() => partsForHardwoodYardCutList(project), [project]);
+
   const shopLabelByRoughInstanceId = useMemo(
     () => buildRoughInstanceLabelMap(project.parts),
     [project.parts]
   );
 
   const groups = useMemo(
-    () => groupPartsByMaterial(project.parts, project.wasteFactorPercent),
-    [project.parts, project.wasteFactorPercent]
+    () => groupPartsByMaterial(yardParts, project.wasteFactorPercent),
+    [yardParts, project.wasteFactorPercent]
   );
 
   const rows = useMemo(
     () =>
       buildLumberVehicleRows(
         groups,
-        project.parts,
+        yardParts,
         project.maxTransportLengthInches,
         {
           maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
@@ -52,7 +55,7 @@ export function CutListYardSummary() {
       , 0.125, { drawerPackAxis }),
     [
       groups,
-      project.parts,
+      yardParts,
       project.maxTransportLengthInches,
       project.maxPurchasableBoardWidthInches,
       project.stockWidthByMaterialGroup,
@@ -82,6 +85,11 @@ export function CutListYardSummary() {
               <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
               <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same stick.
             </p>
+            {project.omitDresserCaseBackFromHardwoodCutList ? (
+              <p className="mt-1 text-xs text-[var(--gl-copper-bright)]">
+                Case back is excluded from this hardwood stick list (toggle under Plan → dresser back panel).
+              </p>
+            ) : null}
           </div>
           <button
             type="button"

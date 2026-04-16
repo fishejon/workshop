@@ -5,6 +5,7 @@
  */
 
 import { ASSEMBLY_IDS, type Dimension3, type Part } from "./project-types";
+import { dresserDrawerCellLabelFromPartName } from "./dresser-drawer-parts";
 import { makeRoughInstanceId } from "./rough-instance-id";
 
 const GROUP_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -22,10 +23,9 @@ export function indexToGroupPrefix(index: number): string {
 
 /** Stable key for “pieces that go together” (glue-up, drawer cell, or one part line). */
 export function shopLabelGroupKeyForPart(part: Part): string {
-  const drawerMatch = part.name.match(/Drawer box\s*\(([^)]+)\)/i);
-  if (drawerMatch && part.assembly === "Drawers") {
-    const inner = drawerMatch[1].replace(/\s+/g, " ").trim();
-    return `drawer:${inner}`;
+  if (part.assembly === "Drawers") {
+    const cell = dresserDrawerCellLabelFromPartName(part.name);
+    if (cell) return `drawer:${cell.replace(/\s+/g, " ").trim()}`;
   }
   if (part.status === "panel") {
     return `panel:${part.id}`;

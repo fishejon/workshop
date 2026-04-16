@@ -46,6 +46,38 @@ describe("buildRoughInstanceLabelMap", () => {
     expect(m.get(makeRoughInstanceId("p1", 1))).toBe("A-1");
     expect(m.get(makeRoughInstanceId("p1", 2))).toBe("A-2");
   });
+
+  it("groups dresser drawer components for the same cell under one letter with distinct numbers", () => {
+    const parts: Part[] = [
+      part({
+        id: "df",
+        name: "Drawer front (Col 1 · Row 1)",
+        assembly: "Drawers",
+        quantity: 1,
+      }),
+      part({
+        id: "ds",
+        name: "Drawer side (Col 1 · Row 1)",
+        assembly: "Drawers",
+        quantity: 2,
+      }),
+      part({
+        id: "db",
+        name: "Drawer bottom (Col 1 · Row 1)",
+        assembly: "Drawers",
+        quantity: 1,
+      }),
+    ];
+    const m = buildRoughInstanceLabelMap(parts);
+    const labels = [
+      m.get(makeRoughInstanceId("df", 1)),
+      m.get(makeRoughInstanceId("db", 1)),
+      m.get(makeRoughInstanceId("ds", 1)),
+      m.get(makeRoughInstanceId("ds", 2)),
+    ];
+    expect(labels.every((x) => x?.startsWith("A-"))).toBe(true);
+    expect(new Set(labels).size).toBe(4);
+  });
 });
 
 describe("buildPlannerGroupedShopLabels", () => {

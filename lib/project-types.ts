@@ -164,6 +164,11 @@ export type Project = {
    * field reserved for future persistence / round-trip.
    */
   geometry?: CaseOutlineV0 | null;
+  /**
+   * When true, the dresser **Case back** line is excluded from hardwood yard cut list packing and
+   * BF/LF groups that drive stick purchase math (plywood / sheet goods bought separately).
+   */
+  omitDresserCaseBackFromHardwoodCutList?: boolean;
 };
 
 export type ProjectTemplate = {
