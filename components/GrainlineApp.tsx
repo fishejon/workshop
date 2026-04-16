@@ -68,7 +68,7 @@ export function GrainlineApp() {
     const health = hasBlockingIssues
       ? "Blocked by validation issues"
       : hasWarnings
-        ? "Warnings to review"
+        ? "Warnings — verify Plan and Materials"
         : "Ready for materials";
 
     let recommendation: string;
@@ -83,7 +83,7 @@ export function GrainlineApp() {
         "You are on Plan: update intent and geometry. Materials updates from your configuration automatically.";
     } else {
       recommendation = hasWarnings
-        ? "You are on Materials: review warnings and cut layout."
+        ? "You are on Materials: check warnings and cut layout."
         : "You are on Materials: cut list is ready.";
     }
 

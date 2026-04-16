@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { VALIDATION_FIXTURE_PROJECT } from "@/lib/fixtures/validation.fixture";
 import {
   canExportOrPrintProject,
@@ -6,6 +6,10 @@ import {
   getWarningValidationIssues,
   validateProject,
 } from "@/lib/validation";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("validateProject", () => {
   it("cut-list mode omits joinery-driven issues", () => {
@@ -40,6 +44,14 @@ describe("validateProject", () => {
     expect(canExportOrPrintProject(true, issues)).toBe(false);
     expect(canExportOrPrintProject(false, issues)).toBe(false);
     expect(canExportOrPrintProject(true, [])).toBe(true);
+  });
+
+  it("uses full joinery validation when NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1", () => {
+    vi.stubEnv("NEXT_PUBLIC_GL_MAIN_PATH_JOINERY", "1");
+    const auto = validateProject(VALIDATION_FIXTURE_PROJECT);
+    const full = validateProject(VALIDATION_FIXTURE_PROJECT, { joineryValidation: "full" });
+    const codes = (issues: typeof auto) => issues.map((i) => i.code).sort().join(",");
+    expect(codes(auto)).toBe(codes(full));
   });
 
   it("dedupes repeated identical issues", () => {

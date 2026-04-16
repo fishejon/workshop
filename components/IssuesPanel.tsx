@@ -1,29 +1,32 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { prefersReducedMotion } from "@/lib/motion-preference";
 import type { ValidationIssue } from "@/lib/validation/types";
 
-const ISSUE_FALLBACK_TARGETS: Record<ValidationIssue["source"], { anchorId: string; label: string }> = {
-  sanity: { anchorId: "parts-table-section", label: "Parts table" },
-  joinery: { anchorId: "joinery-panel-section", label: "Joinery panel" },
+type IssueNavTarget =
+  | { kind: "anchor"; anchorId: string; label: string }
+  | { kind: "labs"; href: string; label: string };
+
+const ISSUE_FALLBACK_TARGETS: Record<ValidationIssue["source"], IssueNavTarget> = {
+  sanity: { kind: "anchor", anchorId: "parts-table-section", label: "Materials · parts table" },
+  joinery: { kind: "labs", href: "/labs#joinery-panel-section", label: "Labs · Joinery" },
 };
 
-const ISSUE_CODE_TARGETS: Partial<
-  Record<ValidationIssue["code"], { anchorId: string; label: string }>
-> = {
-  rough_less_than_finished: { anchorId: "parts-table-section", label: "Parts table" },
-  invalid_opening_budget: { anchorId: "build-planner-section", label: "Build planner" },
-  drawer_box_wider_than_opening: { anchorId: "build-planner-section", label: "Build planner" },
-  tenon_too_long_for_part: { anchorId: "joinery-panel-section", label: "Joinery panel" },
-  joinery_axis_direction_conflict: { anchorId: "joinery-panel-section", label: "Joinery panel" },
-  joinery_repeated_axis_adjustment: { anchorId: "joinery-panel-section", label: "Joinery panel" },
+const ISSUE_CODE_TARGETS: Partial<Record<ValidationIssue["code"], IssueNavTarget>> = {
+  rough_less_than_finished: { kind: "anchor", anchorId: "parts-table-section", label: "Materials · parts table" },
+  invalid_opening_budget: { kind: "anchor", anchorId: "build-planner-section", label: "Plan tab · preset" },
+  drawer_box_wider_than_opening: { kind: "anchor", anchorId: "build-planner-section", label: "Plan tab · preset" },
+  tenon_too_long_for_part: { kind: "labs", href: "/labs#joinery-panel-section", label: "Labs · Joinery" },
+  joinery_axis_direction_conflict: { kind: "labs", href: "/labs#joinery-panel-section", label: "Labs · Joinery" },
+  joinery_repeated_axis_adjustment: { kind: "labs", href: "/labs#joinery-panel-section", label: "Labs · Joinery" },
 };
 
-function getIssueTarget(issue: ValidationIssue): { anchorId: string; label: string } {
+function getIssueTarget(issue: ValidationIssue): IssueNavTarget {
   if (issue.partId) {
-    return { anchorId: `part-row-${issue.partId}`, label: "Affected part row" };
+    return { kind: "anchor", anchorId: `part-row-${issue.partId}`, label: "Materials · part row" };
   }
   return ISSUE_CODE_TARGETS[issue.code] ?? ISSUE_FALLBACK_TARGETS[issue.source];
 }
@@ -54,6 +57,29 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
     [warningValidationIssues]
   );
 
+  function renderAction(target: IssueNavTarget) {
+    if (target.kind === "labs") {
+      return (
+        <Link
+          href={target.href}
+          className="mt-1 inline-block text-xs font-medium text-[var(--gl-copper-bright)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
+        >
+          Open {target.label}
+        </Link>
+      );
+    }
+    return (
+      <button
+        type="button"
+        className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
+        onClick={() => jumpToAnchor(target.anchorId)}
+        aria-label={`Jump to ${target.label} for issue`}
+      >
+        Jump to {target.label}
+      </button>
+    );
+  }
+
   return (
     <section
       className="gl-panel-muted p-4"
@@ -81,14 +107,7 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
                 {blockingWithTargets.map(({ issue, target }) => (
                   <li key={issue.id} className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface)] p-2">
                     <p className="text-xs text-[var(--gl-danger)]">{issue.message}</p>
-                    <button
-                      type="button"
-                      className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
-                      onClick={() => jumpToAnchor(target.anchorId)}
-                      aria-label={`Jump to ${target.label} for blocking issue`}
-                    >
-                      Jump to {target.label}
-                    </button>
+                    {renderAction(target)}
                   </li>
                 ))}
               </ul>
@@ -102,14 +121,7 @@ export function IssuesPanel({ title = "Issues panel" }: { title?: string }) {
                 {warningWithTargets.map(({ issue, target }) => (
                   <li key={issue.id} className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface)] p-2">
                     <p className="text-xs text-[var(--gl-warning)]">{issue.message}</p>
-                    <button
-                      type="button"
-                      className="mt-1 text-xs font-medium text-[var(--gl-cream-soft)] underline decoration-dotted underline-offset-2 hover:text-[var(--gl-cream)]"
-                      onClick={() => jumpToAnchor(target.anchorId)}
-                      aria-label={`Jump to ${target.label} for warning`}
-                    >
-                      Jump to {target.label}
-                    </button>
+                    {renderAction(target)}
                   </li>
                 ))}
               </ul>

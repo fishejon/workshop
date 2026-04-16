@@ -112,7 +112,7 @@ export function WorkshopFlowGuide({
           />
           <CheckRow
             done={materialAssumptionsReviewed}
-            label="Material assumptions acknowledged (Review tab)"
+            label="Material assumptions acknowledged (Materials tab)"
             detail="Rough sizes, thickness category, waste, transport limits."
           />
           <CheckRow

@@ -175,3 +175,5 @@ The landscape spans cut-list optimizers, cabinet configurators, board-foot calcu
 ## Document maintenance
 
 When strategy shifts, update this file first; then reconcile [PRD.md](./PRD.md) for scope changes and [PLAN.md](./PLAN.md) for task breakdown. The PRD remains the **requirements source of truth**; this memo is the **narrative and prioritization** layer.
+
+**Companion synthesis (trusted shop companion + phased CAD-lite):** [VISION_TRUSTED_COMPANION_AND_CAD.md](./VISION_TRUSTED_COMPANION_AND_CAD.md) — cross-functional vision, UX/UI implications, and architecture milestones. Reconcile this memo and that doc when prioritization changes.

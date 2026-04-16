@@ -1,13 +1,12 @@
+import { isMainPathJoineryEnabled } from "@/lib/main-path-joinery-flag";
 import type { Project, ProjectJoint } from "@/lib/project-types";
 
 /**
- * When false, the main app cut list, CSV, print, and validation ignore `project.joints`.
- * `/labs` still mutates joints for experiments; re-enable here to fold joinery back into the product path.
+ * When `NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1`, the cut list, CSV, print, and `derivePartAssumptionsDetailed` use
+ * `project.joints` the same way validation runs in `"full"` joinery mode. Default off for trust / gradual rollout.
  */
-export const CUT_LIST_JOINERY_ENABLED = false;
-
 export function jointsEffectiveForCutList(project: Project): ProjectJoint[] {
-  if (CUT_LIST_JOINERY_ENABLED) return project.joints;
+  if (isMainPathJoineryEnabled()) return project.joints;
   return [];
 }
 

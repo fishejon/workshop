@@ -9,6 +9,7 @@ import type {
   ProjectTemplate,
   RoughSpec,
 } from "./project-types";
+import { isCaseOutlineV0 } from "./geometry/validate";
 import { remapCutProgressKeys } from "./rough-instance-id";
 
 export const STORAGE_KEY = "grainline-project-v1";
@@ -441,6 +442,7 @@ export function parseProject(json: string): Project | null {
         : 20;
     const stockWidthByMaterialGroup = parseStockWidthByMaterialGroup(o.stockWidthByMaterialGroup);
     const cutProgressByRoughInstanceId = parseCutProgress(o.cutProgressByRoughInstanceId);
+    const geometry = isCaseOutlineV0(o.geometry) ? o.geometry : undefined;
     return {
       ...(o as Project),
       id,
@@ -452,6 +454,7 @@ export function parseProject(json: string): Project | null {
       maxPurchasableBoardWidthInches,
       stockWidthByMaterialGroup,
       cutProgressByRoughInstanceId,
+      geometry,
     };
   } catch {
     return null;

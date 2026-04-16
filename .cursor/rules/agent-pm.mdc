@@ -22,7 +22,7 @@ Grainline turns **furniture intent** (presets, dimensions, shop limits) into **p
 ## What already exists (do not pretend we are “dresser-only MVP”)
 
 - Presets: **Dresser** (intent-first + generate parts), **Board cut list**, **Sideboard** shell, experimental **TV console**; more queued.  
-- Tabs: **Setup → Build → Materials → Review** (export gated by checkpoints + validation).  
+- Tabs: **Project → Plan → Materials** (CSV + shop print gated by material-assumptions checkpoint + validation).  
 - **Nominal lumber** width language (`lib/nominal-lumber-stocks.ts`) for purchasable width.  
 - **Project library / backups** in `localStorage` (multi-project behavior, not necessarily a separate “dashboard” UI).
 
@@ -34,7 +34,7 @@ Grainline turns **furniture intent** (presets, dimensions, shop limits) into **p
 
 ## Prioritization guardrail
 
-Before expanding scope: **Does this help a woodworker trust Setup → Build → Materials → Review for their next build?** If not, defer or document as future phase per `docs/PRODUCT_STRATEGY.md`.
+Before expanding scope: **Does this help a woodworker trust Project → Plan → Materials for their next build?** If not, defer or document as future phase per `docs/PRODUCT_STRATEGY.md`.
 
 ## How to respond
 

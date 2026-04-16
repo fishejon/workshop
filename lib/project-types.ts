@@ -3,6 +3,8 @@
  * Dimensions are decimal inches: T = thickness, W = width, L = length of the part as cut.
  */
 
+import type { CaseOutlineV0 } from "@/lib/geometry/types";
+
 export const ASSEMBLY_IDS = ["Case", "Drawers", "Base", "Back", "Doors", "Other"] as const;
 export type AssemblyId = (typeof ASSEMBLY_IDS)[number];
 
@@ -155,6 +157,11 @@ export type Project = {
    * Omitted keys mean not cut; only `"cut"` is stored today.
    */
   cutProgressByRoughInstanceId?: Record<string, CutProgressValue>;
+  /**
+   * Optional cached case outline (CAD-lite v0). Today the app may derive previews from parts instead;
+   * field reserved for future persistence / round-trip.
+   */
+  geometry?: CaseOutlineV0 | null;
 };
 
 export type ProjectTemplate = {

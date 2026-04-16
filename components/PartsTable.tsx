@@ -14,6 +14,7 @@ import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { deriveRough } from "@/lib/project-utils";
 import { partsToCsv } from "@/lib/parts-csv";
 import { formatShopImperial } from "@/lib/imperial";
+import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
 import { canExportOrPrintProject } from "@/lib/validation";
 
 const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
@@ -128,7 +129,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
             onClick={downloadCsv}
             disabled={project.parts.length === 0 || !canExport}
             aria-disabled={project.parts.length === 0 || !canExport}
-            title={!canExport ? "Acknowledge material assumptions on Review to unlock export." : undefined}
+            title={!canExport ? "Acknowledge material assumptions on Materials to unlock export." : undefined}
           >
             {canExport ? "Export CSV" : "Export CSV (locked)"}
           </button>
@@ -140,7 +141,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
         <p id="parts-export-lock-reason" className="mt-2 text-xs text-[var(--gl-muted)]" role="status">
           {checkpointsReady
             ? "Export is blocked by high-severity validation issues."
-            : "Export is locked until you acknowledge material assumptions on Review."}
+            : "Export is locked until you acknowledge material assumptions on Materials."}
         </p>
       ) : null}
       {blockingValidationIssues.length > 0 ? (
@@ -149,13 +150,17 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           aria-label={`Blocking issues: ${blockingValidationIssues.length}`}
         >
           {blockingValidationIssues.slice(0, 4).map((issue) => (
-            <li key={issue.id}>{issue.message}</li>
+            <li key={issue.id}>
+              <span className="block text-[var(--gl-danger)]">{issue.message}</span>
+              <span className="mt-0.5 block text-[var(--gl-muted)]">{validationIssueWhereHint(issue)}</span>
+            </li>
           ))}
         </ul>
       ) : null}
       {warningValidationIssues.length > 0 ? (
         <p className="mt-2 text-xs text-[var(--gl-warning)]">
-          {warningValidationIssues.length} warning{warningValidationIssues.length === 1 ? "" : "s"} detected. Review before handoff.
+          {warningValidationIssues.length} warning{warningValidationIssues.length === 1 ? "" : "s"} detected. Verify on
+          Plan and Materials before handoff.
         </p>
       ) : null}
 

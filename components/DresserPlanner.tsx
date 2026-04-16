@@ -912,6 +912,7 @@ export function DresserPlanner() {
             columnCount={columns}
             rowCount={Number.isFinite(rowCount) && rowCount > 0 ? rowCount : 3}
             rowOpeningHeightsInches={previewOpeningHeights}
+            columnOpeningWidthInches={intentDerived.columnOpeningWidth}
             kickH={parseInches(kick.trim() === "" ? "0" : kick) ?? 0}
             topBand={parseInches(topAsm) ?? 0}
             bottomBand={parseInches(bottomPanel) ?? 0}

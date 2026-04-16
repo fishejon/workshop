@@ -18,6 +18,7 @@ import {
   parseProject,
 } from "@/lib/project-utils";
 import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
+import { isMainPathJoineryEnabled } from "@/lib/main-path-joinery-flag";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { evaluateAllPurchaseScenarios } from "@/lib/purchase-scenarios";
 import {
@@ -25,6 +26,8 @@ import {
   getBlockingValidationIssues,
   validateProject,
 } from "@/lib/validation";
+import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
+import { summarizeDrawerHardwareFromParts } from "@/lib/shop-hardware-summary";
 
 function formatTxWxL(d: Dimension3): string {
   return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
@@ -62,6 +65,11 @@ export function ShopPrintView() {
   const blockingIssues = useMemo(() => getBlockingValidationIssues(validationIssues), [validationIssues]);
 
   const shopGuideTableRows = useMemo(() => (project ? shopGuideRows(project.parts) : []), [project]);
+
+  const drawerHardware = useMemo(
+    () => (project ? summarizeDrawerHardwareFromParts(project.parts) : null),
+    [project]
+  );
 
   const purchasePreview = useMemo(() => {
     if (!project) return null;
@@ -104,10 +112,11 @@ export function ShopPrintView() {
             aria-labelledby="print-lock-title"
           >
             <h1 id="print-lock-title" className="font-display text-2xl text-[var(--gl-ink)]">
-              Print locked pending Review
+              Print locked
             </h1>
             <p className="mt-2 text-sm text-[var(--gl-ink)]/80">
-              Go to Review and resolve blocking checks, or acknowledge material assumptions, before printing/exporting.
+              Open the <strong>Materials</strong> tab, acknowledge <strong>Material assumptions</strong> at the top,
+              and resolve any blocking validation issues before printing or exporting.
             </p>
             <p className="mt-3 text-sm">
               Lock summary: Blocking issues {blockingIssues.length}. Material assumptions{" "}
@@ -129,21 +138,21 @@ export function ShopPrintView() {
                   aria-label={`Blocking validation reasons: ${blockingIssues.length}`}
                 >
                   {blockingIssues.map((issue) => (
-                    <li key={issue.id}>{issue.message}</li>
+                    <li key={issue.id}>
+                      <span className="block">{issue.message}</span>
+                      <span className="mt-0.5 block text-sm text-[var(--gl-ink)]/70">
+                        {validationIssueWhereHint(issue)}
+                      </span>
+                    </li>
                   ))}
                 </ul>
               </>
             ) : null}
             <p className="mt-4 text-sm">
-              Jump back to{" "}
-              <Link href="/#review-checkpoints-section" className="underline underline-offset-2">
-                Review checkpoints
+              <Link href="/" className="underline underline-offset-2">
+                Back to planner
               </Link>{" "}
-              or{" "}
-              <Link href="/#parts-table-section" className="underline underline-offset-2">
-                Parts table
-              </Link>
-              .
+              — then switch to <strong>Materials</strong> to fix blockers and check material assumptions.
             </p>
           </section>
         </div>
@@ -190,9 +199,11 @@ export function ShopPrintView() {
             Finished parts
           </h2>
           <p className="mb-2 text-xs shop-print-muted">
-            Assumptions column reflects the same cut-list scope as the app (panel glue-up checks; joinery history only
-            when enabled in product). Max single-board panel width:{" "}
-            {formatShopImperial(project.maxPurchasableBoardWidthInches)}.
+            Assumptions column reflects the same cut-list scope as the app (panel glue-up checks
+            {isMainPathJoineryEnabled()
+              ? "; joinery audit rows are included because NEXT_PUBLIC_GL_MAIN_PATH_JOINERY is enabled."
+              : "; joinery history from Labs is omitted unless NEXT_PUBLIC_GL_MAIN_PATH_JOINERY is set)."}
+            Max single-board panel width: {formatShopImperial(project.maxPurchasableBoardWidthInches)}.
           </p>
           {project.parts.length === 0 ? (
             <p className="text-sm shop-print-muted">No parts in this project.</p>
@@ -234,6 +245,26 @@ export function ShopPrintView() {
             </div>
           )}
         </section>
+
+        {drawerHardware && drawerHardware.drawerBoxPartCount > 0 ? (
+          <section className="shop-print-section mt-8">
+            <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
+              Hardware checklist (v0)
+            </h2>
+            <p className="mb-2 text-xs shop-print-muted">
+              Derived from cut-list rows named like dresser drawer boxes—confirm every quantity against your
+              manufacturer&apos;s install docs (slides, bumpers, pulls).
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--gl-ink)]/90">
+              <li>
+                Drawer box rows: <strong>{drawerHardware.drawerBoxLineCount}</strong> part line(s),{" "}
+                <strong>{drawerHardware.drawerBoxPartCount}</strong> total box qty (sum of quantities).
+              </li>
+              <li>Slides / pairs: verify against drawer depth and opening height from Plan—not modeled as SKUs here.</li>
+              <li>Pulls, screws, catches: add your own field notes or hardware bag list before the build.</li>
+            </ul>
+          </section>
+        ) : null}
 
         <section className="shop-print-section mt-8">
           <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">

@@ -1,6 +1,6 @@
 # Woodworker gaps (prioritized)
 
-Honest backlog against what Grainline ships today (README + PRD): dresser / board pack / sideboard shell presets, symmetric dresser constraints, parts + rough + joinery + buy list + 2D board estimate, CSV + `/print` gated by Review checkpoints.
+Honest backlog against what Grainline ships today (README + PRD): dresser / board pack / sideboard shell presets, symmetric dresser constraints, parts + rough + joinery + buy list + 2D board estimate, CSV + `/print` gated by the material-assumptions checkpoint on Materials plus validation.
 
 ## Must
 
@@ -30,6 +30,6 @@ Use before calling a release “good enough” for your own shop:
 3. **Board pack** — Run 1D layout with transport cap; confirm packed lengths respect stock length and kerf inputs.
 4. **Print** — Open `/print`; confirm project name, assumptions, and part dimensions read clearly (browser print preview).
 5. **CSV** — Export from Materials; spot-check a few rows for finished/rough and material columns vs on-screen parts table.
-6. **Review** — With checkpoints checked and no blockers, confirm **Export CSV** and print link behave as expected (unlocked).
+6. **Materials** — With **Material assumptions** checked and no blockers, confirm **Export CSV** and print link behave as expected (unlocked).
 
 Manual print preview once per release candidate is still the bar for paper shop use.

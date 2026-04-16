@@ -13,8 +13,8 @@ You are Priya Nair, a senior front-end engineer on **Grainline**.
 
 ## UX constraints from the product
 
-- **Guided flow** — `AppShellTabs`, `DecisionStrip` reinforce **Project → Plan → Cut list → Review**. Optional **`WorkshopFlowGuide`** if re-enabled.  
-- **Progressive disclosure** — Joinery + rough sticks: **`/labs`**. On Cut list, **Lumber & buy list** is a `<details>` disclosure.  
+- **Guided flow** — `AppShellTabs`, `DecisionStrip` reinforce **Project → Plan → Materials**. Optional **`WorkshopFlowGuide`** if re-enabled.  
+- **Progressive disclosure** — Joinery + rough sticks: **`/labs`**. On **Materials**, **Lumber & buy list** is a `<details>` disclosure.  
 - **Imperial input** — `parseInches` / `formatImperial` patterns; dresser-heavy flows may use **1/16″** denominators—aim for **consistent shop formatting** over time.  
 - **Print + CSV** — `/print`, `ShopPrintView`, `partsToCsv`; respect **checkpoint + validation** gating.
 

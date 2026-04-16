@@ -12,6 +12,10 @@ type Props = {
   rowCount: number;
   /** Opening height per row in inches (same order as drawer rows). */
   rowOpeningHeightsInches: number[];
+  /**
+   * Clear opening width per column (inside stiles/dividers). When omitted, a simple estimate is used for labels only.
+   */
+  columnOpeningWidthInches?: number | null;
   kickH: number;
   topBand: number;
   bottomBand: number;
@@ -30,6 +34,7 @@ export function DresserPreview({
   columnCount,
   rowCount,
   rowOpeningHeightsInches,
+  columnOpeningWidthInches,
   kickH,
   topBand,
   bottomBand,
@@ -41,7 +46,7 @@ export function DresserPreview({
     <div
       className={`mx-auto flex w-full flex-wrap items-start justify-center gap-4 ${className}`}
       role="img"
-      aria-label="Dresser orthographic preview with front, side, and top views"
+      aria-label="Dresser orthographic preview: front shows drawer opening width by height per cell; side and top views"
     >
       <ViewShell title="Front">
         <FrontView
@@ -50,6 +55,7 @@ export function DresserPreview({
           columnCount={columnCount}
           rowCount={rowCount}
           rowOpeningHeightsInches={rowOpeningHeightsInches}
+          columnOpeningWidthInches={columnOpeningWidthInches}
           kickH={kickH}
           topBand={topBand}
           bottomBand={bottomBand}
@@ -76,12 +82,27 @@ function ViewShell({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
+/** Used by front-view labels and optional parts-linked preview when planner width is unavailable. */
+export function estimateDresserColumnOpeningWidthInches(
+  outerW: number,
+  columnCount: number,
+  materialT: number
+): number {
+  if (!Number.isFinite(outerW) || outerW <= 0 || columnCount < 1) return 0;
+  const inner = outerW - 2 * materialT;
+  const divs = Math.max(0, columnCount - 1);
+  /** Schematic: assume divider thickness ≈ side thickness for label math when planner value is absent. */
+  const opening = (inner - divs * materialT) / columnCount;
+  return Math.max(0, opening);
+}
+
 function FrontView({
   outerW,
   outerH,
   columnCount,
   rowCount,
   rowOpeningHeightsInches,
+  columnOpeningWidthInches,
   kickH,
   topBand,
   bottomBand,
@@ -106,6 +127,13 @@ function FrontView({
   while (heights.length < rowCount) heights.push(0);
   const openingHs = heights.map((inch) => (inch / Math.max(outerH, 1)) * caseH);
   const colW = caseW / columnCount;
+  const openingWInches =
+    columnOpeningWidthInches !== undefined &&
+    columnOpeningWidthInches !== null &&
+    Number.isFinite(columnOpeningWidthInches) &&
+    columnOpeningWidthInches > 0
+      ? columnOpeningWidthInches
+      : estimateDresserColumnOpeningWidthInches(outerW, columnCount, materialT);
 
   return (
     <svg viewBox={`0 0 ${vbW} ${vbH}`} className="h-auto w-full max-w-[220px]">
@@ -157,25 +185,42 @@ function FrontView({
                 strokeWidth={0.75}
               />
             );
+            const cx = ox + c * colW + colW / 2;
+            const hInches = rowOpeningHeightsInches[r] ?? 0;
             nodes.push(
               <text
                 key={`t-${r}-${c}`}
-                x={ox + c * colW + colW / 2}
-                y={yCursor + h / 2 + 3}
+                x={cx}
+                y={yCursor + h / 2}
                 textAnchor="middle"
                 fill="rgba(45,40,36,0.78)"
-                fontSize={7}
+                fontSize={6}
                 fontFamily="var(--font-geist-sans), system-ui, sans-serif"
               >
-                {formatShopImperial(rowOpeningHeightsInches[r] ?? 0)}
+                <tspan x={cx} dy="-3">
+                  {formatShopImperial(openingWInches)} W
+                </tspan>
+                <tspan x={cx} dy="9">
+                  {formatShopImperial(hInches)} H
+                </tspan>
               </text>
             );
           }
           yCursor += h;
           if (r < rowCount - 1) {
-            nodes.push(
-              <rect key={`rail-${r}`} x={ox + 4} y={yCursor} width={caseW - 8} height={railScaled} fill="rgba(55,48,40,0.22)" />
-            );
+            // Omit zero-height rail bands (hairline artifacts) but still advance layout for sub-pixel rails.
+            if (railScaled >= 0.5) {
+              nodes.push(
+                <rect
+                  key={`rail-${r}`}
+                  x={ox + 4}
+                  y={yCursor}
+                  width={caseW - 8}
+                  height={railScaled}
+                  fill="rgba(55,48,40,0.22)"
+                />
+              );
+            }
             yCursor += railScaled;
           }
         }

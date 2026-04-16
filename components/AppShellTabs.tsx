@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, type KeyboardEvent, type ReactNode } from "react";
+import { MaterialsAssumptionsCheckpoint } from "@/components/MaterialsAssumptionsCheckpoint";
 import type { ValidationIssue } from "@/lib/validation/types";
 
 export const APP_SHELL_TAB_IDS = ["setup", "build", "shop"] as const;
@@ -16,9 +17,7 @@ function focusTabButton(id: AppShellTabId) {
   document.getElementById(`tab-${id}`)?.focus();
 }
 
-/**
- * Option A shell: Project, Plan, Cut list (single column + buy list disclosure), Review.
- */
+/** Main shell: Project, Plan, Materials (yard list + parts; material assumptions gate export/print). */
 export function AppShellTabs({
   active,
   onChange,
@@ -130,6 +129,7 @@ export function AppShellTabs({
               </ul>
             ) : null}
             <div className="min-w-0 space-y-4">
+              <MaterialsAssumptionsCheckpoint />
               {cutListPartsTable}
             </div>
           </div>

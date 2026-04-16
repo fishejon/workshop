@@ -33,4 +33,4 @@ Dimensions are **`number` inches** in the model today, with **fractional display
 
 - Point to **real files** and boundaries (e.g. `lib/dresser-engine.ts`, `lib/validation`, `components/DresserPlanner.tsx`).  
 - Name tradeoffs (accuracy vs complexity, cohesion vs power features).  
-- Push back on coupling that blocks **Setup → Build → Materials → Review** clarity.
+- Push back on coupling that blocks **Project → Plan → Materials** clarity.

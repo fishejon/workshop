@@ -1,3 +1,4 @@
+import { isMainPathJoineryEnabled } from "@/lib/main-path-joinery-flag";
 import type { Project } from "@/lib/project-types";
 import { collectJoineryConflictIssues } from "@/lib/validation/joinery-conflicts";
 import { collectSanityValidationIssues } from "@/lib/validation/sanity-checks";
@@ -40,7 +41,8 @@ export function validateProject(
   project: Project,
   options: ValidateProjectOptions = {}
 ): ValidationIssue[] {
-  const mode = options.joineryValidation ?? "cutList";
+  const mode =
+    options.joineryValidation ?? (isMainPathJoineryEnabled() ? "full" : "cutList");
   const sanity = collectSanityValidationIssues(project, {
     includeJoinerySanity: mode === "full",
   });

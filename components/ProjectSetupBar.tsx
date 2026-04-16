@@ -8,6 +8,7 @@ import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type Proje
 import { MAX_PROJECT_LIBRARY_RECORDS, PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
 import { cutListExportCheckpointsReady } from "@/lib/cut-list-scope";
 import { canExportOrPrintProject } from "@/lib/validation";
+import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
 import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 
 const OFFCUT_MODE_LABELS: Record<OffcutModeId, string> = {
@@ -306,7 +307,7 @@ export function ProjectSetupBar() {
                 aria-disabled={true}
                 aria-describedby="print-lock-helper"
                 className="cursor-not-allowed rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-3 py-2 text-center text-xs font-medium text-[var(--gl-muted)]"
-                title="Acknowledge material assumptions on Review to unlock print/export."
+                title="Acknowledge material assumptions on Materials to unlock print/export."
               >
                 Print shop sheet (locked)
               </button>
@@ -316,13 +317,19 @@ export function ProjectSetupBar() {
                 ? "PDF: print dialog -> Save as PDF"
                 : checkpointsReady
                   ? "Status: Locked. Reason: high-severity validation issues."
-                  : "Status: Locked. Reason: material assumptions on Review are not acknowledged."}
+                  : "Status: Locked. Reason: material assumptions on Materials are not acknowledged."}
             </span>
             <Link
               href="/labs"
               className="text-center text-xs text-[var(--gl-copper-bright)] underline decoration-[var(--gl-copper-bright)]/40 underline-offset-2 hover:decoration-[var(--gl-copper-bright)]"
             >
               Joinery & stick layout (labs)
+            </Link>
+            <Link
+              href="/shop"
+              className="text-center text-xs text-[var(--gl-copper-bright)] underline decoration-[var(--gl-copper-bright)]/40 underline-offset-2 hover:decoration-[var(--gl-copper-bright)]"
+            >
+              Shop mode (large type)
             </Link>
           </div>
           <button
@@ -362,7 +369,10 @@ export function ProjectSetupBar() {
             aria-label={`Print or export blocking issues: ${blockingValidationIssues.length}`}
           >
             {blockingValidationIssues.slice(0, 5).map((issue) => (
-              <li key={issue.id}>{issue.message}</li>
+              <li key={issue.id}>
+                <span className="block text-[var(--gl-danger)]">{issue.message}</span>
+                <span className="mt-0.5 block text-[var(--gl-muted)]">{validationIssueWhereHint(issue)}</span>
+              </li>
             ))}
           </ul>
         </div>

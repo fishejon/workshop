@@ -7,11 +7,33 @@ import { formatShopImperial } from "@/lib/imperial";
 import { DresserMaterialsSummary } from "@/components/DresserMaterialsSummary";
 import { useDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
 import { buildLumberVehicleRows } from "@/lib/lumber-vehicle-summary";
+import { evaluateAllPurchaseScenarios, PURCHASE_SCENARIO_META } from "@/lib/purchase-scenarios";
 
 export function BuyListPanel({ showDresserSummary = false }: { showDresserSummary?: boolean }) {
   const { project } = useProject();
   const dresserSnapshot = useDresserMaterialsSnapshot();
   const groups = useMemo(() => groupPartsByMaterial(project.parts, project.wasteFactorPercent), [project.parts, project.wasteFactorPercent]);
+  const purchaseScenarios = useMemo(
+    () =>
+      evaluateAllPurchaseScenarios({
+        parts: project.parts,
+        wasteFactorPercent: project.wasteFactorPercent,
+        maxTransportLengthInches: project.maxTransportLengthInches,
+        maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
+        stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
+        costRatesByGroup: project.costRatesByGroup,
+        kerfInches: 0.125,
+      }),
+    [
+      project.parts,
+      project.wasteFactorPercent,
+      project.maxTransportLengthInches,
+      project.maxPurchasableBoardWidthInches,
+      project.stockWidthByMaterialGroup,
+      project.costRatesByGroup,
+    ]
+  );
+
   const lumberRows = useMemo(
     () =>
       buildLumberVehicleRows(groups, project.parts, project.maxTransportLengthInches, {
@@ -79,6 +101,30 @@ export function BuyListPanel({ showDresserSummary = false }: { showDresserSummar
           </p>
         </div>
       )}
+
+      {project.parts.length > 0 ? (
+        <details className="mt-5 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
+          <summary className="cursor-pointer text-sm font-medium text-[var(--gl-cream-soft)]">
+            Purchase scenario lenses (estimate only)
+          </summary>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            The table above packs sticks using your transport cap. Below is how different procurement objectives would
+            frame the same demand—yard verification still required.
+          </p>
+          <ul className="mt-3 space-y-3 text-xs text-[var(--gl-muted)]">
+            {purchaseScenarios.map((s) => (
+              <li key={s.scenario} className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface)] p-3">
+                <p className="font-medium text-[var(--gl-cream-soft)]">{PURCHASE_SCENARIO_META[s.scenario].title}</p>
+                <p className="mt-1">{PURCHASE_SCENARIO_META[s.scenario].shortHint}</p>
+                <p className="mt-1 text-[var(--gl-muted)]">
+                  ~{s.twoDimensional.totalEstimatedBoards2d} boards (2D estimate) · {s.detail.slice(0, 160)}
+                  {s.detail.length > 160 ? "…" : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }
