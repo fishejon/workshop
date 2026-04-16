@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { DecisionStrip } from "@/components/DecisionStrip";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
 import { CutPlanner } from "@/components/CutPlanner";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/templates/furniture-templates";
 import { templateStorageService } from "@/lib/services/TemplateStorageService";
 import type { FurnitureConfig } from "@/lib/types/furniture-config";
+import { caseworkGenerationService } from "@/lib/services/CaseworkGenerationService";
 
 const PRESETS = [
   {
@@ -70,10 +71,13 @@ export function GrainlineApp() {
   const [showExperimentalPresets, setShowExperimentalPresets] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
   const [activeFurnitureConfig, setActiveFurnitureConfig] = useState<FurnitureConfig | null>(null);
+  const [loadedConsoleConfig, setLoadedConsoleConfig] = useState<FurnitureConfig | undefined>();
+  const [loadedBookshelfConfig, setLoadedBookshelfConfig] = useState<FurnitureConfig | undefined>();
   const {
     project,
     blockingValidationIssues,
     warningValidationIssues,
+    replacePartsInAssemblies,
   } = useProject();
   const active = PRESETS.find((p) => p.id === preset);
   const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
@@ -134,6 +138,15 @@ export function GrainlineApp() {
   })();
 
   const explainAllowance = `Project milling allowance: ${formatShopImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
+
+  const syncTemplatePartsToProject = useCallback(
+    (config: FurnitureConfig) => {
+      setActiveFurnitureConfig(config);
+      const generatedParts = caseworkGenerationService.generateParts(config);
+      replacePartsInAssemblies(["Case", "Drawers", "Base", "Back", "Doors", "Other"], generatedParts);
+    },
+    [replacePartsInAssemblies]
+  );
 
   const setupPanel = (
     <div className="space-y-4">
@@ -217,14 +230,18 @@ export function GrainlineApp() {
         {preset === "board" ? <CutPlanner /> : null}
         {preset === "console-template" ? (
           <CaseworkPlanner
+            key={`console-template-${loadedConsoleConfig?.id ?? "default"}`}
             template={getTemplateById("console-table") ?? FURNITURE_TEMPLATES[0]}
-            onConfigChange={setActiveFurnitureConfig}
+            initialConfig={loadedConsoleConfig}
+            onConfigChange={syncTemplatePartsToProject}
           />
         ) : null}
         {preset === "bookshelf-template" ? (
           <CaseworkPlanner
+            key={`bookshelf-template-${loadedBookshelfConfig?.id ?? "default"}`}
             template={getTemplateById("bookshelf-adjustable") ?? FURNITURE_TEMPLATES[0]}
-            onConfigChange={setActiveFurnitureConfig}
+            initialConfig={loadedBookshelfConfig}
+            onConfigChange={syncTemplatePartsToProject}
           />
         ) : null}
         {preset === "tv-console" ? <TvConsoleStub /> : null}
@@ -285,9 +302,14 @@ export function GrainlineApp() {
         <TemplateLibrary
           onClose={() => setShowTemplateLibrary(false)}
           onSelectTemplate={(config) => {
-            setActiveFurnitureConfig(config);
-            if (config.type === "console") setPreset("console-template");
-            if (config.type === "bookshelf") setPreset("bookshelf-template");
+            if (config.type === "console") {
+              setLoadedConsoleConfig(config);
+              setPreset("console-template");
+            }
+            if (config.type === "bookshelf") {
+              setLoadedBookshelfConfig(config);
+              setPreset("bookshelf-template");
+            }
             if (config.type === "dresser") setPreset("dresser");
           }}
         />

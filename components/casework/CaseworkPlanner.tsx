@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   ConfigurableField,
   FurnitureConfig,
@@ -33,19 +33,24 @@ function updateAtPath<T extends Record<string, unknown>>(obj: T, path: string, v
 
 export function CaseworkPlanner({
   template,
+  initialConfig,
   onConfigChange,
 }: {
   template: FurnitureTemplate;
+  initialConfig?: FurnitureConfig;
   onConfigChange: (config: FurnitureConfig) => void;
 }) {
-  const [config, setConfig] = useState<FurnitureConfig>(template.defaultConfig);
+  const [config, setConfig] = useState<FurnitureConfig>(initialConfig ?? template.defaultConfig);
   const { parts, openings, validation } = useCaseworkGeneration(config);
 
   function change(path: string, value: unknown) {
     const updated = updateAtPath(config as unknown as Record<string, unknown>, path, value) as unknown as FurnitureConfig;
     setConfig(updated);
-    onConfigChange(updated);
   }
+
+  useEffect(() => {
+    onConfigChange(config);
+  }, [config, onConfigChange]);
 
   const summary = useMemo(
     () => `${parts.length} parts · ${openings.length} openings · ${validation.errors.length} validation issue(s)`,
