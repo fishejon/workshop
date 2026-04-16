@@ -7,6 +7,8 @@ Working title for a **hobbyist hardwood** planning app: **furniture presets** wi
 ## Presets
 
 - **Dresser** — Overall W×H×D, **1–3 columns**, row-count, row-opening balancing (with per-row locks), kick/top/bottom/rail/back/rear-clearance, and slide + joinery allowances. Outputs opening size and drawer box W×H×D per cell with a centered **front/side/top** preview. Dresser case + drawer rows sync automatically into the shared cut list when math is valid.
+- **Console template** — Shared casework engine path with shallow-depth drawer + open shelf defaults and optional face frame.
+- **Bookshelf template** — Shared casework engine path with shelf-first defaults and optional base drawer.
 - **Board cut list** — Kerf, stock length vs vehicle max, parts → packed boards (shop display rounds to **1/16″**).
 - **TV console (experimental)** — Opt-in early-access shell from W×H×D. **Standing cabinet** — queued.
 
@@ -32,6 +34,8 @@ Glue-up assumptions use a shared panel glue-up planner so table/print/CSV stay i
 - [docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md) — internal strategy memo (north star, wedge, pillars, phased roadmap, MVP, risks).  
 - [docs/PRD.md](docs/PRD.md) — product requirements (Workshop Companion / Grainline).  
 - [docs/PLAN.md](docs/PLAN.md) — phased implementation plan aligned with the PRD.
+- [docs/FURNITURE_CONFIG.md](docs/FURNITURE_CONFIG.md) — configuration schema for template-driven casework.
+- [docs/TEMPLATE_SYSTEM.md](docs/TEMPLATE_SYSTEM.md) — template architecture and save/load workflows.
 
 ## Run
 
