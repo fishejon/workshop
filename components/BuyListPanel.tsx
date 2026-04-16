@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial } from "@/lib/imperial";
 import { DresserMaterialsSummary } from "@/components/DresserMaterialsSummary";
@@ -16,18 +16,6 @@ import { stockConversionService } from "@/lib/services/StockConversionService";
 
 const PURCHASE_PRICING_KEY = "grainline-purchase-pricing-v1";
 
-function loadInitialPricing(): Map<string, PricingData> {
-  if (typeof window === "undefined") return new Map();
-  const raw = window.localStorage.getItem(PURCHASE_PRICING_KEY);
-  if (!raw) return new Map();
-  try {
-    const parsed = JSON.parse(raw) as PricingData[];
-    return new Map(parsed.map((row) => [row.species, row]));
-  } catch {
-    return new Map();
-  }
-}
-
 export function BuyListPanel({ showDresserSummary = false }: { showDresserSummary?: boolean }) {
   const { project } = useProject();
   const dresserSnapshot = useDresserMaterialsSnapshot();
@@ -35,8 +23,20 @@ export function BuyListPanel({ showDresserSummary = false }: { showDresserSummar
     project.workshop.lumberProfile === "rough_hardwood" ? "rough" : "surfaced"
   );
   const [showPricingModal, setShowPricingModal] = useState(false);
-  const [pricingBySpecies, setPricingBySpecies] = useState<Map<string, PricingData>>(loadInitialPricing);
+  const [pricingBySpecies, setPricingBySpecies] = useState<Map<string, PricingData>>(() => new Map());
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | undefined>();
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(PURCHASE_PRICING_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as PricingData[];
+      /* eslint-disable-next-line react-hooks/set-state-in-effect -- restore pricing map after mount; empty Map matches SSR */
+      setPricingBySpecies(new Map(parsed.map((row) => [row.species, row])));
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const purchaseScenarios = useMemo(() => buyListService.buildPurchaseScenarios(project), [project]);
   const lumberRows = useMemo(() => buyListService.buildLumberRows(project), [project]);
   const purchaseIntelligenceScenarios = useMemo(() => {

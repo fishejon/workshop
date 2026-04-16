@@ -142,14 +142,6 @@ function summarizeProjectDiff(before: Project, after: Project): ChangeSummary {
   };
 }
 
-function loadInitial(): Project {
-  if (typeof window === "undefined") return createEmptyProject();
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return createEmptyProject();
-  const parsed = parseProject(raw);
-  return parsed ?? createEmptyProject();
-}
-
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const MAX_UNDO_STEPS = 60;
   const resetMaterialCheckpoint = useCallback((p: Project): Project => {
@@ -174,15 +166,27 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const [project, setProjectState] = useState<Project>(loadInitial);
-  const [projectLibrary, setProjectLibrary] = useState<StoredProjectRecord[]>(() => {
-    if (typeof window === "undefined") return [];
-    const rawLibrary = window.localStorage.getItem(PROJECT_LIBRARY_STORAGE_KEY);
-    return rawLibrary ? parseProjectLibrary(rawLibrary) : [];
-  });
-  const [hydrated] = useState<boolean>(() => typeof window !== "undefined");
+  /** Same initial snapshot on server and client so SSR markup matches first client paint; load localStorage after mount. */
+  const [project, setProjectState] = useState<Project>(() => createEmptyProject());
+  const [projectLibrary, setProjectLibrary] = useState<StoredProjectRecord[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [undoPast, setUndoPast] = useState<Project[]>([]);
   const [undoFuture, setUndoFuture] = useState<Project[]>([]);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-shot rehydrate from localStorage after mount; initial state must match SSR for hydration */
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = parseProject(raw);
+      if (parsed) setProjectState(parsed);
+    }
+    const rawLibrary = window.localStorage.getItem(PROJECT_LIBRARY_STORAGE_KEY);
+    if (rawLibrary) {
+      setProjectLibrary(parseProjectLibrary(rawLibrary));
+    }
+    setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   const setProject = useCallback((updater: Project | ((prev: Project) => Project)) => {
     setProjectState((prev) => {
