@@ -34,8 +34,8 @@
 ### 1. Cut-list scope module (lib)
 
 - [ ] Add `lib/cut-list-scope.ts` (name flexible) exporting:
-  - `CUT_LIST_JOINERY_ENABLED = false` (or `process.env.NEXT_PUBLIC_*` if you need runtime toggle without redeploy—only if you truly need it).
-  - `jointsEffectiveForCutList(project: Project): ProjectJoint[]` — returns `[]` when disabled; when enabled later, returns `project.joints`.
+  - Runtime toggle via **`NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1`** when joinery should affect cut list, CSV, print, and assumptions (default off).
+  - `jointsEffectiveForCutList(project: Project): ProjectJoint[]` — returns `[]` when the flag is off; when on, returns `project.joints`.
 - [ ] Add `validateProjectForCutList(project: Project)` (or extend `validateProject(project, options?)`) that:
   - Omits `collectJoineryConflictIssues`.
   - Omits or gates the `for (const joint of project.joints)` block in `lib/validation/sanity-checks.ts` (and any other joint-only sanity paths).
@@ -53,7 +53,7 @@
 
 - [ ] Add `app/labs/page.tsx` (client or server as fits existing patterns).
 - [ ] Render:
-  - Short banner: joint edits persist in project JSON **but do not affect** cut list, CSV, print, or buy math while `CUT_LIST_JOINERY_ENABLED` is false.
+  - Short banner: joint edits persist in project JSON **but do not affect** cut list, CSV, print, or buy math unless **`NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1`**.
   - `JoineryPanel` (import from existing component).
   - Optionally `RoughStickLayout` here if removed from main path.
 - [ ] Add a **small nav link** from the main shell footer or Project tab (“Joinery experiments (labs)”)—**not** a primary tab.

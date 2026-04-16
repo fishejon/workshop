@@ -26,7 +26,7 @@ Orientation for working in this Next.js repo: layout, state, domain libraries, a
 ## Repository layout (high level)
 
 ```
-app/                 # Routes: /, /print
+app/                 # Routes: /, /print, /shop
 components/          # UI: GrainlineApp, tabs, planners, parts, shop panels
 lib/
   imperial.ts        # Parse/format imperial lengths
@@ -58,6 +58,7 @@ vitest.config.ts     # Vitest + `@/*` path alias
 
 - `app/page.tsx` — Wraps content in `ProjectProvider` + `GrainlineApp`.
 - `app/print/page.tsx` — Read-only **ShopPrintView**; hydrates project from `localStorage` (`STORAGE_KEY` in `lib/project-utils.ts`).
+- `app/shop/page.tsx` — Read-only **shop mode** summary (export readiness, blockers); same storage key as the main app.
 
 ---
 
@@ -100,6 +101,7 @@ Mutators of note:
 - **2D estimator** (`lib/buy-2d/*`) builds demand rows (including panel glue-up strips), applies width-lane multipliers, then runs constrained length packing.
 - **CSV** uses `lib/parts-csv.ts` as the canonical export mapping (BF/LF + joinery/glue-up provenance columns).
 - **Assumptions propagation** (`lib/part-assumptions.ts`) feeds table, CSV, and print consistently (joinery + glue-up + provenance summary).
+- **Cut-list joinery scope** — `lib/cut-list-scope.ts` exports `jointsEffectiveForCutList`: joinery is omitted on the main path unless **`NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1`** (see `lib/main-path-joinery-flag.ts`). Labs always uses full `project.joints` for experiments.
 
 ---
 

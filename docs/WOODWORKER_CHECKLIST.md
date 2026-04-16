@@ -15,7 +15,8 @@ Use this alongside the main tabs. It describes what “ready for the shop” mea
 | Named project | Non-empty name in Setup. |
 | Parts exist | At least one part row (from Plan generation or manual add on Cut list). |
 | Blocking issues cleared | Materials tab opens only when blocking validation issues are resolved. |
-| Export / print available | Use the source parts section (CSV) or print page once the cut list reflects intent. |
+| Export / print available | Use the source parts section (CSV) or **`/print`** once the cut list reflects intent. |
+| Shop status (optional) | Open **`/shop`** from **Project** for a read-only large-type summary before you walk away from the desk. |
 
 ## Not covered here (honest gaps)
 
