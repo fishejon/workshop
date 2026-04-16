@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
 import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
@@ -25,6 +25,9 @@ import { balanceRowOpeningHeights } from "@/lib/dresser-row-balance";
 import type { Part } from "@/lib/project-types";
 import { formatImperial, formatImperialInput, parseInches } from "@/lib/imperial";
 import { useSetDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
+import { DresserPlannerField } from "@/components/dresser/DresserPlannerField";
+import { DresserImperialInput } from "@/components/dresser/DresserImperialInput";
+import { DresserRowOpeningBudgetHint } from "@/components/dresser/DresserRowOpeningBudgetHint";
 
 type SlideKey = DresserSlidePresetKey;
 
@@ -642,33 +645,33 @@ export function DresserPlanner() {
             Your inputs — case envelope &amp; stock
           </p>
           <div className="mt-2 grid gap-4 sm:grid-cols-3">
-            <Field label="Overall width (outside)" source="manual">
-              <In value={outerW} onChange={setOuterW} />
-            </Field>
-            <Field label="Overall height (outside)" source="manual">
-              <In value={outerH} onChange={setOuterH} />
-            </Field>
-            <Field label="Overall depth (outside)" source="manual">
-              <In value={outerD} onChange={setOuterD} />
-            </Field>
-            <Field label="Case side thickness" source="manual">
-              <In value={sideT} onChange={setSideT} hint="Primary side stock thickness (e.g. 3/4)." />
-            </Field>
-            <Field label="Center support / divider thickness" source="manual">
-              <In
+            <DresserPlannerField label="Overall width (outside)" source="manual">
+              <DresserImperialInput value={outerW} onChange={setOuterW} />
+            </DresserPlannerField>
+            <DresserPlannerField label="Overall height (outside)" source="manual">
+              <DresserImperialInput value={outerH} onChange={setOuterH} />
+            </DresserPlannerField>
+            <DresserPlannerField label="Overall depth (outside)" source="manual">
+              <DresserImperialInput value={outerD} onChange={setOuterD} />
+            </DresserPlannerField>
+            <DresserPlannerField label="Case side thickness" source="manual">
+              <DresserImperialInput value={sideT} onChange={setSideT} hint="Primary side stock thickness (e.g. 3/4)." />
+            </DresserPlannerField>
+            <DresserPlannerField label="Center support / divider thickness" source="manual">
+              <DresserImperialInput
                 value={centerSupportT}
                 onChange={setCenterSupportT}
                 hint="Vertical column divider thickness used in opening-width math."
               />
-            </Field>
-            <Field label="Top panel thickness" source="manual">
-              <In
+            </DresserPlannerField>
+            <DresserPlannerField label="Top panel thickness" source="manual">
+              <DresserImperialInput
                 value={topPanelT}
                 onChange={setTopPanelT}
                 hint="Case top stock thickness for parts output (separate from top assembly height)."
               />
-            </Field>
-            <Field
+            </DresserPlannerField>
+            <DresserPlannerField
               label="Max purchasable board (nominal stock)"
               source="manual"
               hint="Pick the widest dressed board you actually buy (same setting as Project setup). Used for glue-up strip planning and buy-list width checks."
@@ -679,8 +682,8 @@ export function DresserPlanner() {
                 selectId="dresser-max-board-nominal"
                 customInputId="dresser-max-board-custom-in"
               />
-            </Field>
-            <Field label="Columns (vertical stacks)" source="manual">
+            </DresserPlannerField>
+            <DresserPlannerField label="Columns (vertical stacks)" source="manual">
               <select
                 className="input-wood"
                 value={columns}
@@ -690,8 +693,8 @@ export function DresserPlanner() {
                 <option value={2}>Two columns</option>
                 <option value={3}>Three columns</option>
               </select>
-            </Field>
-            <Field label="Drawer rows (horizontal bands)" source="manual">
+            </DresserPlannerField>
+            <DresserPlannerField label="Drawer rows (horizontal bands)" source="manual">
               <input
                 className="input-wood"
                 type="number"
@@ -705,55 +708,55 @@ export function DresserPlanner() {
                   syncRowOpeningFields(v);
                 }}
               />
-            </Field>
+            </DresserPlannerField>
           </div>
 
           <p className="mt-6 text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
             Your inputs — layout, back &amp; slides
           </p>
           <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Field
+            <DresserPlannerField
               label="Toe kick (optional)"
               source="manual"
               hint="0 = none (e.g. legs/feet hold the box up). Otherwise recessed height under the front—no drawers in this band."
             >
-              <In value={kick} onChange={setKick} placeholder="0" />
-            </Field>
-            <Field
+              <DresserImperialInput value={kick} onChange={setKick} placeholder="0" />
+            </DresserPlannerField>
+            <DresserPlannerField
               label="Top assembly height"
               source="manual"
               hint="From the very top of the cabinet down to the top of the uppermost drawer opening (top, subtop, dust shelf, apron, intentional gap)."
             >
-              <In value={topAsm} onChange={setTopAsm} />
-            </Field>
-            <Field
+              <DresserImperialInput value={topAsm} onChange={setTopAsm} />
+            </DresserPlannerField>
+            <DresserPlannerField
               label="Bottom panel thickness"
               source="manual"
               hint="Thickness of the bottom structure the lowest drawers sit on/above."
             >
-              <In value={bottomPanel} onChange={setBottomPanel} />
-            </Field>
-            <Field
+              <DresserImperialInput value={bottomPanel} onChange={setBottomPanel} />
+            </DresserPlannerField>
+            <DresserPlannerField
               label="Rail between drawers"
               source="manual"
               hint="Horizontal frame member between stacked drawer openings (subtracts from drawer stack height)."
             >
-              <In value={rail} onChange={setRail} />
-            </Field>
-            <Field
+              <DresserImperialInput value={rail} onChange={setRail} />
+            </DresserPlannerField>
+            <DresserPlannerField
               label="Back panel thickness"
               source="manual"
               hint="Thickness of the cabinet back (e.g. 1/4″ ply or shiplap)."
             >
-              <In value={backT} onChange={setBackT} />
-            </Field>
-            <Field
+              <DresserImperialInput value={backT} onChange={setBackT} />
+            </DresserPlannerField>
+            <DresserPlannerField
               label="Rear clearance (behind drawer box)"
               source="manual"
               hint="Depth you reserve between the drawer box back and the cabinet back—slack for install, wiring, or wood movement."
             >
-              <In value={rearClear} onChange={setRearClear} />
-            </Field>
+              <DresserImperialInput value={rearClear} onChange={setRearClear} />
+            </DresserPlannerField>
           </div>
 
           <p className="mt-6 text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
@@ -764,7 +767,7 @@ export function DresserPlanner() {
             removed from each opening for box width and height.
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Field label="Slide style preset" source="manual">
+            <DresserPlannerField label="Slide style preset" source="manual">
               <select
                 className="input-wood"
                 value={slidePreset}
@@ -776,42 +779,42 @@ export function DresserPlanner() {
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field label="Slide length (nominal)" source="manual">
-              <In value={slideLen} onChange={setSlideLen} hint="Box depth = min(this, usable depth)" />
-            </Field>
-            <Field label="Slide width clearance (opening → box)" source="manual">
-              <In
+            </DresserPlannerField>
+            <DresserPlannerField label="Slide length (nominal)" source="manual">
+              <DresserImperialInput value={slideLen} onChange={setSlideLen} hint="Box depth = min(this, usable depth)" />
+            </DresserPlannerField>
+            <DresserPlannerField label="Slide width clearance (opening → box)" source="manual">
+              <DresserImperialInput
                 value={slideWClr}
                 onChange={(v) => {
                   setSlideWClr(v);
                   setSlidePreset("custom");
                 }}
               />
-            </Field>
-            <Field label="Slide height clearance (opening → box)" source="manual">
-              <In
+            </DresserPlannerField>
+            <DresserPlannerField label="Slide height clearance (opening → box)" source="manual">
+              <DresserImperialInput
                 value={slideHClr}
                 onChange={(v) => {
                   setSlideHClr(v);
                   setSlidePreset("custom");
                 }}
               />
-            </Field>
-            <Field label="Joinery width allowance (total)" source="manual">
-              <In
+            </DresserPlannerField>
+            <DresserPlannerField label="Joinery width allowance (total)" source="manual">
+              <DresserImperialInput
                 value={drawerJoineryW}
                 onChange={setDrawerJoineryW}
                 hint="Extra total width removed from opening beyond slide clearance."
               />
-            </Field>
-            <Field label="Joinery height allowance (total)" source="manual">
-              <In
+            </DresserPlannerField>
+            <DresserPlannerField label="Joinery height allowance (total)" source="manual">
+              <DresserImperialInput
                 value={drawerJoineryH}
                 onChange={setDrawerJoineryH}
                 hint="Extra total height removed from opening beyond slide clearance."
               />
-            </Field>
+            </DresserPlannerField>
           </div>
           <p className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
             Formula used: <strong className="text-[var(--gl-cream)]">box width = opening width − slide width clearance − joinery width allowance</strong> and{" "}
@@ -845,7 +848,7 @@ export function DresserPlanner() {
                 Split target equally
               </button>
             </div>
-            <RowOpeningBudgetHint
+            <DresserRowOpeningBudgetHint
               outerH={outerH}
               kick={kick}
               topAsm={topAsm}
@@ -853,17 +856,18 @@ export function DresserPlanner() {
               rail={rail}
               rowCount={rowCount}
               rowStrings={rowOpeningHeights}
+              fractionDenominator={FRACTION_DENOMINATOR}
             />
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {rowOpeningHeights.slice(0, rowCount).map((w, i) => (
                 <div key={`row-h-${i}`} className="flex flex-col gap-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)]/40 p-3">
-                  <Field
+                  <DresserPlannerField
                     label={`Row ${i + 1} opening height`}
                     source="manual"
                     hint="Inside height of the drawer opening for this band."
                   >
-                    <In value={w} onChange={(v) => handleRowOpeningChange(i, v)} />
-                  </Field>
+                    <DresserImperialInput value={w} onChange={(v) => handleRowOpeningChange(i, v)} />
+                  </DresserPlannerField>
                   <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--gl-muted)]">
                     <input
                       type="checkbox"
@@ -925,140 +929,3 @@ export function DresserPlanner() {
   );
 }
 
-function RowOpeningBudgetHint({
-  outerH,
-  kick,
-  topAsm,
-  bottomPanel,
-  rail,
-  rowCount,
-  rowStrings,
-}: {
-  outerH: string;
-  kick: string;
-  topAsm: string;
-  bottomPanel: string;
-  rail: string;
-  rowCount: number;
-  rowStrings: string[];
-}) {
-  const h = parsePositive(outerH);
-  const k = parseInches(kick.trim() === "" ? "0" : kick);
-  const top = parseInches(topAsm);
-  const bot = parseInches(bottomPanel);
-  const r = parseInches(rail);
-  if (
-    h === null ||
-    k === null ||
-    k < 0 ||
-    top === null ||
-    top < 0 ||
-    bot === null ||
-    bot < 0 ||
-    r === null ||
-    r < 0 ||
-    !Number.isFinite(rowCount) ||
-    rowCount < 1
-  ) {
-    return null;
-  }
-  const bud = budgetForRowOpeningHeights({
-    outerHeight: h,
-    kickHeight: k,
-    topAssemblyHeight: top,
-    bottomPanelThickness: bot,
-    rowCount,
-    railBetweenDrawers: r,
-  });
-  if (bud === null) return null;
-  const vals = rowStrings.slice(0, rowCount).map((s) => parseInches(s.trim()));
-  const allValid = vals.every((v) => v !== null && v > 0);
-  const currentSum = allValid ? vals.reduce<number>((a, b) => a + (b as number), 0) : null;
-  return (
-    <p className="mt-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-      Opening heights must sum to{" "}
-      <strong className="text-[var(--gl-cream)]">{fmtInches(bud)}</strong>
-      {currentSum !== null ? (
-        <>
-          {" "}
-          · Current sum: <strong className="text-[var(--gl-cream)]">{fmtInches(currentSum)}</strong>
-          {Math.abs(currentSum - bud) > 1 / 32 ? (
-            <span className="text-[var(--gl-warning)]">
-              {" "}
-              — off by {fmtInches(Math.abs(currentSum - bud))} (±{fmtInches(1 / 32)} allowed)
-            </span>
-          ) : (
-            <span className="text-[var(--gl-success)]"> — balanced</span>
-          )}
-        </>
-      ) : (
-        <span> · Fill every row to check the sum.</span>
-      )}
-    </p>
-  );
-}
-
-function Field({
-  label,
-  children,
-  hint,
-  source,
-}: {
-  label: string;
-  children: ReactNode;
-  hint?: string;
-  /** Marks fields the user edits (vs read-only calculated blocks elsewhere). */
-  source?: "manual";
-}) {
-  return (
-    <label className="flex h-full flex-col gap-1.5 text-sm">
-      <span className="flex min-h-[2.8rem] flex-wrap content-start items-start gap-2 font-medium text-[var(--gl-cream-soft)]">
-        {label}
-        {source === "manual" ? (
-          <span className="rounded border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-1.5 py-0.5 text-[10px] font-normal tracking-wide text-[var(--gl-muted)] uppercase">
-            Your input
-          </span>
-        ) : null}
-      </span>
-      {children}
-      {hint ? <span className="min-h-[2.3rem] text-xs leading-snug text-[var(--gl-muted)]">{hint}</span> : null}
-    </label>
-  );
-}
-
-function In({
-  value,
-  onChange,
-  hint,
-  placeholder,
-  normalizeOnBlur = true,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  hint?: string;
-  placeholder?: string;
-  normalizeOnBlur?: boolean;
-}) {
-  function handleBlur() {
-    if (!normalizeOnBlur) return;
-    const parsed = parseInches(value);
-    if (parsed === null) return;
-    onChange(formatImperialInput(parsed, FRACTION_DENOMINATOR));
-  }
-
-  return (
-    <>
-      <input
-        className="input-wood"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={handleBlur}
-        inputMode="decimal"
-      />
-      <span className="text-xs text-[var(--gl-muted)]">
-        {hint ?? "Fractions supported (e.g. 34 1/2, 7/8, 3/4)."}
-      </span>
-    </>
-  );
-}

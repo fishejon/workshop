@@ -1,5 +1,7 @@
 # Grainline
 
+[![CI](https://github.com/fishejon/workshop/actions/workflows/ci.yml/badge.svg)](https://github.com/fishejon/workshop/actions/workflows/ci.yml)
+
 Working title for a **hobbyist hardwood** planning app: **furniture presets** with shop math and a cut-list-first materials handoff.
 
 ## Presets

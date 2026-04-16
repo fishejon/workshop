@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -89,6 +88,10 @@ type ProjectContextValue = {
   /** Toggle “cut” progress for one rough-length instance (`partId:instanceIndex`). */
   toggleCutProgress: (roughInstanceId: string) => void;
   clearCutProgress: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 };
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -148,6 +151,7 @@ function loadInitial(): Project {
 }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
+  const MAX_UNDO_STEPS = 60;
   const resetMaterialCheckpoint = useCallback((p: Project): Project => {
     if (!p.checkpoints.materialAssumptionsReviewed) return p;
     return {
@@ -170,18 +174,49 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const [project, setProject] = useState<Project>(createEmptyProject);
-  const [projectLibrary, setProjectLibrary] = useState<StoredProjectRecord[]>([]);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect -- localStorage hydration after mount (avoid SSR/client mismatch) */
-    setProject(loadInitial());
+  const [project, setProjectState] = useState<Project>(loadInitial);
+  const [projectLibrary, setProjectLibrary] = useState<StoredProjectRecord[]>(() => {
+    if (typeof window === "undefined") return [];
     const rawLibrary = window.localStorage.getItem(PROJECT_LIBRARY_STORAGE_KEY);
-    setProjectLibrary(rawLibrary ? parseProjectLibrary(rawLibrary) : []);
-    setHydrated(true);
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
+    return rawLibrary ? parseProjectLibrary(rawLibrary) : [];
+  });
+  const [hydrated] = useState<boolean>(() => typeof window !== "undefined");
+  const [undoPast, setUndoPast] = useState<Project[]>([]);
+  const [undoFuture, setUndoFuture] = useState<Project[]>([]);
+
+  const setProject = useCallback((updater: Project | ((prev: Project) => Project)) => {
+    setProjectState((prev) => {
+      const next = typeof updater === "function" ? (updater as (value: Project) => Project)(prev) : updater;
+      if (next === prev) return prev;
+      setUndoPast((past) => [...past.slice(-(MAX_UNDO_STEPS - 1)), prev]);
+      setUndoFuture([]);
+      return next;
+    });
+  }, [MAX_UNDO_STEPS]);
+
+  const undo = useCallback(() => {
+    setUndoPast((past) => {
+      const previous = past[past.length - 1];
+      if (!previous) return past;
+      setProjectState((current) => {
+        setUndoFuture((future) => [current, ...future].slice(0, MAX_UNDO_STEPS));
+        return previous;
+      });
+      return past.slice(0, -1);
+    });
+  }, [MAX_UNDO_STEPS]);
+
+  const redo = useCallback(() => {
+    setUndoFuture((future) => {
+      const next = future[0];
+      if (!next) return future;
+      setProjectState((current) => {
+        setUndoPast((past) => [...past.slice(-(MAX_UNDO_STEPS - 1)), current]);
+        return next;
+      });
+      return future.slice(1);
+    });
+  }, [MAX_UNDO_STEPS]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -203,26 +238,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const setProjectName = useCallback((name: string) => {
     setProject((p) => ({ ...p, name }));
-  }, []);
+  }, [setProject]);
 
   const setMillingAllowanceInches = useCallback((n: number) => {
     setProject((p) => {
       const next = { ...p, millingAllowanceInches: n };
       return resetMaterialCheckpoint(recomputeAllRoughParts(next));
     });
-  }, [resetMaterialCheckpoint]);
+  }, [resetMaterialCheckpoint, setProject]);
 
   const setMaxTransportLengthInches = useCallback((n: number) => {
     setProject((p) => resetMaterialCheckpoint({ ...p, maxTransportLengthInches: n }));
-  }, [resetMaterialCheckpoint]);
+  }, [resetMaterialCheckpoint, setProject]);
 
   const setMaxPurchasableBoardWidthInches = useCallback((n: number) => {
     setProject((p) => resetMaterialCheckpoint({ ...p, maxPurchasableBoardWidthInches: n }));
-  }, [resetMaterialCheckpoint]);
+  }, [resetMaterialCheckpoint, setProject]);
 
   const setWasteFactorPercent = useCallback((n: number) => {
     setProject((p) => resetMaterialCheckpoint({ ...p, wasteFactorPercent: n }));
-  }, [resetMaterialCheckpoint]);
+  }, [resetMaterialCheckpoint, setProject]);
 
   const setMaterialGroupCostRate = useCallback(
     (groupKey: string, rate: MaterialGroupCostRate) => {
@@ -243,7 +278,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         return resetMaterialCheckpoint({ ...p, costRatesByGroup: nextRates });
       });
     },
-    [resetMaterialCheckpoint]
+    [resetMaterialCheckpoint, setProject]
   );
 
   const setMaterialGroupStockWidth = useCallback(
@@ -262,16 +297,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         });
       });
     },
-    [resetMaterialCheckpoint]
+    [resetMaterialCheckpoint, setProject]
   );
 
   const setWorkshopLumberProfile = useCallback((profile: Project["workshop"]["lumberProfile"]) => {
     setProject((p) => ({ ...p, workshop: { ...p.workshop, lumberProfile: profile } }));
-  }, []);
+  }, [setProject]);
 
   const setWorkshopOffcutMode = useCallback((mode: Project["workshop"]["offcutMode"]) => {
     setProject((p) => ({ ...p, workshop: { ...p.workshop, offcutMode: mode } }));
-  }, []);
+  }, [setProject]);
 
   const addPart = useCallback((part: Omit<Part, "id"> & { id?: string }) => {
     setProject((p) => {
@@ -282,7 +317,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const full: Part = { ...part, id, rough };
       return resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: [...p.parts, full] }));
     });
-  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint, setProject]);
 
   const addParts = useCallback((parts: Array<Omit<Part, "id"> & { id?: string }>) => {
     setProject((p) => {
@@ -296,7 +331,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       }
       return resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts: next }));
     });
-  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint, setProject]);
 
   const replacePartsInAssemblies = useCallback(
     (assemblies: AssemblyId[], parts: Array<Omit<Part, "id"> & { id?: string }>) => {
@@ -330,7 +365,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         );
       });
     },
-    [resetJoineryCheckpoint, resetMaterialCheckpoint]
+    [resetJoineryCheckpoint, resetMaterialCheckpoint, setProject]
   );
 
   const updatePart = useCallback((id: string, patch: Partial<Part>) => {
@@ -345,7 +380,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       });
       return resetJoineryCheckpoint(resetMaterialCheckpoint({ ...p, parts }));
     });
-  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint, setProject]);
 
   const removePart = useCallback((id: string) => {
     setProject((p) => {
@@ -360,7 +395,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         })
       );
     });
-  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint, setProject]);
 
   const clearParts = useCallback(() => {
     setProject((p) =>
@@ -368,15 +403,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         resetMaterialCheckpoint({ ...p, parts: [], joints: [], connections: [], cutProgressByRoughInstanceId: {} })
       )
     );
-  }, [resetJoineryCheckpoint, resetMaterialCheckpoint]);
+  }, [resetJoineryCheckpoint, resetMaterialCheckpoint, setProject]);
 
   const resetProject = useCallback(() => {
     setProject(createEmptyProject());
-  }, []);
+  }, [setProject]);
 
   const duplicateProject = useCallback((name: string) => {
     setProject((p) => cloneProject(p, name));
-  }, []);
+  }, [setProject]);
 
   const createTemplate = useCallback(
     (templateName: string) => serializeProjectTemplate(project, templateName),
@@ -385,11 +420,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const applyTemplate = useCallback((template: ProjectTemplate, projectName: string) => {
     setProject(applyProjectTemplate(template, projectName));
-  }, []);
+  }, [setProject]);
 
   const duplicateAssemblyGroup = useCallback((assembly: AssemblyId) => {
     setProject((p) => duplicateAssemblyGroupInProject(p, assembly));
-  }, []);
+  }, [setProject]);
 
   const exportProjectJson = useCallback(() => serializeProject(project), [project]);
 
@@ -406,7 +441,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       summary,
       warnings: parsed.warnings,
     };
-  }, [project]);
+  }, [project, setProject]);
 
   const backupCurrentProject = useCallback(
     (name?: string) => {
@@ -456,7 +491,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         summary,
       };
     },
-    [project, projectLibrary]
+    [project, projectLibrary, setProject]
   );
 
   const setLibraryArchived = useCallback((id: string, archived: boolean) => {
@@ -470,7 +505,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         joints: [...p.joints, { ...joint, id: joint.id ?? newPartId() }],
       })
     );
-  }, [resetJoineryCheckpoint]);
+  }, [resetJoineryCheckpoint, setProject]);
 
   const addConnectionRecord = useCallback((c: Omit<ProjectJoinConnection, "id"> & { id?: string }) => {
     setProject((p) => {
@@ -487,7 +522,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         connections: [...p.connections, { ...c, id: c.id ?? newPartId() }],
       });
     });
-  }, [resetJoineryCheckpoint]);
+  }, [resetJoineryCheckpoint, setProject]);
 
   const setCheckpointReviewed = useCallback(
     (checkpoint: "materialAssumptionsReviewed" | "joineryReviewed", reviewed: boolean) => {
@@ -499,7 +534,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         },
       }));
     },
-    []
+    [setProject]
   );
 
   const toggleCutProgress = useCallback((roughInstanceId: string) => {
@@ -513,91 +548,57 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       }
       return { ...p, cutProgressByRoughInstanceId: next };
     });
-  }, []);
+  }, [setProject]);
 
   const clearCutProgress = useCallback(() => {
     setProject((p) => ({ ...p, cutProgressByRoughInstanceId: {} }));
-  }, []);
+  }, [setProject]);
 
-  const value = useMemo(
-    () => {
-      const validationIssues = validateProject(project);
-      const blockingValidationIssues = getBlockingValidationIssues(validationIssues);
-      const warningValidationIssues = getWarningValidationIssues(validationIssues);
-      return {
-      project,
-      validationIssues,
-      blockingValidationIssues,
-      warningValidationIssues,
-      hasBlockingValidationIssues: blockingValidationIssues.length > 0,
-      setProjectName,
-      setMillingAllowanceInches,
-      setMaxTransportLengthInches,
-      setMaxPurchasableBoardWidthInches,
-      setWasteFactorPercent,
-      setMaterialGroupCostRate,
-      setMaterialGroupStockWidth,
-      setWorkshopLumberProfile,
-      setWorkshopOffcutMode,
-      addPart,
-      addParts,
-      replacePartsInAssemblies,
-      updatePart,
-      removePart,
-      clearParts,
-      resetProject,
-      duplicateProject,
-      createTemplate,
-      applyTemplate,
-      duplicateAssemblyGroup,
-      exportProjectJson,
-      importProjectJson,
-      projectLibrary,
-      backupCurrentProject,
-      restoreFromLibrary,
-      setLibraryArchived,
-      addJointRecord,
-      addConnectionRecord,
-      setCheckpointReviewed,
-      toggleCutProgress,
-      clearCutProgress,
-      };
-    },
-    [
-      project,
-      setProjectName,
-      setMillingAllowanceInches,
-      setMaxTransportLengthInches,
-      setMaxPurchasableBoardWidthInches,
-      setWasteFactorPercent,
-      setMaterialGroupCostRate,
-      setMaterialGroupStockWidth,
-      setWorkshopLumberProfile,
-      setWorkshopOffcutMode,
-      addPart,
-      addParts,
-      replacePartsInAssemblies,
-      updatePart,
-      removePart,
-      clearParts,
-      resetProject,
-      duplicateProject,
-      createTemplate,
-      applyTemplate,
-      duplicateAssemblyGroup,
-      exportProjectJson,
-      importProjectJson,
-      projectLibrary,
-      backupCurrentProject,
-      restoreFromLibrary,
-      setLibraryArchived,
-      addJointRecord,
-      addConnectionRecord,
-      setCheckpointReviewed,
-      toggleCutProgress,
-      clearCutProgress,
-    ]
-  );
+  const validationIssues = validateProject(project);
+  const blockingValidationIssues = getBlockingValidationIssues(validationIssues);
+  const warningValidationIssues = getWarningValidationIssues(validationIssues);
+  const value: ProjectContextValue = {
+    project,
+    validationIssues,
+    blockingValidationIssues,
+    warningValidationIssues,
+    hasBlockingValidationIssues: blockingValidationIssues.length > 0,
+    setProjectName,
+    setMillingAllowanceInches,
+    setMaxTransportLengthInches,
+    setMaxPurchasableBoardWidthInches,
+    setWasteFactorPercent,
+    setMaterialGroupCostRate,
+    setMaterialGroupStockWidth,
+    setWorkshopLumberProfile,
+    setWorkshopOffcutMode,
+    addPart,
+    addParts,
+    replacePartsInAssemblies,
+    updatePart,
+    removePart,
+    clearParts,
+    resetProject,
+    duplicateProject,
+    createTemplate,
+    applyTemplate,
+    duplicateAssemblyGroup,
+    exportProjectJson,
+    importProjectJson,
+    projectLibrary,
+    backupCurrentProject,
+    restoreFromLibrary,
+    setLibraryArchived,
+    addJointRecord,
+    addConnectionRecord,
+    setCheckpointReviewed,
+    toggleCutProgress,
+    clearCutProgress,
+    undo,
+    redo,
+    canUndo: undoPast.length > 0,
+    canRedo: undoFuture.length > 0,
+  };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
 }
