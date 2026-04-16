@@ -8,6 +8,7 @@ import { DresserPlanner } from "@/components/DresserPlanner";
 import { CutListYardSummary } from "@/components/CutListYardSummary";
 import { PartsTable } from "@/components/PartsTable";
 import { ProjectSetupBar } from "@/components/ProjectSetupBar";
+import { ProjectToolbar } from "@/components/ProjectToolbar";
 import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { useProject } from "@/components/ProjectContext";
@@ -212,6 +213,7 @@ export function GrainlineApp() {
                 Plan the piece and review the materials cut list.
               </p>
             </div>
+            <ProjectToolbar />
           </div>
         </header>
 

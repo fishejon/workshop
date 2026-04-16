@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Libre_Baskerville } from "next/font/google";
+import PlausibleProvider from "next-plausible";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,7 +35,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${libre.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
+          <PlausibleProvider enabled />
+        ) : null}
+        {children}
+      </body>
     </html>
   );
 }

@@ -16,6 +16,11 @@ import {
   recommendedJoinerySummaryLine,
   recommendedParamsForRule,
 } from "@/lib/joinery/recommended-params";
+import { getApplicablePresets, getPresetById, type JoineryPreset } from "@/lib/presets/joinery-presets";
+import { presetApplicationService } from "@/lib/services/PresetApplicationService";
+import { joineryDependencyResolver } from "@/lib/services/JoineryDependencyResolver";
+import { connectionGraphService } from "@/lib/services/ConnectionGraphService";
+import { JoineryImpactPreview } from "@/components/joinery/JoineryImpactPreview";
 import type { JointRuleId } from "@/lib/joinery/types";
 import { formatJointRuleLabel } from "@/lib/part-provenance";
 import { formatShopImperial, parseInches } from "@/lib/imperial";
@@ -33,6 +38,12 @@ const PRESET_OPTIONS: { id: ConstructionPresetId; label: string }[] = [
   { id: "dovetailed_drawer_box", label: "Dovetailed drawer box" },
   { id: "grooved_back_case", label: "Grooved back case" },
 ];
+
+const PRESET_ID_BRIDGE: Record<ConstructionPresetId, string> = {
+  frame_and_panel: "frame-and-panel-carcass",
+  dovetailed_drawer_box: "dovetailed-drawer",
+  grooved_back_case: "dado-drawer",
+};
 
 function formatTxWxL(t: number, w: number, l: number): string {
   return `${formatShopImperial(t)} × ${formatShopImperial(w)} × ${formatShopImperial(l)}`;
@@ -61,6 +72,7 @@ export function JoineryPanel() {
   const [drawerMaterialThicknessStr, setDrawerMaterialThicknessStr] = useState("0.5");
   const [drawerHalfLapRatioStr, setDrawerHalfLapRatioStr] = useState("0.5");
   const [drawerHalfLapDepthStr, setDrawerHalfLapDepthStr] = useState("");
+  const [showImpactPreview, setShowImpactPreview] = useState(false);
 
   function evaluateRule(
     currentRuleId: JointRuleId,
@@ -235,6 +247,11 @@ export function JoineryPanel() {
     () => buildConstructionPresetPlan(project.parts, presetId),
     [project.parts, presetId]
   );
+  const applicablePresets = useMemo(() => getApplicablePresets(project), [project]);
+  const selectedJoineryPreset = useMemo<JoineryPreset | undefined>(
+    () => getPresetById(PRESET_ID_BRIDGE[presetId]),
+    [presetId]
+  );
 
   const presetAffectedPartCount = useMemo(
     () =>
@@ -243,6 +260,23 @@ export function JoineryPanel() {
       }, 0),
     [selectedPresetPlan]
   );
+  const graphConnections = useMemo(
+    () => connectionGraphService.buildGraph(project.parts, project.joints),
+    [project]
+  );
+  const beforePartsForImpact = useMemo(() => {
+    const byPart = new Map<string, (typeof project.parts)[number]>();
+    for (const part of project.parts) byPart.set(part.id, part);
+    for (const joint of project.joints) {
+      const current = byPart.get(joint.primaryPartId);
+      if (!current) continue;
+      byPart.set(joint.primaryPartId, {
+        ...current,
+        finished: { ...joint.finishedBefore },
+      });
+    }
+    return [...byPart.values()];
+  }, [project]);
 
   const drawerPresetPreview = useMemo(() => {
     const t = parseInches(drawerMaterialThicknessStr);
@@ -326,6 +360,66 @@ export function JoineryPanel() {
   }
 
   function applySelectedPreset() {
+    if (selectedJoineryPreset) {
+      const { connections, warnings } = presetApplicationService.applyPreset(project, selectedJoineryPreset);
+      if (warnings.length > 0) {
+        console.warn("Joinery preset warnings", warnings);
+      }
+      const cycles = joineryDependencyResolver.detectCycles(connections);
+      if (cycles.length > 0) {
+        console.warn("Joinery preset dependency cycle", cycles);
+        return;
+      }
+      const resolved = joineryDependencyResolver.resolveInOrder(connections, project.parts);
+      const adjustedById = new Map(resolved.adjustedParts.map((part) => [part.id, part]));
+      const applicationId = newPartId();
+      for (const connection of resolved.orderedConnections) {
+        const before = project.parts.find((part) => part.id === connection.secondaryPart.partId);
+        const after = adjustedById.get(connection.secondaryPart.partId);
+        if (!before || !after) continue;
+        if (
+          before.finished.t === after.finished.t &&
+          before.finished.w === after.finished.w &&
+          before.finished.l === after.finished.l
+        ) {
+          continue;
+        }
+        updatePart(before.id, { finished: { ...after.finished } });
+        const jointId = newPartId();
+        addJointRecord({
+          id: jointId,
+          applicationId,
+          presetId: selectedJoineryPreset.id,
+          presetLabel: selectedJoineryPreset.name,
+          ruleId: connection.sourceRuleId ?? connection.joineryMethod,
+          primaryPartId: before.id,
+          matePartId: connection.primaryPart.partId,
+          params: {
+            depth: connection.primaryPart.dimensions.depth,
+            width: connection.primaryPart.dimensions.width,
+            length: connection.primaryPart.dimensions.length,
+          },
+          explanation: connection.label ?? selectedJoineryPreset.description,
+          finishedBefore: { ...before.finished },
+          finishedAfter: { ...after.finished },
+        });
+        addConnectionRecord({
+          applicationId,
+          partAId: connection.primaryPart.partId,
+          partBId: connection.secondaryPart.partId,
+          ruleId: connection.sourceRuleId ?? connection.joineryMethod,
+          params: {
+            depth: connection.primaryPart.dimensions.depth,
+            width: connection.primaryPart.dimensions.width,
+            length: connection.primaryPart.dimensions.length,
+          },
+          explanation: connection.label ?? selectedJoineryPreset.description,
+          jointId,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
     const presetPlan = buildConstructionPresetPlan(project.parts, presetId);
     if (presetPlan.applications.length < 1) return;
     const applicationId = newPartId();
@@ -573,6 +667,12 @@ export function JoineryPanel() {
                 </li>
               ))}
             </ul>
+            <p className="mt-2 text-xs text-[var(--gl-muted)]">
+              Applicable Joinery 2.0 presets right now:{" "}
+              {applicablePresets.length > 0
+                ? applicablePresets.map((preset) => preset.name).join(", ")
+                : "none (add matching rails/stiles/panels or drawer rows)."}
+            </p>
             <button
               type="button"
               onClick={applySelectedPreset}
@@ -585,6 +685,34 @@ export function JoineryPanel() {
               <p className="mt-2 text-xs text-[var(--gl-warning)]">
                 No matching parts found for this preset yet. Add rails/stiles, drawers, shelves, or back parts first.
               </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-[var(--gl-cream)]">Joinery impact preview</p>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--gl-border)] px-2 py-1 text-[11px] text-[var(--gl-cream-soft)]"
+                onClick={() => setShowImpactPreview((open) => !open)}
+              >
+                {showImpactPreview ? "Hide preview" : "Show preview"}
+              </button>
+            </div>
+            {showImpactPreview ? (
+              graphConnections.length > 0 ? (
+                <div className="mt-2">
+                  <JoineryImpactPreview
+                    parts={project.parts}
+                    beforeParts={beforePartsForImpact}
+                    connections={graphConnections}
+                  />
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-[var(--gl-muted)]">
+                  No connections in graph yet. Apply a rule/preset with a mate part to generate visible links.
+                </p>
+              )
             ) : null}
           </div>
 

@@ -2,52 +2,17 @@
 
 import { useMemo } from "react";
 import { useProject } from "@/components/ProjectContext";
-import { groupPartsByMaterial } from "@/lib/board-feet";
 import { formatShopImperial } from "@/lib/imperial";
 import { DresserMaterialsSummary } from "@/components/DresserMaterialsSummary";
 import { useDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
-import { buildLumberVehicleRows } from "@/lib/lumber-vehicle-summary";
-import { evaluateAllPurchaseScenarios, PURCHASE_SCENARIO_META } from "@/lib/purchase-scenarios";
+import { PURCHASE_SCENARIO_META } from "@/lib/purchase-scenarios";
+import { buyListService } from "@/lib/services/BuyListService";
 
 export function BuyListPanel({ showDresserSummary = false }: { showDresserSummary?: boolean }) {
   const { project } = useProject();
   const dresserSnapshot = useDresserMaterialsSnapshot();
-  const groups = useMemo(() => groupPartsByMaterial(project.parts, project.wasteFactorPercent), [project.parts, project.wasteFactorPercent]);
-  const purchaseScenarios = useMemo(
-    () =>
-      evaluateAllPurchaseScenarios({
-        parts: project.parts,
-        wasteFactorPercent: project.wasteFactorPercent,
-        maxTransportLengthInches: project.maxTransportLengthInches,
-        maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
-        stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
-        costRatesByGroup: project.costRatesByGroup,
-        kerfInches: 0.125,
-      }),
-    [
-      project.parts,
-      project.wasteFactorPercent,
-      project.maxTransportLengthInches,
-      project.maxPurchasableBoardWidthInches,
-      project.stockWidthByMaterialGroup,
-      project.costRatesByGroup,
-    ]
-  );
-
-  const lumberRows = useMemo(
-    () =>
-      buildLumberVehicleRows(groups, project.parts, project.maxTransportLengthInches, {
-        maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
-        stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
-      }),
-    [
-      groups,
-      project.parts,
-      project.maxTransportLengthInches,
-      project.maxPurchasableBoardWidthInches,
-      project.stockWidthByMaterialGroup,
-    ]
-  );
+  const purchaseScenarios = useMemo(() => buyListService.buildPurchaseScenarios(project), [project]);
+  const lumberRows = useMemo(() => buyListService.buildLumberRows(project), [project]);
 
   return (
     <section className="gl-panel p-5">
