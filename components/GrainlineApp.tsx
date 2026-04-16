@@ -9,10 +9,17 @@ import { CutListYardSummary } from "@/components/CutListYardSummary";
 import { PartsTable } from "@/components/PartsTable";
 import { ProjectSetupBar } from "@/components/ProjectSetupBar";
 import { ProjectToolbar } from "@/components/ProjectToolbar";
-import { SideboardPlanner } from "@/components/SideboardPlanner";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
+import { CaseworkPlanner } from "@/components/casework/CaseworkPlanner";
+import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
 import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial } from "@/lib/imperial";
+import {
+  FURNITURE_TEMPLATES,
+  getTemplateById,
+} from "@/lib/templates/furniture-templates";
+import { templateStorageService } from "@/lib/services/TemplateStorageService";
+import type { FurnitureConfig } from "@/lib/types/furniture-config";
 
 const PRESETS = [
   {
@@ -28,10 +35,16 @@ const PRESETS = [
     blurb: "Hardwood stick layout with kerf and the length you actually haul home.",
   },
   {
-    id: "sideboard-console" as const,
-    title: "Sideboard console",
+    id: "console-template" as const,
+    title: "Console template",
     tag: "Casework family",
-    blurb: "Archetype-backed sideboard shell with workshop defaults and geometry warnings.",
+    blurb: "Template-driven console using shared casework generation and validation.",
+  },
+  {
+    id: "bookshelf-template" as const,
+    title: "Bookshelf template",
+    tag: "Casework family",
+    blurb: "Template-driven bookshelf with adjustable shelf support.",
   },
   {
     id: "tv-console" as const,
@@ -55,6 +68,8 @@ export function GrainlineApp() {
   const [preset, setPreset] = useState<PresetId>("dresser");
   const [appTab, setAppTab] = useState<AppShellTabId>("build");
   const [showExperimentalPresets, setShowExperimentalPresets] = useState(false);
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+  const [activeFurnitureConfig, setActiveFurnitureConfig] = useState<FurnitureConfig | null>(null);
   const {
     project,
     blockingValidationIssues,
@@ -146,23 +161,45 @@ export function GrainlineApp() {
         ))}
       </div>
       <div className="flex justify-end border-t border-[var(--gl-border)] pt-4">
-        <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-          <input
-            id="show-experimental-presets"
-            type="checkbox"
-            className="mt-0.5"
-            checked={showExperimentalPresets}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setShowExperimentalPresets(checked);
-              if (!checked && preset === "tv-console") {
-                setPreset("dresser");
-              }
-            }}
-          />
-          <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
-            Show experimental presets (early access, not production-ready).
-          </label>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
+            <input
+              id="show-experimental-presets"
+              type="checkbox"
+              className="mt-0.5"
+              checked={showExperimentalPresets}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setShowExperimentalPresets(checked);
+                if (!checked && preset === "tv-console") {
+                  setPreset("dresser");
+                }
+              }}
+            />
+            <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
+              Show experimental presets (early access, not production-ready).
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+              onClick={() => setShowTemplateLibrary(true)}
+            >
+              Load template
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+              onClick={() => {
+                if (!activeFurnitureConfig) return;
+                templateStorageService.saveTemplate(activeFurnitureConfig);
+              }}
+              disabled={!activeFurnitureConfig}
+            >
+              Save as template
+            </button>
+          </div>
         </div>
       </div>
       <ProjectSetupBar />
@@ -178,7 +215,18 @@ export function GrainlineApp() {
       <div id="build-planner-section">
         {preset === "dresser" ? <DresserPlanner /> : null}
         {preset === "board" ? <CutPlanner /> : null}
-        {preset === "sideboard-console" ? <SideboardPlanner /> : null}
+        {preset === "console-template" ? (
+          <CaseworkPlanner
+            template={getTemplateById("console-table") ?? FURNITURE_TEMPLATES[0]}
+            onConfigChange={setActiveFurnitureConfig}
+          />
+        ) : null}
+        {preset === "bookshelf-template" ? (
+          <CaseworkPlanner
+            template={getTemplateById("bookshelf-adjustable") ?? FURNITURE_TEMPLATES[0]}
+            onConfigChange={setActiveFurnitureConfig}
+          />
+        ) : null}
         {preset === "tv-console" ? <TvConsoleStub /> : null}
       </div>
       {preset === "soon-cab" ? (
@@ -233,6 +281,17 @@ export function GrainlineApp() {
           disableShopTab={hasBlockingIssues}
         />
       </div>
+      {showTemplateLibrary ? (
+        <TemplateLibrary
+          onClose={() => setShowTemplateLibrary(false)}
+          onSelectTemplate={(config) => {
+            setActiveFurnitureConfig(config);
+            if (config.type === "console") setPreset("console-template");
+            if (config.type === "bookshelf") setPreset("bookshelf-template");
+            if (config.type === "dresser") setPreset("dresser");
+          }}
+        />
+      ) : null}
     </div>
   );
 }

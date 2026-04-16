@@ -17,3 +17,14 @@ This keeps provenance auditable while preserving the existing project part schem
 2. Graph + dependency resolver produce ordered adjustments.
 3. Part dimensions update, joint records append, and part connections are persisted.
 4. Impact preview and print/CSV exports read the same graph-derived state.
+
+## Template system (Phase 10)
+
+Grainline now supports a configuration-driven casework planner:
+
+- `FurnitureConfig` is the canonical model for dresser/console/bookshelf templates.
+- `CaseworkGenerationService` converts any `FurnitureConfig` into carcass/opening/back parts.
+- `CaseworkPlanner` renders dynamic controls from `configurableFields` metadata.
+- `TemplateStorageService` + `TemplateLibrary` provide save/load/duplicate workflows in the client.
+
+This keeps furniture-type branching in template definitions, not in core generation/runtime services.
