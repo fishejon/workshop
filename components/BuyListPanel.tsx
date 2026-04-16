@@ -1,18 +1,77 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial } from "@/lib/imperial";
 import { DresserMaterialsSummary } from "@/components/DresserMaterialsSummary";
 import { useDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
 import { PURCHASE_SCENARIO_META } from "@/lib/purchase-scenarios";
 import { buyListService } from "@/lib/services/BuyListService";
+import { purchaseStrategyService } from "@/lib/services/PurchaseStrategyService";
+import type { PricingData } from "@/lib/types/purchase-strategy";
+import { StockTypeSelector } from "@/components/purchase/StockTypeSelector";
+import { ScenarioComparison } from "@/components/purchase/ScenarioComparison";
+import { CostInputModal } from "@/components/purchase/CostInputModal";
+import { stockConversionService } from "@/lib/services/StockConversionService";
+
+const PURCHASE_PRICING_KEY = "grainline-purchase-pricing-v1";
+
+function loadInitialPricing(): Map<string, PricingData> {
+  if (typeof window === "undefined") return new Map();
+  const raw = window.localStorage.getItem(PURCHASE_PRICING_KEY);
+  if (!raw) return new Map();
+  try {
+    const parsed = JSON.parse(raw) as PricingData[];
+    return new Map(parsed.map((row) => [row.species, row]));
+  } catch {
+    return new Map();
+  }
+}
 
 export function BuyListPanel({ showDresserSummary = false }: { showDresserSummary?: boolean }) {
   const { project } = useProject();
   const dresserSnapshot = useDresserMaterialsSnapshot();
+  const [stockType, setStockType] = useState<"surfaced" | "rough">(
+    project.workshop.lumberProfile === "rough_hardwood" ? "rough" : "surfaced"
+  );
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [pricingBySpecies, setPricingBySpecies] = useState<Map<string, PricingData>>(loadInitialPricing);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | undefined>();
   const purchaseScenarios = useMemo(() => buyListService.buildPurchaseScenarios(project), [project]);
   const lumberRows = useMemo(() => buyListService.buildLumberRows(project), [project]);
+  const purchaseIntelligenceScenarios = useMemo(() => {
+    return purchaseStrategyService.generateScenarios(project.parts, {
+      stockType,
+      acceptableWaste: 15,
+      maxBoardLengthFeet: project.maxTransportLengthInches / 12,
+      maxBoardWidthInches: project.maxPurchasableBoardWidthInches,
+      preferredLengthsFeet: [16, 14, 12, 10, 8],
+      pricingBySpecies,
+    });
+  }, [
+    pricingBySpecies,
+    project.maxPurchasableBoardWidthInches,
+    project.maxTransportLengthInches,
+    project.parts,
+    stockType,
+  ]);
+
+  const selectedScenario =
+    purchaseIntelligenceScenarios.find((scenario) => scenario.id === selectedScenarioId) ??
+    purchaseIntelligenceScenarios[0];
+
+  const speciesInProject = useMemo(
+    () => [...new Set(project.parts.map((part) => part.material.label).filter(Boolean))],
+    [project.parts]
+  );
+
+  function savePricing(next: Map<string, PricingData>) {
+    setPricingBySpecies(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PURCHASE_PRICING_KEY, JSON.stringify(Array.from(next.values())));
+    }
+    setShowPricingModal(false);
+  }
 
   return (
     <section className="gl-panel p-5">
@@ -89,6 +148,62 @@ export function BuyListPanel({ showDresserSummary = false }: { showDresserSummar
             ))}
           </ul>
         </details>
+      ) : null}
+
+      {project.parts.length > 0 ? (
+        <div className="mt-5 space-y-4 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+                Purchase intelligence
+              </p>
+              <p className="mt-1 text-xs text-[var(--gl-muted)]">
+                Compare strategies by waste, board count, transport, and estimated cost.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+              onClick={() => setShowPricingModal(true)}
+            >
+              Add pricing
+            </button>
+          </div>
+
+          <StockTypeSelector value={stockType} onChange={setStockType} />
+          <ScenarioComparison
+            scenarios={purchaseIntelligenceScenarios}
+            selectedScenarioId={selectedScenario?.id}
+            onSelectScenario={(scenario) => setSelectedScenarioId(scenario.id)}
+          />
+
+          {selectedScenario ? (
+            <div className="rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface)] p-3">
+              <p className="text-xs font-medium text-[var(--gl-cream-soft)]">Selected scenario assumptions</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-[var(--gl-muted)]">
+                {selectedScenario.assumptions.map((assumption) => (
+                  <li key={assumption}>{assumption}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-[var(--gl-muted)]">
+                Stock guidance:{" "}
+                {stockConversionService
+                  .generateStockGuidance(stockType)
+                  .slice(0, 1)
+                  .join("")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showPricingModal ? (
+        <CostInputModal
+          species={speciesInProject}
+          initialPricing={pricingBySpecies}
+          onSave={savePricing}
+          onClose={() => setShowPricingModal(false)}
+        />
       ) : null}
     </section>
   );

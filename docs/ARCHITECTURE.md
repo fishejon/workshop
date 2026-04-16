@@ -28,3 +28,14 @@ Grainline now supports a configuration-driven casework planner:
 - `TemplateStorageService` + `TemplateLibrary` provide save/load/duplicate workflows in the client.
 
 This keeps furniture-type branching in template definitions, not in core generation/runtime services.
+
+## Purchase intelligence (Phase 11)
+
+Materials now includes scenario-driven procurement analysis:
+
+- `PurchaseStrategyService` generates four strategies (waste, board count, transport, simple trip) over shared parts demand.
+- `ScenarioComparison` presents side-by-side trade-offs and selection.
+- `CostEstimationService` injects optional planning-cost estimates from user-entered species pricing.
+- `StockConversionService` handles surfaced vs rough conversion assumptions used by scenario demand shaping.
+
+All outputs remain planning guidance; yard verification is required for final purchases.

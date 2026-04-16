@@ -67,6 +67,8 @@ Enable **Show experimental presets** in Plan to access TV console. It generates 
 
 - **Material assumptions** — Checkbox at the top of the tab; acknowledge after you have reviewed yard list and parts. Required (with no blocking validation issues) before **Export CSV** and **Print shop sheet** unlock.
 - **Yard list + cut layout** — Nominal lumber rows, board counts, transport-length assumptions, and stick-level cut layout.
+- **Purchase intelligence** — Compare strategy scenarios side by side (waste, board count, transport, complexity, and optional cost). Use **Add pricing** to enter species rates for planning-cost estimates.
+- **Stock type** — Choose surfaced vs rough assumptions in Purchase intelligence; rough mode includes surfacing allowance guidance.
 - **Read-only grid** — Component, assembly, qty, finished and rough T×W×L (shop **nearest 1/16″**), lumber (label · thickness category), status. Internal storage stays decimal; **`project.joints` is not applied** on the main path (see **`/labs`**).
 - **Rough vs finished** — With **manual rough** off, rough T×W×L start as finished plus **Project milling allowance** on each axis; open **Edit** on a row and expand **Why these numbers?** to see glue-up / allowance detail for that part.
 - **Edit** — Opens a modal with all fields (dimensions as numbers + live fraction preview), grain note, manual rough toggle, and a collapsible **Why these numbers?** (glue-up / rough derivation). Save applies changes; Cancel discards.
@@ -111,3 +113,6 @@ Glue-up notes use the panel glue-up planner with project-level max purchasable w
 - [PLAN.md](./PLAN.md) — Engineering phases and checklist.  
 - [PRODUCT_STRATEGY.md](./PRODUCT_STRATEGY.md) — Strategy and positioning.  
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — Repo layout and contributing notes for developers.
+- [PURCHASE_INTELLIGENCE.md](./PURCHASE_INTELLIGENCE.md) — scenario comparison and decision-support overview.
+- [PURCHASE_STRATEGIES.md](./PURCHASE_STRATEGIES.md) — strategy logic and assumptions.
+- [COST_MODELING.md](./COST_MODELING.md) — pricing input and disclaimer discipline.
