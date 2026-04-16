@@ -12,10 +12,11 @@ Working title for a **hobbyist hardwood** planning app: **furniture presets** wi
 
 ## Project / outputs (current app path)
 
-- **Tabs** — **Project** (defaults + preset selection), **Plan** (intent inputs + preview), **Materials** (yard list, cut layout, parts table). Materials is blocked while there are blocking validation issues. Joinery and rough-stick nesting live on **`/labs`** and do not change main-path numbers. State persists in `localStorage` (`grainline-project-v1`).
+- **Tabs** — **Project** (defaults + preset selection), **Plan** (intent inputs + preview), **Materials** (yard list, cut layout, parts table). Materials is blocked while there are blocking validation issues. Joinery and rough-stick nesting live on **`/labs`**. By default the **Materials** cut list, CSV, **`/print`**, and cut-list validation **ignore `project.joints`**; set **`NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1`** in `.env.local` when you want Labs joinery to affect those outputs (see [USER_GUIDE](docs/USER_GUIDE.md)). State persists in `localStorage` (`grainline-project-v1`).
 - **Parts table** — finished vs rough T×W×L (in), manual rough toggle, provenance pills, explicit assumptions per row, **Why?** explainer, and CSV export.
 - **Materials** — yard list and cut layout at top, followed by the source parts table.
 - **Joinery** — Groove/back, dado shelf width, M&T rail/stile, and **thickness-aware drawer joinery presets** with formula/provenance labeling.
+- **Shop mode** — **`/shop`** (link from **Project**): read-only large-type status (parts count, export readiness, blockers); edit on the main planner.
 - **Print** — `/print` shop sheet; PDF via browser **Save as PDF**.
 
 Glue-up assumptions use a shared panel glue-up planner so table/print/CSV stay in sync.
@@ -42,6 +43,8 @@ npm run test    # unit tests (Vitest)
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+**Optional:** in `.env.local`, set `NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1` to include Labs joinery in the Materials cut list, CSV, and print (default is off). Details: [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
 ## Stack
 

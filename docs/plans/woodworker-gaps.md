@@ -1,6 +1,6 @@
 # Woodworker gaps (prioritized)
 
-Honest backlog against what Grainline ships today (README + PRD): dresser / board pack / sideboard shell presets, symmetric dresser constraints, parts + rough + joinery + buy list + 2D board estimate, CSV + `/print` gated by the material-assumptions checkpoint on Materials plus validation.
+Honest backlog against what Grainline ships today (README + PRD): dresser / board pack / sideboard shell presets, symmetric dresser constraints, parts + rough + joinery + buy list + 2D board estimate, CSV + `/print` (+ optional read-only **`/shop`** status) gated by the material-assumptions checkpoint on Materials plus validation.
 
 ## Must
 
@@ -17,7 +17,7 @@ Honest backlog against what Grainline ships today (README + PRD): dresser / boar
 
 - **Joinery UX weight** — Power features are correct but secondary; risk that joinery-first positioning feels lighter than strategy copy until library and surfacing grow.
 - **Inventory / offcuts** — PRD Phase 2; no stockyard memory in app today.
-- **Mobile shop mode** — Deferred; print/CSV are the portable artifacts for now.
+- **Mobile-first shop mode** — **`/shop`** is a read-only status readout today; a dedicated mobile-first floor workflow (checkoffs, offline, etc.) is still deferred—print/CSV remain the primary portable artifacts.
 
 ---
 
