@@ -30,7 +30,8 @@ Glue-up assumptions use a shared panel glue-up planner so table/print/CSV stay i
 
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md) — how to use the app (tabs, presets, shop, print, storage).  
 - [docs/WOODWORKER_CHECKLIST.md](docs/WOODWORKER_CHECKLIST.md) — tab order and readiness before shop handoff.  
-- [docs/plans/woodworker-gaps.md](docs/plans/woodworker-gaps.md) — honest backlog + release DoD slice (dresser + board pack).  
+- [docs/plans/woodworker-gaps.md](docs/plans/woodworker-gaps.md) — backlog + release DoD slice (dresser + board pack).  
+- [docs/plans/pm-roadmap-execution-ladder.md](docs/plans/pm-roadmap-execution-ladder.md) — phased execution checklist (referenced from the PRD for joinery path, buy trust, deferred CAD-lite).  
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — repo layout, scripts, tests, extending joinery.  
 - [docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md) — internal strategy memo (north star, wedge, pillars, phased roadmap, MVP, risks).  
 - [docs/PRD.md](docs/PRD.md) — product requirements (Workshop Companion / Grainline).  

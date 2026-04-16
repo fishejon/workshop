@@ -4,12 +4,9 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 ## Current baseline (repo)
 
-- `components/GrainlineApp.tsx` — preset shell (dresser, board cuts, placeholders)  
-- `lib/dresser-engine.ts` + `components/DresserPlanner.tsx` — case grid, openings, drawer box sizes, back-solve height  
-- `lib/optimize-cuts.ts` + `components/CutPlanner.tsx` — 1D stick packing, kerf, max carry  
-- `lib/imperial.ts` — parse/format imperial (¼″ display bias)  
+The app ships **Project → Plan → Materials** (`AppShellTabs`), dresser + board presets, template casework (console / bookshelf), joinery on **`/labs`** (optional on the main cut list via `NEXT_PUBLIC_GL_MAIN_PATH_JOINERY`), `/print`, and `/shop`. For live architecture, see **`docs/ARCHITECTURE.md`** and **`docs/USER_GUIDE.md`**.
 
-**Gaps vs PRD (historical note):** this section reflected the pre-implementation baseline. Most listed gaps are now implemented; treat remaining unchecked or partial phase items as the active delta.
+**Historical note:** phase tables below were written against an early baseline. Rows marked done reflect shipped work; any unchecked or partial row is either deferred or superseded by the PRD and `docs/plans/pm-roadmap-execution-ladder.md`.
 
 ---
 
@@ -102,13 +99,13 @@ This plan turns `docs/PRD.md` into **sequenced engineering work** on the existin
 
 ---
 
-## Phase 6 — IA split + new presets (ongoing)
+## Phase 6 — IA + presets (ongoing)
 
-**Goal:** Match PRD **information architecture**.
+**Goal:** Match PRD **information architecture** (evolves with product).
 
 | Task | Detail |
 |------|--------|
-| [~] P6.1 | Tabs: **Setup | Build | Shop | About** (full PRD IA can split further later). |
+| [x] P6.1 | Main shell tabs: **Project | Plan | Materials** (internal ids `setup` / `build` / `shop`). |
 | [x] P6.2 | **TV console** stub preset; standing cabinet placeholder. |
 
 ---
