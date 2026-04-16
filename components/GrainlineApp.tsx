@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DecisionStrip } from "@/components/DecisionStrip";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
 import { CutPlanner } from "@/components/CutPlanner";
@@ -22,6 +22,7 @@ import {
 import { templateStorageService } from "@/lib/services/TemplateStorageService";
 import type { FurnitureConfig } from "@/lib/types/furniture-config";
 import { caseworkGenerationService } from "@/lib/services/CaseworkGenerationService";
+import type { StoredProjectRecord } from "@/lib/project-utils";
 
 const PRESETS = [
   {
@@ -68,7 +69,7 @@ type PresetId = (typeof PRESETS)[number]["id"];
 
 export function GrainlineApp() {
   const [preset, setPreset] = useState<PresetId>("dresser");
-  const [appTab, setAppTab] = useState<AppShellTabId>("build");
+  const [appTab, setAppTab] = useState<AppShellTabId>("setup");
   const [showExperimentalPresets, setShowExperimentalPresets] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
   const [activeFurnitureConfig, setActiveFurnitureConfig] = useState<FurnitureConfig | null>(null);
@@ -79,12 +80,26 @@ export function GrainlineApp() {
     blockingValidationIssues,
     warningValidationIssues,
     replacePartsInAssemblies,
+    projectLibrary,
+    backupCurrentProject,
+    restoreFromLibrary,
+    setLibraryArchived,
   } = useProject();
   const { flushDresserPartsNow } = useDresserPlanSync();
   const active = PRESETS.find((p) => p.id === preset);
   const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
   const hasBlockingIssues = blockingValidationIssues.length > 0;
   const hasWarnings = warningValidationIssues.length > 0;
+  const hasParts = project.parts.length > 0;
+
+  const recommendedNextTab: AppShellTabId = hasBlockingIssues || !hasParts ? "build" : "shop";
+  const recommendedNextLabel = recommendedNextTab === "build" ? "Continue: Plan" : "Continue: Materials";
+
+  const recentProjects = useMemo(() => {
+    const active = projectLibrary.filter((r) => !r.archived);
+    active.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return active.slice(0, 6);
+  }, [projectLibrary]);
 
   const decisionStrip = (() => {
     const health = hasBlockingIssues
@@ -151,73 +166,168 @@ export function GrainlineApp() {
   );
 
   const setupPanel = (
-    <div className="space-y-4">
-      <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
-        Choose the project type here, then move to Plan to set dimensions. This keeps presets scoped to the first step
-        instead of floating across every tab.
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {visiblePresets.map((p) => (
+    <div className="space-y-5">
+      <section className="gl-panel p-5">
+        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Home</p>
+        <h2 className="mt-2 text-2xl font-semibold text-[var(--gl-cream)]">Start a project, then move to Plan.</h2>
+        <p className="mt-2 max-w-3xl text-sm text-[var(--gl-muted)]">
+          This page is your launchpad: choose what you are building, continue where you left off, or reopen a recent
+          project. Then go to Plan for dimensions and Materials for component and cut lists.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
-            key={p.id}
             type="button"
-            disabled={Boolean(p.disabled)}
-            onClick={() => !p.disabled && setPreset(p.id)}
-            className={`rounded-xl border p-3 text-left transition ${
-              preset === p.id
-                ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text)]"
-                : "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-text-soft)]"
-            } ${p.disabled ? "cursor-not-allowed opacity-40" : ""}`}
+            className="rounded-md border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface)]"
+            onClick={() => setAppTab(recommendedNextTab)}
           >
-            <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
-            <span className="block text-xs text-[var(--gl-muted)]">{p.tag}</span>
-            <span className="mt-1 block text-xs text-[var(--gl-muted)]">{p.blurb}</span>
+            {recommendedNextLabel}
           </button>
-        ))}
-      </div>
-      <div className="flex justify-end border-t border-[var(--gl-border)] pt-4">
-        <div className="flex w-full flex-wrap items-center justify-between gap-2">
-          <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-            <input
-              id="show-experimental-presets"
-              type="checkbox"
-              className="mt-0.5"
-              checked={showExperimentalPresets}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setShowExperimentalPresets(checked);
-                if (!checked && preset === "tv-console") {
-                  setPreset("dresser");
-                }
-              }}
-            />
-            <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
-              Show experimental presets (early access, not production-ready).
-            </label>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
-              onClick={() => setShowTemplateLibrary(true)}
-            >
-              Load template
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
-              onClick={() => {
-                if (!activeFurnitureConfig) return;
-                templateStorageService.saveTemplate(activeFurnitureConfig);
-              }}
-              disabled={!activeFurnitureConfig}
-            >
-              Save as template
-            </button>
-          </div>
+          <button
+            type="button"
+            className="rounded-md border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            onClick={() => backupCurrentProject()}
+          >
+            Save snapshot to Recent
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            onClick={() => setAppTab("build")}
+          >
+            Go to Plan
+          </button>
+          <span className="text-xs text-[var(--gl-muted)]">
+            Current project: <strong className="text-[var(--gl-cream-soft)]">{project.name || "Untitled project"}</strong>
+          </span>
         </div>
-      </div>
-      <ProjectSetupBar />
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-4">
+          <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">1. Project</p>
+          <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">Choose preset + defaults</p>
+        </div>
+        <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-4">
+          <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">2. Plan</p>
+          <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">Set dimensions and layout</p>
+        </div>
+        <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-4">
+          <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">3. Materials</p>
+          <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">Review components and cut list</p>
+        </div>
+      </section>
+
+      <section className="gl-panel p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Choose what you are building</p>
+          <p className="text-xs text-[var(--gl-muted)]">Selected: <span className="text-[var(--gl-cream-soft)]">{active?.title ?? "None"}</span></p>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {visiblePresets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              disabled={Boolean(p.disabled)}
+              onClick={() => !p.disabled && setPreset(p.id)}
+              className={`rounded-xl border p-3 text-left transition ${
+                preset === p.id
+                  ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text)]"
+                  : "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-text-soft)]"
+              } ${p.disabled ? "cursor-not-allowed opacity-40" : ""}`}
+            >
+              <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
+              <span className="block text-xs text-[var(--gl-muted)]">{p.tag}</span>
+              <span className="mt-1 block text-xs text-[var(--gl-muted)]">{p.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {recentProjects.length > 0 ? (
+        <section className="gl-panel p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Recent projects</p>
+            <p className="text-xs text-[var(--gl-muted)]">Local to this browser</p>
+          </div>
+          <ul className="mt-3 divide-y divide-[var(--gl-border)]">
+            {recentProjects.map((r: StoredProjectRecord) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--gl-cream)]">{r.name || "Untitled project"}</p>
+                  <p className="text-xs text-[var(--gl-muted)]">
+                    Updated {new Date(r.updatedAt).toLocaleString()} · parts {r.project.parts.length}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-[var(--gl-border-strong)] px-3 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
+                    onClick={() => restoreFromLibrary(r.id)}
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+                    onClick={() => setLibraryArchived(r.id, true)}
+                  >
+                    Archive
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <details className="gl-panel p-5">
+        <summary className="cursor-pointer text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
+          Advanced project settings
+        </summary>
+        <div className="mt-4 space-y-4">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
+              <input
+                id="show-experimental-presets"
+                type="checkbox"
+                className="mt-0.5"
+                checked={showExperimentalPresets}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setShowExperimentalPresets(checked);
+                  if (!checked && preset === "tv-console") {
+                    setPreset("dresser");
+                  }
+                }}
+              />
+              <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
+                Show experimental presets (early access, not production-ready).
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+                onClick={() => setShowTemplateLibrary(true)}
+              >
+                Load template
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+                onClick={() => {
+                  if (!activeFurnitureConfig) return;
+                  templateStorageService.saveTemplate(activeFurnitureConfig);
+                }}
+                disabled={!activeFurnitureConfig}
+              >
+                Save as template
+              </button>
+            </div>
+          </div>
+          <ProjectSetupBar />
+        </div>
+      </details>
     </div>
   );
   const planPanel = (

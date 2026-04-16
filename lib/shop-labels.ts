@@ -74,7 +74,6 @@ export function buildRoughInstanceLabelMap(parts: Part[]): Map<string, string> {
   for (const p of sorted) {
     const q = Math.floor(Number(p.quantity));
     if (!Number.isFinite(q) || q < 1) continue;
-    if (!(p.rough.l > 0)) continue;
     const gk = shopLabelGroupKeyForPart(p);
     for (let i = 1; i <= q; i++) {
       instances.push({ roughInstanceId: makeRoughInstanceId(p.id, i), groupKey: gk });

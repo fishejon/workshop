@@ -8,14 +8,33 @@ export function makeRoughInstanceId(partId: string, instanceIndex: number): stri
   return `${partId}:${instanceIndex}`;
 }
 
+/**
+ * Optional lane suffix for when one part instance expands into multiple cuts
+ * (e.g. width rips against a fixed stock width).
+ *
+ * Format: `${partId}:${instanceIndex}#${laneIndex}` where laneIndex is 1-based.
+ */
+export function makeRoughInstanceLaneId(partId: string, instanceIndex: number, laneIndex: number): string {
+  const lane = Math.max(1, Math.floor(Number(laneIndex)));
+  return `${makeRoughInstanceId(partId, instanceIndex)}#${lane}`;
+}
+
 /** Parse `partId:instance` where instance is a positive integer. */
-export function parseRoughInstanceId(id: string): { partId: string; instanceIndex: number } | null {
+export function parseRoughInstanceId(
+  id: string
+): { partId: string; instanceIndex: number; laneIndex?: number } | null {
   const colon = id.lastIndexOf(":");
   if (colon <= 0) return null;
   const partId = id.slice(0, colon);
-  const inst = Number.parseInt(id.slice(colon + 1), 10);
+  const raw = id.slice(colon + 1);
+  const [instRaw, laneRaw] = raw.split("#");
+  const inst = Number.parseInt(instRaw ?? "", 10);
   if (!Number.isFinite(inst) || inst < 1) return null;
-  return { partId, instanceIndex: inst };
+  const laneParsed = laneRaw ? Number.parseInt(laneRaw, 10) : NaN;
+  if (laneRaw && !(Number.isFinite(laneParsed) && laneParsed >= 1)) {
+    return { partId, instanceIndex: inst };
+  }
+  return laneRaw ? { partId, instanceIndex: inst, laneIndex: laneParsed } : { partId, instanceIndex: inst };
 }
 
 /** After part id remap (clone), re-key cut progress entries. */
@@ -31,7 +50,11 @@ export function remapCutProgressKeys(
     if (!parsed) continue;
     const nextPartId = partIdMap.get(parsed.partId);
     if (!nextPartId) continue;
-    out[makeRoughInstanceId(nextPartId, parsed.instanceIndex)] = "cut";
+    out[
+      parsed.laneIndex
+        ? makeRoughInstanceLaneId(nextPartId, parsed.instanceIndex, parsed.laneIndex)
+        : makeRoughInstanceId(nextPartId, parsed.instanceIndex)
+    ] = "cut";
   }
   return out;
 }

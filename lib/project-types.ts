@@ -5,7 +5,9 @@
 
 import type { CaseOutlineV0 } from "@/lib/geometry/types";
 
-export const ASSEMBLY_IDS = ["Case", "Drawers", "Base", "Back", "Doors", "Other"] as const;
+// Ordering matters for UI grouping and shop label assignment.
+// Keep core case parts first, then drawers, then everything else.
+export const ASSEMBLY_IDS = ["Case", "Base", "Back", "Drawers", "Doors", "Other"] as const;
 export type AssemblyId = (typeof ASSEMBLY_IDS)[number];
 
 export type Dimension3 = {

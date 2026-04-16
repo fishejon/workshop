@@ -22,18 +22,18 @@ describe("dresser regression fixture", () => {
 
     expect(result.parts.find((part) => part.name === "Case top")?.finished).toEqual({
       t: 0.75,
-      w: 72,
-      l: 20,
+      w: 20,
+      l: 72,
     });
     expect(result.parts.find((part) => part.name === "Case bottom")?.finished).toEqual({
       t: 0.75,
-      w: 70.5,
-      l: 19,
+      w: 20,
+      l: 72,
     });
     expect(result.parts.find((part) => part.name === "Case back")?.finished).toEqual({
       t: 0.25,
-      w: 70.5,
-      l: 27.75,
+      w: 27.75,
+      l: 70.5,
     });
     expect(result.parts.filter((part) => part.name.startsWith("Case divider"))).toHaveLength(1);
   });

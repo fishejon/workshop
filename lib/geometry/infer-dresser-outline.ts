@@ -84,8 +84,10 @@ export function inferDresserCaseOutlineFromParts(parts: Part[]): CaseOutlineV0 |
   const side = findCaseSide(parts);
   if (!top || !side || !isCaseSideName(side.name)) return null;
 
-  const outerW = top.finished.w;
-  const outerD = top.finished.l;
+  // Convention: `finished.l` is the board-length / grain axis.
+  // For the dresser top that means outer width runs along `l`, and outer depth is `w`.
+  const outerW = top.finished.l;
+  const outerD = top.finished.w;
   const outerH = side.finished.l;
   const materialT = side.finished.t;
 
@@ -95,12 +97,13 @@ export function inferDresserCaseOutlineFromParts(parts: Part[]): CaseOutlineV0 |
 
   const back = findCaseBack(parts);
   if (!back) return null;
-  const drawerZone = back.finished.l;
+  // Back is a panel with `l` along outer width; its height (drawer zone) is `w`.
+  const drawerZone = back.finished.w;
   if (!Number.isFinite(drawerZone) || drawerZone <= 0) return null;
 
   const bottom = findCaseBottom(parts);
   const kickPart = findToeKick(parts);
-  const kickH = kickPart ? kickPart.finished.l : 0;
+  const kickH = kickPart ? kickPart.finished.w : 0;
   const bottomBand = bottom ? bottom.finished.t : 0;
 
   const divs = dividerCount(parts);

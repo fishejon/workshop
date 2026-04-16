@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PackedStickCutBoardList } from "@/components/PackedStickCutStrip";
 import { useProject } from "@/components/ProjectContext";
 import { groupPartsByMaterial } from "@/lib/board-feet";
@@ -26,6 +26,8 @@ function boardsToBuyForRow(row: LumberVehicleRow): { display: string; title?: st
  */
 export function CutListYardSummary() {
   const { project, toggleCutProgress } = useProject();
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [drawerPackAxis, setDrawerPackAxis] = useState<"height" | "width">("height");
 
   const shopLabelByRoughInstanceId = useMemo(
     () => buildRoughInstanceLabelMap(project.parts),
@@ -47,13 +49,14 @@ export function CutListYardSummary() {
           maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
           stockWidthByMaterialGroup: project.stockWidthByMaterialGroup,
         }
-      ),
+      , 0.125, { drawerPackAxis }),
     [
       groups,
       project.parts,
       project.maxTransportLengthInches,
       project.maxPurchasableBoardWidthInches,
       project.stockWidthByMaterialGroup,
+      drawerPackAxis,
     ]
   );
 
@@ -70,15 +73,29 @@ export function CutListYardSummary() {
   return (
     <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
       <div className="border-b border-[var(--gl-border)] px-4 py-3">
-        <h2 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Yard list</h2>
-        <p className="mt-1 text-xs text-[var(--gl-muted)]">
-          One row per rack call (nominal 1× / 2× from your max board face width and thickness category). Board count
-          packs each part&apos;s <strong className="text-[var(--gl-cream-soft)]">rough length</strong> along the stick
-          at your max haul length of{" "}
-          <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
-          <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same stick.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut list</h2>
+            <p className="mt-1 text-xs text-[var(--gl-muted)]">
+              One row per rack call (nominal 1× / 2× from your max board face width and thickness category). Board count
+              packs each part&apos;s lengths at your max haul length of{" "}
+              <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
+              <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same stick.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="rounded-md border border-[var(--gl-border)] px-2 py-1 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
+            aria-expanded={isExpanded}
+            aria-controls="cut-list-collapsible-content"
+            onClick={() => setIsExpanded((v) => !v)}
+          >
+            {isExpanded ? "Collapse" : "Expand"}
+          </button>
+        </div>
       </div>
+      {isExpanded ? (
+        <div id="cut-list-collapsible-content">
       <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
         <thead className="bg-[var(--gl-surface-inset)] text-xs text-[var(--gl-muted)] uppercase tracking-wide">
           <tr>
@@ -115,10 +132,28 @@ export function CutListYardSummary() {
       <div className="border-t border-[var(--gl-border)] px-4 py-3">
         <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>
         <p className="mt-1 text-xs text-[var(--gl-muted)]">
-          How cuts nest on each stick (same lengths as the table). Tap segments to mark rough pieces cut—same marks as
-          the rough stick layout on Plan. Width and thickness are not re-ripped here; optional board-foot math lives under{" "}
+          Length-only nesting on each stick (packs each part’s <strong className="text-[var(--gl-cream-soft)]">rough length</strong>). Tap
+          segments to mark rough pieces cut—same marks as the rough stick layout on Plan. Width and thickness changes won’t
+          affect this layout unless they also change rough <em>length</em>; for width-aware planning use the 2D estimate on{" "}
           <strong className="text-[var(--gl-cream-soft)]">Lumber &amp; buy list</strong>.
         </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-[var(--gl-muted)]">
+            Drawer packing: choose whether drawer boxes are counted by <strong className="text-[var(--gl-cream-soft)]">height</strong> (default)
+            or by <strong className="text-[var(--gl-cream-soft)]">width</strong> (keeps grain horizontal and prefers glue-ups to reach height).
+          </p>
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-2 py-1">
+            <span className="text-xs text-[var(--gl-muted)]">Drawers by</span>
+            <select
+              className="input-wood py-1 text-xs"
+              value={drawerPackAxis}
+              onChange={(e) => setDrawerPackAxis(e.target.value as "height" | "width")}
+            >
+              <option value="height">Height</option>
+              <option value="width">Width</option>
+            </select>
+          </div>
+        </div>
       </div>
       <div className="space-y-4 p-4 pt-0">
         {rows.map((row) => (
@@ -143,6 +178,8 @@ export function CutListYardSummary() {
           </div>
         ))}
       </div>
+        </div>
+      ) : null}
     </div>
   );
 }

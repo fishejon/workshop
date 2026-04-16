@@ -50,8 +50,8 @@ function fmtInches(inches: number): string {
   return formatImperial(inches, FRACTION_DENOMINATOR);
 }
 
-/** Debounced write to `project.parts`; Materials tab flushes immediately via `DresserPlanSyncContext`. */
-const DRESSER_PARTS_SYNC_DEBOUNCE_MS = 150;
+/** Write to `project.parts` immediately; Materials tab also flushes via `DresserPlanSyncContext`. */
+const DRESSER_PARTS_SYNC_DEBOUNCE_MS = 0;
 
 export function DresserPlanner() {
   const { project, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
@@ -626,6 +626,13 @@ export function DresserPlanner() {
     }
     if (carcassTimerRef.current !== null) {
       window.clearTimeout(carcassTimerRef.current);
+      carcassTimerRef.current = null;
+    }
+    if (DRESSER_PARTS_SYNC_DEBOUNCE_MS <= 0) {
+      const c = casePartsForSyncRef.current;
+      if (c.length < 1) return;
+      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+      return;
     }
     carcassTimerRef.current = window.setTimeout(() => {
       carcassTimerRef.current = null;
@@ -651,6 +658,13 @@ export function DresserPlanner() {
     }
     if (drawerTimerRef.current !== null) {
       window.clearTimeout(drawerTimerRef.current);
+      drawerTimerRef.current = null;
+    }
+    if (DRESSER_PARTS_SYNC_DEBOUNCE_MS <= 0) {
+      const d = drawerPartsForSyncRef.current;
+      if (d.length < 1) return;
+      replaceDresserPartsRef.current(["Drawers"], d);
+      return;
     }
     drawerTimerRef.current = window.setTimeout(() => {
       drawerTimerRef.current = null;
