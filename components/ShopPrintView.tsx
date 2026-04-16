@@ -27,7 +27,7 @@ import {
   validateProject,
 } from "@/lib/validation";
 import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
-import { summarizeDrawerHardwareFromParts } from "@/lib/shop-hardware-summary";
+import { hardwareService } from "@/lib/services/HardwareService";
 
 function formatTxWxL(d: Dimension3): string {
   return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
@@ -66,10 +66,7 @@ export function ShopPrintView() {
 
   const shopGuideTableRows = useMemo(() => (project ? shopGuideRows(project.parts) : []), [project]);
 
-  const drawerHardware = useMemo(
-    () => (project ? summarizeDrawerHardwareFromParts(project.parts) : null),
-    [project]
-  );
+  const hardwareSchedule = useMemo(() => (project ? hardwareService.generateSchedule(project) : []), [project]);
 
   const purchasePreview = useMemo(() => {
     if (!project) return null;
@@ -246,23 +243,39 @@ export function ShopPrintView() {
           )}
         </section>
 
-        {drawerHardware && drawerHardware.drawerBoxPartCount > 0 ? (
+        {hardwareSchedule.length > 0 ? (
           <section className="shop-print-section mt-8">
             <h2 className="shop-print-muted mb-3 text-xs font-semibold tracking-widest uppercase">
-              Hardware checklist (v0)
+              Hardware schedule
             </h2>
             <p className="mb-2 text-xs shop-print-muted">
-              Derived from cut-list rows named like dresser drawer boxes—confirm every quantity against your
-              manufacturer&apos;s install docs (slides, bumpers, pulls).
+              Recommendations are generated from project parts. Always confirm model-specific clearances and load ratings
+              with the manufacturer.
             </p>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--gl-ink)]/90">
-              <li>
-                Drawer box rows: <strong>{drawerHardware.drawerBoxLineCount}</strong> part line(s),{" "}
-                <strong>{drawerHardware.drawerBoxPartCount}</strong> total box qty (sum of quantities).
-              </li>
-              <li>Slides / pairs: verify against drawer depth and opening height from Plan—not modeled as SKUs here.</li>
-              <li>Pulls, screws, catches: add your own field notes or hardware bag list before the build.</li>
-            </ul>
+            <table className="shop-print-table w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--gl-ink)]/30">
+                  <th className="py-2 pr-3 font-semibold">Type</th>
+                  <th className="py-2 pr-3 font-semibold">Qty</th>
+                  <th className="py-2 pr-3 font-semibold">Specs</th>
+                  <th className="py-2 font-semibold">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hardwareSchedule.map((item) => (
+                  <tr key={item.id} className="shop-print-avoid-break border-b border-[var(--gl-border)]">
+                    <td className="py-2 pr-3">{item.type}</td>
+                    <td className="py-2 pr-3 tabular-nums">{item.quantity}</td>
+                    <td className="py-2 pr-3 text-xs shop-print-muted">
+                      {[item.specs.slideType, item.specs.extension, item.specs.length ? `${item.specs.length}"` : "", item.specs.weightCapacity ? `${item.specs.weightCapacity} lb` : "", item.specs.finish]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </td>
+                    <td className="py-2 text-xs shop-print-muted">{item.notes ?? "Confirm manufacturer data sheet."}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </section>
         ) : null}
 

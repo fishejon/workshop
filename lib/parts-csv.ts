@@ -1,6 +1,7 @@
 import { boardFeetForPart, linearFeetForPart } from "@/lib/board-feet";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import type { Part, Project, ProjectJoint } from "@/lib/project-types";
+import { hardwareService } from "@/lib/services/HardwareService";
 
 function csvEscape(s: string): string {
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -86,5 +87,21 @@ export function partsToCsv(
       p.status,
     ].join(",");
   });
-  return [headers.join(","), ...rows].join("\n");
+  const baseCsv = [headers.join(","), ...rows].join("\n");
+  const hardware = hardwareService.generateSchedule({ parts });
+  if (hardware.length === 0) return baseCsv;
+  const hardwareHeader = ["hardware_type", "quantity", "specs", "notes"].join(",");
+  const hardwareRows = hardware.map((item) => {
+    const specs = [
+      item.specs.slideType,
+      item.specs.extension,
+      item.specs.length ? `${item.specs.length}in` : "",
+      item.specs.weightCapacity ? `${item.specs.weightCapacity}lb` : "",
+      item.specs.finish,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    return [csvEscape(item.type), item.quantity, csvEscape(specs), csvEscape(item.notes ?? "")].join(",");
+  });
+  return `${baseCsv}\n\n${hardwareHeader}\n${hardwareRows.join("\n")}`;
 }
