@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
-import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 import {
   DRESSER_CARCASS_ASSEMBLIES,
   DRESSER_DEFAULT_ROW_COUNT,
@@ -26,7 +25,7 @@ import { balanceRowOpeningHeights } from "@/lib/dresser-row-balance";
 import type { DrawerJoineryPresetId } from "@/lib/joinery/drawer-allowances";
 import { DRAWER_JOINERY_PRESET_META } from "@/lib/joinery/drawer-allowances";
 import type { Part } from "@/lib/project-types";
-import { formatImperial, formatImperialInput, parseInches } from "@/lib/imperial";
+import { formatImperial, formatImperialInput, formatShopImperial, parseInches } from "@/lib/imperial";
 import { useSetDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
 import { useDresserPlanSync } from "@/components/DresserPlanSyncContext";
 import { DresserPlannerField } from "@/components/dresser/DresserPlannerField";
@@ -57,12 +56,7 @@ function fmtInches(inches: number): string {
 const DRESSER_PARTS_SYNC_DEBOUNCE_MS = 0;
 
 export function DresserPlanner() {
-  const {
-    project,
-    replacePartsInAssemblies,
-    setMaxPurchasableBoardWidthInches,
-    setOmitDresserCaseBackFromHardwoodCutList,
-  } = useProject();
+  const { project, replacePartsInAssemblies, setOmitDresserCaseBackFromHardwoodCutList } = useProject();
   const { setDresserPartsFlush } = useDresserPlanSync();
 
   const carcassTimerRef = useRef<number | null>(null);
@@ -774,18 +768,6 @@ export function DresserPlanner() {
                 hint="Case top stock thickness for parts output (separate from top assembly height)."
               />
             </DresserPlannerField>
-            <DresserPlannerField
-              label="Max purchasable board (nominal stock)"
-              source="manual"
-              hint="Pick the widest dressed board you actually buy (same setting as Project setup). Used for glue-up strip planning and buy-list width checks."
-            >
-              <NominalStockWidthSelect
-                valueInches={project.maxPurchasableBoardWidthInches}
-                onChangeInches={(n) => setMaxPurchasableBoardWidthInches(Math.max(0.0001, n))}
-                selectId="dresser-max-board-nominal"
-                customInputId="dresser-max-board-custom-in"
-              />
-            </DresserPlannerField>
             <DresserPlannerField label="Columns (vertical stacks)" source="manual">
               <select
                 className="input-wood"
@@ -813,6 +795,12 @@ export function DresserPlanner() {
               />
             </DresserPlannerField>
           </div>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Widest board for glue-up and width checks uses your{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Project</strong> nominal rack setting (
+            {formatShopImperial(project.maxPurchasableBoardWidthInches)} dressed face). Change it on the Project tab;
+            it is not edited again here.
+          </p>
 
           <p className="mt-6 text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
             Your inputs — layout, back &amp; slides

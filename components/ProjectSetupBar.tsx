@@ -189,14 +189,15 @@ export function ProjectSetupBar() {
             </div>
           </label>
           <div className="text-sm">
-            <span className="text-[var(--gl-cream-soft)]">Max purchasable board (nominal stock)</span>
+            <span className="text-[var(--gl-cream-soft)]">Widest board you buy (nominal size)</span>
             <div className="mt-1">
               <NominalStockWidthSelect
+                variant="nominalOnly"
                 valueInches={project.maxPurchasableBoardWidthInches}
                 onChangeInches={(n) => setMaxPurchasableBoardWidthInches(Math.max(0.0001, n))}
                 selectId="setup-max-board-nominal"
                 customInputId="setup-max-board-custom-in"
-                helperText="Uses dressed (actual) face width — e.g. a 2×4 is 3½″ wide, not 4″. Used for glue-up strip math and buy-list width assumptions."
+                helperText="Pick the nominal rack size you actually bring home; Grainline uses its standard dressed face width for glue-up and width checks (no separate “actual inches” field)."
               />
             </div>
           </div>
@@ -213,6 +214,10 @@ export function ProjectSetupBar() {
                 setWasteFactorPercent(Math.max(0, Number.parseFloat(e.target.value) || 0))
               }
             />
+            <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
+              Extra margin applied to board-foot and buy-list lineal totals (offcuts, resaw kerf, splits). Set to 0 if
+              you already pad elsewhere.
+            </span>
             <div className="mt-1 flex flex-wrap gap-1">
               {WASTE_PERCENT_PRESETS.map((preset) => (
                 <button
@@ -241,6 +246,10 @@ export function ProjectSetupBar() {
                 </option>
               ))}
             </select>
+            <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
+              Default starting point for how you usually buy hardwood (S4S, rough, sheet goods, or mixed). Used when
+              the app suggests purchase-style groupings.
+            </span>
           </label>
           <label className="text-sm">
             <span className="text-[var(--gl-cream-soft)]">Offcut mode</span>
@@ -255,6 +264,10 @@ export function ProjectSetupBar() {
                 </option>
               ))}
             </select>
+            <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">
+              Controls whether leftover stick lengths large enough to reuse are treated as stock for future cuts in
+              packing hints.
+            </span>
           </label>
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -382,7 +395,10 @@ export function ProjectSetupBar() {
       ) : null}
       <div className="mt-4 grid gap-3 border-t border-[var(--gl-border)] pt-4 lg:grid-cols-2">
         <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Duplicate project</p>
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Copy this project</p>
+          <p className="text-xs text-[var(--gl-muted)]">
+            Fork what you have open into a new project name—same parts and settings, new workspace entry.
+          </p>
           <input
             className="input-wood w-full text-sm"
             value={duplicateNameValue}
@@ -397,11 +413,15 @@ export function ProjectSetupBar() {
               duplicateProject(nextName || `${project.name} copy`);
             }}
           >
-            Duplicate current project
+            Copy to new project
           </button>
         </div>
         <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Templates</p>
+          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Full project templates</p>
+          <p className="text-xs text-[var(--gl-muted)]">
+            Saves the whole project (name, parts, materials, checkpoints) for later. Use when you want to reopen a past
+            build you have already saved as a template—not the small Plan-only presets in the header.
+          </p>
           <div className="flex gap-2">
             <input
               className="input-wood flex-1 text-sm"
@@ -422,7 +442,7 @@ export function ProjectSetupBar() {
                 setTemplateName("");
               }}
             >
-              Save template
+              Save project template
             </button>
           </div>
           <select
@@ -454,7 +474,7 @@ export function ProjectSetupBar() {
                 applyTemplate(selectedTemplate, nextName || `${project.name} from template`);
               }}
             >
-              Create from template
+              New project from template
             </button>
           </div>
         </div>

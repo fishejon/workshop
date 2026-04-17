@@ -174,6 +174,27 @@ export function GrainlineApp() {
           This page is your launchpad: choose what you are building, continue where you left off, or reopen a recent
           project. Then go to Plan for dimensions and Materials for component and cut lists.
         </p>
+        <div className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2.5 text-xs leading-relaxed text-[var(--gl-muted)]">
+          <p className="font-medium text-[var(--gl-cream-soft)]">Where saves go</p>
+          <ul className="mt-1 list-inside list-disc space-y-1">
+            <li>
+              <strong className="text-[var(--gl-cream)]">Recent projects</strong> — dated copies stored only in this
+              browser. Use <strong className="text-[var(--gl-cream)]">Save snapshot to Recent</strong> to add the
+              current project to that list, then <strong className="text-[var(--gl-cream)]">Open</strong> to continue a
+              past version.
+            </li>
+            <li>
+              <strong className="text-[var(--gl-cream)]">Layout presets</strong> (header buttons below) — dresser or
+              console <em>Plan dimensions</em> only, via the template library. Good for reusing a past layout on a new
+              project.
+            </li>
+            <li>
+              <strong className="text-[var(--gl-cream)]">Full project templates</strong> — in Project defaults: saves
+              the entire project (parts, materials, name) so you can spawn a new file from an older build you had
+              exported to a template.
+            </li>
+          </ul>
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -249,6 +270,11 @@ export function GrainlineApp() {
             <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Recent projects</p>
             <p className="text-xs text-[var(--gl-muted)]">Local to this browser</p>
           </div>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Each entry is a dated snapshot from <strong className="text-[var(--gl-cream-soft)]">Save snapshot to Recent</strong>{" "}
+            above. <strong className="text-[var(--gl-cream-soft)]">Open</strong> replaces your current workspace with that copy;
+            archive rows you no longer need.
+          </p>
           <ul className="mt-3 divide-y divide-[var(--gl-border)]">
             {recentProjects.map((r: StoredProjectRecord) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
@@ -280,10 +306,14 @@ export function GrainlineApp() {
         </section>
       ) : null}
 
-      <details className="gl-panel w-full min-w-0 p-5">
+      <details open className="gl-panel w-full min-w-0 p-5">
         <summary className="cursor-pointer list-none text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase [&::-webkit-details-marker]:hidden">
-          Advanced project settings
+          Project defaults &amp; library
         </summary>
+        <p className="mt-2 text-xs text-[var(--gl-muted)]">
+          Optional for browsing presets, but this is where name, milling defaults, board width, waste, backups, and
+          templates live—nothing here blocks the Plan or Materials tabs.
+        </p>
         <div className="mt-4 w-full min-w-0 space-y-4">
           <div className="flex w-full flex-wrap items-center justify-between gap-2">
             <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
@@ -304,25 +334,30 @@ export function GrainlineApp() {
                 Show experimental presets (early access, not production-ready).
               </label>
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
-                onClick={() => setShowTemplateLibrary(true)}
-              >
-                Load template
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
-                onClick={() => {
-                  if (!activeFurnitureConfig) return;
-                  templateStorageService.saveTemplate(activeFurnitureConfig);
-                }}
-                disabled={!activeFurnitureConfig}
-              >
-                Save as template
-              </button>
+            <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+              <p className="max-w-sm text-right text-[10px] text-[var(--gl-muted)] sm:text-left">
+                Plan-only layouts (dresser / console). Stored in this browser; not the full project templates below.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+                  onClick={() => setShowTemplateLibrary(true)}
+                >
+                  Load layout preset…
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+                  onClick={() => {
+                    if (!activeFurnitureConfig) return;
+                    templateStorageService.saveTemplate(activeFurnitureConfig);
+                  }}
+                  disabled={!activeFurnitureConfig}
+                >
+                  Save layout preset…
+                </button>
+              </div>
             </div>
           </div>
           <ProjectSetupBar />

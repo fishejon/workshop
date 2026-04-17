@@ -7,9 +7,23 @@ import {
   CUSTOM_STOCK_WIDTH_ID,
   NOMINAL_STOCK_WIDTH_CHOICES,
   optionLabel,
+  type NominalStockWidthChoice,
 } from "@/lib/nominal-lumber-stocks";
 
 const WIDTH_TOL = 0.02;
+
+function closestNominalChoice(inches: number): NominalStockWidthChoice {
+  let best = NOMINAL_STOCK_WIDTH_CHOICES[0];
+  let bestD = Infinity;
+  for (const c of NOMINAL_STOCK_WIDTH_CHOICES) {
+    const d = Math.abs(c.actualWidthInches - inches);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
 
 type NominalStockWidthSelectProps = {
   valueInches: number;
@@ -18,6 +32,11 @@ type NominalStockWidthSelectProps = {
   customInputId: string;
   /** Shown under the control */
   helperText?: string;
+  /**
+   * `nominalOnly` — menu of standard nominal sizes only; dressed face width comes from the table (no second
+   * “custom inches” field). `full` — includes custom width entry for odd stock.
+   */
+  variant?: "full" | "nominalOnly";
 };
 
 export function NominalStockWidthSelect({
@@ -26,9 +45,12 @@ export function NominalStockWidthSelect({
   selectId,
   customInputId,
   helperText,
+  variant = "full",
 }: NominalStockWidthSelectProps) {
   const inferred = choiceForActualWidthInches(valueInches);
-  const [preferCustom, setPreferCustom] = useState(() => inferred === null);
+  const [preferCustom, setPreferCustom] = useState(() =>
+    variant === "nominalOnly" ? false : inferred === null
+  );
   /** Same dressed width can be 1× or 2×; remember which row the user picked so the menu does not jump. */
   const [pinnedNominalId, setPinnedNominalId] = useState<string | null>(null);
 
@@ -41,16 +63,45 @@ export function NominalStockWidthSelect({
       : false;
 
   useEffect(() => {
+    if (variant === "nominalOnly") return;
     /* eslint-disable react-hooks/set-state-in-effect -- sync UI mode when inches no longer match any nominal (e.g. import) */
     if (inferred === null) setPreferCustom(true);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [inferred]);
+  }, [inferred, variant]);
 
   useEffect(() => {
+    if (variant === "nominalOnly") return;
     /* eslint-disable react-hooks/set-state-in-effect -- drop stale nominal pin when width diverges (e.g. Setup changed stock) */
     if (!pinStillValid) setPinnedNominalId(null);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [pinStillValid, valueInches]);
+  }, [pinStillValid, valueInches, variant]);
+
+  if (variant === "nominalOnly") {
+    const effective = inferred ?? closestNominalChoice(valueInches);
+    return (
+      <div className="space-y-2">
+        <select
+          id={selectId}
+          className="input-wood"
+          value={effective.id}
+          onChange={(e) => {
+            const c = choiceById(e.target.value);
+            if (c) onChangeInches(c.actualWidthInches);
+          }}
+        >
+          {NOMINAL_STOCK_WIDTH_CHOICES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {optionLabel(c)}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-[var(--gl-muted)]">
+          {helperText ??
+            `Grainline stores the dressed face width for glue-up and width checks (${formatWidthSummary(effective)}).`}
+        </p>
+      </div>
+    );
+  }
 
   const matched = pinStillValid && pinnedNominalId ? choiceById(pinnedNominalId) ?? inferred : inferred;
 
