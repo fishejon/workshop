@@ -69,6 +69,20 @@ export function yardHardwoodCutProgressSummaries(project: Project): Array<{
   return out;
 }
 
+export function yardCutProgressStatsForPart(
+  project: Project,
+  part: Part
+): { requiredCuts: number; cutCuts: number } {
+  const axis = project.drawerYardPackAxis ?? "width";
+  const progress = project.cutProgressByRoughInstanceId ?? {};
+  const keys = expectedRoughInstanceLaneIdsForYardStickPart(part, project, axis);
+  let cutCuts = 0;
+  for (const k of keys) {
+    if (progress[k] === "cut") cutCuts += 1;
+  }
+  return { requiredCuts: keys.length, cutCuts };
+}
+
 /** Lane-aware shop labels for yard cut pieces (`A-1`, `A-2`...) without duplicate base labels. */
 export function buildYardRoughInstanceLabelMap(project: Project): Map<string, string> {
   const axis = project.drawerYardPackAxis ?? "width";

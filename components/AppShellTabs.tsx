@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, type KeyboardEvent, type ReactNode } from "react";
-import { MaterialsAssumptionsCheckpoint } from "@/components/MaterialsAssumptionsCheckpoint";
 import type { ValidationIssue } from "@/lib/validation/types";
 
 export const APP_SHELL_TAB_IDS = ["setup", "build", "shop"] as const;
@@ -25,7 +24,6 @@ export function AppShellTabs({
   planPanel,
   cutListPartsTable,
   blockingValidationIssues,
-  decisionStrip,
   setupFooter,
   buildFooter,
   disableShopTab = false,
@@ -36,7 +34,6 @@ export function AppShellTabs({
   planPanel: ReactNode;
   cutListPartsTable: ReactNode;
   blockingValidationIssues: ValidationIssue[];
-  decisionStrip: ReactNode;
   /** Shown below the Project tab panel (e.g. next-step control). */
   setupFooter?: ReactNode;
   /** Shown below the Plan tab panel (e.g. next-step control). */
@@ -126,7 +123,6 @@ export function AppShellTabs({
           </div>
         ) : (
           <div className="space-y-6">
-            {decisionStrip}
             {blockingValidationIssues.length > 0 ? (
               <ul
                 className="list-disc space-y-1 pl-5 text-xs text-[var(--gl-warning)]"
@@ -138,7 +134,6 @@ export function AppShellTabs({
               </ul>
             ) : null}
             <div className="min-w-0 space-y-4">
-              <MaterialsAssumptionsCheckpoint />
               {cutListPartsTable}
             </div>
           </div>

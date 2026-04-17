@@ -476,6 +476,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     (name?: string, options?: { forceNew?: boolean }) => {
       const nowIso = new Date().toISOString();
       const trimmedName = (name?.trim() || project.name || "Untitled project").trim() || "Untitled project";
+      const projectSnapshot = JSON.parse(JSON.stringify(project)) as Project;
       let freshCreateId: string | null = null;
       let recordId = "";
       let updatedExisting = false;
@@ -500,7 +501,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
               ...row,
               name: trimmedName,
               updatedAt: nowIso,
-              project: { ...project, activeLibraryRecordId: binding },
+              project: { ...projectSnapshot, activeLibraryRecordId: binding },
             };
             const packed = trim([merged, ...prev.filter((_, j) => j !== idx)]);
             recordId = binding;
@@ -513,7 +514,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
         if (!freshCreateId) freshCreateId = newPartId();
         const newId = freshCreateId;
-        const mergedProject = { ...project, activeLibraryRecordId: newId };
+        const mergedProject = { ...projectSnapshot, activeLibraryRecordId: newId };
         const record: StoredProjectRecord = {
           id: newId,
           name: trimmedName,

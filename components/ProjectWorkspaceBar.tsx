@@ -7,12 +7,21 @@ export function ProjectWorkspaceBar() {
   const { project, backupCurrentProject } = useProject();
   const [notice, setNotice] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [floatingTopPx, setFloatingTopPx] = useState(16);
 
   useEffect(() => {
     if (!notice) return;
     const t = window.setTimeout(() => setNotice(""), 3500);
     return () => window.clearTimeout(t);
   }, [notice]);
+
+  useEffect(() => {
+    const tabButton = document.getElementById("tab-setup");
+    if (tabButton) {
+      const y = Math.round(tabButton.getBoundingClientRect().top);
+      setFloatingTopPx(Math.max(8, Math.min(y, 220)));
+    }
+  }, []);
 
   return (
     <div className="mt-5 border-t border-[var(--gl-border)] pt-4">
@@ -25,28 +34,16 @@ export function ProjectWorkspaceBar() {
             <p className="mt-0.5 line-clamp-2 text-xs text-[var(--gl-muted)]">{project.description.trim()}</p>
           ) : null}
         </div>
-        <button
-          type="button"
-          aria-label="Save project"
-          title="Save project"
-          className="rounded-xl border border-[var(--gl-copper-bright)]/45 bg-[var(--gl-copper)]/15 p-2 text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/70 hover:text-[var(--gl-cream)]"
-          onClick={() => setShowSaveModal(true)}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" strokeLinejoin="round" />
-            <path d="M17 21v-8H7v8M7 3v5h8" strokeLinejoin="round" />
-          </svg>
-        </button>
       </div>
       {notice ? (
         <p className="mt-2 text-xs text-[var(--gl-cream-soft)]" role="status">
           {notice}
         </p>
       ) : null}
-      <div className="pointer-events-none fixed top-4 right-4 z-40">
+      <div className="pointer-events-none fixed right-4 z-40" style={{ top: `${floatingTopPx}px` }}>
         <button
           type="button"
-          className="pointer-events-auto rounded-full border border-[var(--gl-copper-bright)]/45 bg-[var(--gl-copper)]/20 p-2 text-[var(--gl-cream)] shadow-md"
+          className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--gl-copper-bright)]/45 bg-[var(--gl-copper)]/20 text-[var(--gl-cream)] shadow-md"
           onClick={() => setShowSaveModal(true)}
           aria-label="Save project"
           title="Save project"

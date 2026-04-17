@@ -107,32 +107,32 @@ export function CutListYardSummary() {
       </div>
       {isExpanded ? (
         <div id="cut-list-collapsible-content">
-      <div className="mx-4 mt-4 overflow-hidden rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
-      <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
-        <thead className="bg-[var(--gl-surface-inset)] text-xs text-[var(--gl-muted)] uppercase tracking-wide">
+      <div className="mx-4 mt-4 overflow-hidden rounded-xl border border-[var(--gl-border)] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+      <table className="gl-numeric w-full text-left text-sm text-neutral-900">
+        <thead className="bg-neutral-100 text-xs text-neutral-600 uppercase tracking-wide">
           <tr>
-            <th className="px-4 py-2.5 font-medium">Lumber type</th>
-            <th className="px-4 py-2.5 text-right font-medium">Total lineal</th>
-            <th className="px-4 py-2.5 text-right font-medium">Boards</th>
-            <th className="px-4 py-2.5 text-right font-medium">Each board length</th>
+            <th className="px-5 py-3 font-medium">Lumber type</th>
+            <th className="px-5 py-3 text-right font-medium">Total lineal</th>
+            <th className="px-5 py-3 text-right font-medium">Boards</th>
+            <th className="px-5 py-3 text-right font-medium">Each board length</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--gl-border)]">
+        <tbody className="divide-y divide-neutral-200">
           {rows.map((row) => {
             const { display, title } = boardsToBuyForRow(row);
             return (
               <tr key={row.key}>
-                <td className="px-4 py-3 font-medium text-[var(--gl-cream-soft)]">{row.yardLumberLabel}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream)]">
+                <td className="px-5 py-3.5 font-medium text-neutral-900">{row.yardLumberLabel}</td>
+                <td className="px-5 py-3.5 text-right tabular-nums text-neutral-800">
                   {formatLinearFeetShop(row.adjustedLinearFeet)}
                 </td>
                 <td
-                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-[var(--gl-cream)]"
+                  className="px-5 py-3.5 text-right text-lg font-semibold tabular-nums tracking-tight text-neutral-900"
                   title={title}
                 >
                   {display}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream-soft)]">
+                <td className="px-5 py-3.5 text-right tabular-nums text-neutral-700">
                   {formatShopImperial(vehicleMaxInches)}
                 </td>
               </tr>

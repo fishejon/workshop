@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { DecisionStrip } from "@/components/DecisionStrip";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
 import { AppNavDrawer } from "@/components/AppNavDrawer";
 import { DresserPlanner } from "@/components/DresserPlanner";
@@ -137,30 +136,6 @@ export function GrainlineApp() {
     : layoutCaseworkPreset
       ? "go-plan"
       : "disabled";
-
-  const decisionStrip = (() => {
-    const health = hasBlockingIssues
-      ? "Blocked by validation issues"
-      : hasWarnings
-        ? "Warnings — verify Plan and Materials"
-        : "Ready for materials";
-
-    const recommendation = hasBlockingIssues
-      ? "Fix blocking issues in Plan first. Materials stays locked until blockers clear."
-      : hasWarnings
-        ? "You are on Materials: check warnings and cut layout."
-        : "You are on Materials: cut list is ready.";
-
-    return (
-      <DecisionStrip
-        health={health}
-        recommendation={recommendation}
-        ctaLabel="Back to Plan"
-        onCta={() => setAppTab("build")}
-        tone={hasBlockingIssues ? "blocked" : hasWarnings ? "warning" : "ready"}
-      />
-    );
-  })();
 
   const explainAllowance = `Project milling allowance: ${formatShopImperial(project.millingAllowanceInches)} per axis on non-manual rough dims.`;
 
@@ -465,7 +440,6 @@ export function GrainlineApp() {
               </div>
             }
             blockingValidationIssues={blockingValidationIssues}
-            decisionStrip={decisionStrip}
             setupFooter={setupTabFooter}
             buildFooter={buildTabFooter}
             disableShopTab={hasBlockingIssues}

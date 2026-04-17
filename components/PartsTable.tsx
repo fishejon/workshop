@@ -9,33 +9,33 @@ import {
   type ProjectJoint,
 } from "@/lib/project-types";
 import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
-import { buildRoughInstanceLabelMap } from "@/lib/shop-labels";
-import { makeRoughInstanceId } from "@/lib/rough-instance-id";
+import { dresserDrawerCellLabelFromPartName } from "@/lib/dresser-drawer-parts";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { partsToCsv } from "@/lib/parts-csv";
 import { formatShopImperial } from "@/lib/imperial";
 import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
 import { canExportOrPrintProject } from "@/lib/validation";
-import { yardHardwoodCutProgressSummaries } from "@/lib/yard-cut-progress";
+import {
+  buildYardRoughInstanceLabelMap,
+  expectedRoughInstanceLaneIdsForYardStickPart,
+  yardHardwoodCutProgressSummaries,
+} from "@/lib/yard-cut-progress";
 
 function formatDim3(d: { t: number; w: number; l: number }): string {
   return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
 }
 
-function labelSummaryForPart(part: Part, labelMap: Map<string, string>): string {
-  const q = Math.floor(Number(part.quantity));
-  if (!Number.isFinite(q) || q < 1) return "—";
-  const labels: string[] = [];
-  for (let i = 1; i <= q; i += 1) {
-    const key = makeRoughInstanceId(part.id, i);
-    const lbl = labelMap.get(key);
-    if (lbl) labels.push(lbl);
-  }
-  if (labels.length === 0) return "—";
-  const first = labels[0]!;
-  const prefix = first.split("-")[0]?.trim();
-  return prefix || "—";
-}
+type DisplayRow = {
+  id: string;
+  label: string;
+  componentName: string;
+  assembly: string;
+  quantityDisplay: string;
+  cutProgress: { requiredCuts: number; cutCuts: number };
+  finishedDisplay: string;
+  editablePartId?: string;
+  removablePartId?: string;
+};
 
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
   const {
@@ -52,7 +52,7 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
   const jointsForCutList = jointsEffectiveForCutList(project);
   const canExport = canExportOrPrintProject(checkpointsReady, validationIssues);
 
-  const shopLabelByInstanceId = useMemo(() => buildRoughInstanceLabelMap(project.parts), [project.parts]);
+  const shopLabelByInstanceId = useMemo(() => buildYardRoughInstanceLabelMap(project), [project]);
 
   const liveEditPart = useMemo(
     () => (editingPartId ? project.parts.find((p) => p.id === editingPartId) ?? null : null),
@@ -71,20 +71,77 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
     return yardCutSummaries.filter((row) => row.assembly === assemblyFilter);
   }, [assemblyFilter, yardCutSummaries]);
 
-  const visibleRows = useMemo(() => {
-    return visibleParts
-      .map((part) => ({
-        part,
-        label: labelSummaryForPart(part, shopLabelByInstanceId),
-      }))
-      .sort((a, b) => {
-        const la = a.label === "—" ? "~" : a.label;
-        const lb = b.label === "—" ? "~" : b.label;
-        const cmp = la.localeCompare(lb, undefined, { sensitivity: "base", numeric: true });
-        if (cmp !== 0) return cmp;
-        return a.part.name.localeCompare(b.part.name, undefined, { sensitivity: "base" });
+  const visibleRows = useMemo<DisplayRow[]>(() => {
+    const progress = project.cutProgressByRoughInstanceId ?? {};
+    const axis = project.drawerYardPackAxis ?? "width";
+    const rows: DisplayRow[] = [];
+
+    // Group drawer parts by shared yard label prefix (one row per drawer box/cell).
+    const drawerGroups = new Map<
+      string,
+      { parts: Part[]; requiredCuts: number; cutCuts: number; cellLabel: string | null }
+    >();
+
+    for (const part of visibleParts) {
+      const keys = expectedRoughInstanceLaneIdsForYardStickPart(part, project, axis);
+      const labels = keys.map((k) => shopLabelByInstanceId.get(k)).filter((v): v is string => Boolean(v));
+      const prefix = labels[0]?.split("-")[0]?.trim() || "—";
+      const cutCuts = keys.reduce((sum, k) => sum + (progress[k] === "cut" ? 1 : 0), 0);
+
+      if (part.assembly === "Drawers" && prefix !== "—") {
+        const existing = drawerGroups.get(prefix);
+        const cell = dresserDrawerCellLabelFromPartName(part.name);
+        if (existing) {
+          existing.parts.push(part);
+          existing.requiredCuts += keys.length;
+          existing.cutCuts += cutCuts;
+          existing.cellLabel = existing.cellLabel ?? cell;
+        } else {
+          drawerGroups.set(prefix, {
+            parts: [part],
+            requiredCuts: keys.length,
+            cutCuts,
+            cellLabel: cell,
+          });
+        }
+        continue;
+      }
+
+      rows.push({
+        id: `part:${part.id}`,
+        label: prefix,
+        componentName: part.name || "—",
+        assembly: part.assembly,
+        quantityDisplay: String(part.quantity),
+        cutProgress: { requiredCuts: keys.length, cutCuts },
+        finishedDisplay: formatDim3(part.finished),
+        editablePartId: part.id,
+        removablePartId: part.id,
       });
-  }, [visibleParts, shopLabelByInstanceId]);
+    }
+
+    for (const [prefix, group] of drawerGroups) {
+      const names = Array.from(new Set(group.parts.map((p) => p.name))).sort();
+      rows.push({
+        id: `drawer-group:${prefix}`,
+        label: prefix,
+        componentName: group.cellLabel ? `Drawer box (${group.cellLabel})` : "Drawer box",
+        assembly: "Drawers",
+        quantityDisplay: `${group.parts.length} parts`,
+        cutProgress: { requiredCuts: group.requiredCuts, cutCuts: group.cutCuts },
+        finishedDisplay: names.length > 1 ? "Varies by part" : (group.parts[0] ? formatDim3(group.parts[0].finished) : "—"),
+      });
+    }
+
+    rows.sort((a, b) => {
+      const la = a.label === "—" ? "~" : a.label;
+      const lb = b.label === "—" ? "~" : b.label;
+      const cmp = la.localeCompare(lb, undefined, { sensitivity: "base", numeric: true });
+      if (cmp !== 0) return cmp;
+      return a.componentName.localeCompare(b.componentName, undefined, { sensitivity: "base" });
+    });
+    return rows;
+  }, [visibleParts, shopLabelByInstanceId, project]);
 
   function downloadCsv() {
     const blob = new Blob([partsToCsv(project.parts, jointsForCutList, project)], { type: "text/csv;charset=utf-8" });
@@ -200,18 +257,19 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
                 <th className="px-3 py-2.5 font-medium">Component</th>
                 <th className="px-3 py-2.5 font-medium">Asm</th>
                 <th className="px-3 py-2.5 font-medium">Qty</th>
+                <th className="px-3 py-2.5 font-medium">Cuts done</th>
                 <th className="px-3 py-2.5 font-medium">Finished T×W×L</th>
                 <th className="px-3 py-2.5 font-medium"> </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--gl-border)] text-[var(--gl-cream)]">
-              {visibleRows.map(({ part, label }) => (
+              {visibleRows.map((row, idx) => (
                 <CutListReadRow
-                  key={part.id}
-                  part={part}
-                  shopLabelSummary={label}
-                  onEdit={() => setEditingPartId(part.id)}
-                  onRemove={() => removePart(part.id)}
+                  key={row.id}
+                  row={row}
+                  striped={idx % 2 === 1}
+                  onEdit={row.editablePartId ? () => setEditingPartId(row.editablePartId!) : undefined}
+                  onRemove={row.removablePartId ? () => removePart(row.removablePartId!) : undefined}
                 />
               ))}
             </tbody>
@@ -243,44 +301,59 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
 }
 
 function CutListReadRow({
-  part,
-  shopLabelSummary,
+  row,
+  striped,
   onEdit,
   onRemove,
 }: {
-  part: Part;
-  shopLabelSummary: string;
-  onEdit: () => void;
-  onRemove: () => void;
+  row: DisplayRow;
+  striped: boolean;
+  onEdit?: () => void;
+  onRemove?: () => void;
 }) {
+  const cutProgress = row.cutProgress;
+  const isDone = cutProgress.requiredCuts > 0 && cutProgress.cutCuts >= cutProgress.requiredCuts;
   return (
-    <tr className="align-middle hover:bg-[var(--gl-surface-muted)]/40">
+    <tr
+      className={`align-middle hover:bg-[color-mix(in_srgb,var(--gl-surface-muted)_70%,transparent)] ${
+        striped
+          ? "bg-[color-mix(in_srgb,var(--gl-surface-muted)_36%,transparent)]"
+          : "bg-[color-mix(in_srgb,var(--gl-surface-muted)_22%,transparent)]"
+      }`}
+    >
       <td className="px-3 py-2.5 font-mono text-xs font-semibold tabular-nums text-[var(--gl-copper)]">
-        {shopLabelSummary}
+        {row.label}
       </td>
-      <td className="px-3 py-2.5 font-medium text-[var(--gl-cream-soft)]">{part.name || "—"}</td>
-      <td className="px-3 py-2.5 text-[var(--gl-muted)]">{part.assembly}</td>
-      <td className="px-3 py-2.5 tabular-nums">{part.quantity}</td>
-      <td className="px-3 py-2.5 font-mono text-[var(--gl-cream)]">{formatDim3(part.finished)}</td>
+      <td className="px-3 py-2.5 font-medium text-[var(--gl-cream-soft)]">{row.componentName}</td>
+      <td className="px-3 py-2.5 text-[var(--gl-muted)]">{row.assembly}</td>
+      <td className="px-3 py-2.5 tabular-nums">{row.quantityDisplay}</td>
+      <td className={`px-3 py-2.5 tabular-nums ${isDone ? "text-[var(--gl-copper-bright)]" : "text-[var(--gl-muted)]"}`}>
+        {cutProgress.cutCuts}/{cutProgress.requiredCuts}
+      </td>
+      <td className="px-3 py-2.5 font-mono text-[var(--gl-cream)]">{row.finishedDisplay}</td>
       <td className="px-3 py-2.5">
-        <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            className="rounded-md border border-[var(--gl-border-strong)] px-2 py-1 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
-            onClick={onEdit}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className="text-xs text-[var(--gl-muted)] hover:text-[var(--gl-danger)]"
-            onClick={() => {
-              if (confirm(`Remove “${part.name}” from the cut list?`)) onRemove();
-            }}
-          >
-            Remove
-          </button>
-        </div>
+        {onEdit && onRemove ? (
+          <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              className="rounded-md border border-[var(--gl-border-strong)] px-2 py-1 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
+              onClick={onEdit}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="text-xs text-[var(--gl-muted)] hover:text-[var(--gl-danger)]"
+              onClick={() => {
+                if (confirm(`Remove “${row.componentName}” from the cut list?`)) onRemove();
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <span className="text-xs text-[var(--gl-muted)]">Grouped row</span>
+        )}
       </td>
     </tr>
   );
