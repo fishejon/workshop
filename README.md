@@ -19,6 +19,7 @@ Working title for a **hobbyist hardwood** planning app: **furniture presets** wi
 - **Tabs** — **Project** (defaults + preset selection), **Plan** (intent inputs + preview), **Materials** (yard list, cut layout, parts table). Materials is blocked while there are blocking validation issues. Joinery and rough-stick nesting live on **`/labs`**. By default the **Materials** cut list, CSV, **`/print`**, and cut-list validation **ignore `project.joints`**; set **`NEXT_PUBLIC_GL_MAIN_PATH_JOINERY=1`** in `.env.local` when you want Labs joinery to affect those outputs (see [USER_GUIDE](docs/USER_GUIDE.md)). State persists in `localStorage` (`grainline-project-v1`).
 - **Parts table** — finished vs rough T×W×L (in), manual rough toggle, provenance pills, explicit assumptions per row, **Why?** explainer, and CSV export.
 - **Materials** — yard list and cut layout at top, followed by the source parts table.
+- **Purchase intelligence** — scenario comparison for waste vs board count vs transport vs convenience, with optional planning-cost estimates.
 - **Joinery** — Groove/back, dado shelf width, M&T rail/stile, and **thickness-aware drawer joinery presets** with formula/provenance labeling.
 - **Shop mode** — **`/shop`** (link from **Project**): read-only large-type status (parts count, export readiness, blockers); edit on the main planner.
 - **Print** — `/print` shop sheet; PDF via browser **Save as PDF**.
@@ -29,13 +30,15 @@ Glue-up assumptions use a shared panel glue-up planner so table/print/CSV stay i
 
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md) — how to use the app (tabs, presets, shop, print, storage).  
 - [docs/WOODWORKER_CHECKLIST.md](docs/WOODWORKER_CHECKLIST.md) — tab order and readiness before shop handoff.  
-- [docs/plans/woodworker-gaps.md](docs/plans/woodworker-gaps.md) — honest backlog + release DoD slice (dresser + board pack).  
+- [docs/plans/woodworker-gaps.md](docs/plans/woodworker-gaps.md) — backlog + release DoD slice (dresser + board pack).  
+- [docs/plans/pm-roadmap-execution-ladder.md](docs/plans/pm-roadmap-execution-ladder.md) — phased execution checklist (referenced from the PRD for joinery path, buy trust, deferred CAD-lite).  
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — repo layout, scripts, tests, extending joinery.  
 - [docs/PRODUCT_STRATEGY.md](docs/PRODUCT_STRATEGY.md) — internal strategy memo (north star, wedge, pillars, phased roadmap, MVP, risks).  
 - [docs/PRD.md](docs/PRD.md) — product requirements (Workshop Companion / Grainline).  
 - [docs/PLAN.md](docs/PLAN.md) — phased implementation plan aligned with the PRD.
 - [docs/FURNITURE_CONFIG.md](docs/FURNITURE_CONFIG.md) — configuration schema for template-driven casework.
 - [docs/TEMPLATE_SYSTEM.md](docs/TEMPLATE_SYSTEM.md) — template architecture and save/load workflows.
+- [docs/PURCHASE_INTELLIGENCE.md](docs/PURCHASE_INTELLIGENCE.md) — strategy comparison, pricing inputs, and stock-type guidance.
 
 ## Run
 

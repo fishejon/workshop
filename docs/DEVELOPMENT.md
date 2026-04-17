@@ -56,7 +56,7 @@ vitest.config.ts     # Vitest + `@/*` path alias
 
 ## Application entry
 
-- `app/page.tsx` — Wraps content in `ProjectProvider` + `GrainlineApp`.
+- `app/page.tsx` — `ProjectProvider` → `DresserPlanSyncProvider` (Materials-tab flush for dresser parts sync) → `DresserMaterialsSnapshotProvider` → `GrainlineApp`.
 - `app/print/page.tsx` — Read-only **ShopPrintView**; hydrates project from `localStorage` (`STORAGE_KEY` in `lib/project-utils.ts`).
 - `app/shop/page.tsx` — Read-only **shop mode** summary (export readiness, blockers); same storage key as the main app.
 
@@ -105,9 +105,16 @@ Mutators of note:
 
 ---
 
+## Project JSON / migrations
+
+- `Project.version` stays at **1** unless a release intentionally bumps it; **`parseProject`** in `lib/project-utils.ts` must accept older saved JSON (forward-compatible optional fields).
+- When adding persisted fields: extend **`serializeProject` / `parseProject`**, add **`lib/project-utils.test.ts`** coverage, and manually import a prior-release export after schema edits.
+
+---
+
 ## Testing
 
-- Tests live next to code: `*.test.ts` under `lib/`.
+- Tests live under `lib/**/*.test.ts` (Vitest `include` in `vitest.config.ts`). A few files use **`@vitest-environment jsdom`** when React Testing Library is needed (e.g. `lib/dresser-plan-sync-context.test.ts`).
 - Vitest resolves `@/` to the repo root (see `vitest.config.ts`).
 - Current regression coverage includes:
   - joinery rule unit tests (`lib/joinery/*.test.ts`)

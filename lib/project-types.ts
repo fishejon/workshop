@@ -5,7 +5,9 @@
 
 import type { CaseOutlineV0 } from "@/lib/geometry/types";
 
-export const ASSEMBLY_IDS = ["Case", "Drawers", "Base", "Back", "Doors", "Other"] as const;
+// Ordering matters for UI grouping and shop label assignment.
+// Keep core case parts first, then drawers, then everything else.
+export const ASSEMBLY_IDS = ["Case", "Base", "Back", "Drawers", "Doors", "Other"] as const;
 export type AssemblyId = (typeof ASSEMBLY_IDS)[number];
 
 export type Dimension3 = {
@@ -122,6 +124,8 @@ export type Project = {
   id: string;
   version: 1;
   name: string;
+  /** Optional free-text notes for the shop or future you (local only). */
+  description?: string;
   /** Added to each finished T, W, L to suggest rough size (simple shop default). */
   millingAllowanceInches: number;
   /** Max stick length for buy-list hints (transport). */
@@ -162,6 +166,11 @@ export type Project = {
    * field reserved for future persistence / round-trip.
    */
   geometry?: CaseOutlineV0 | null;
+  /**
+   * When true, the dresser **Case back** line is excluded from hardwood yard cut list packing and
+   * BF/LF groups that drive stick purchase math (plywood / sheet goods bought separately).
+   */
+  omitDresserCaseBackFromHardwoodCutList?: boolean;
 };
 
 export type ProjectTemplate = {

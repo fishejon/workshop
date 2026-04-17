@@ -1,5 +1,7 @@
 import { buildDresserCaseworkCarcass, computeDresserCaseworkEngine } from "@/lib/archetypes/casework";
 import { DRESSER_PRIMARY_HARDWOOD_4_4 } from "@/lib/archetypes/assemblies";
+import { buildDresserDrawerBoxParts } from "@/lib/dresser-drawer-parts";
+import type { DrawerJoineryPresetId } from "@/lib/joinery/drawer-allowances";
 import type { Part } from "@/lib/project-types";
 
 export type DresserPartGenerationConfig = {
@@ -24,6 +26,8 @@ export type DresserPartGenerationConfig = {
   slideHeightClearance: number;
   drawerJoineryWidthAllowance: number;
   drawerJoineryHeightAllowance: number;
+  /** Defaults to butt — must match `DresserPlanner` / `computeDresser` joinery preset. */
+  drawerJoineryPreset?: DrawerJoineryPresetId;
 };
 
 export class PartGenerationService {
@@ -66,6 +70,7 @@ export class PartGenerationService {
       slideHeightClearance: config.slideHeightClearance,
       drawerJoineryWidthAllowance: config.drawerJoineryWidthAllowance,
       drawerJoineryHeightAllowance: config.drawerJoineryHeightAllowance,
+      drawerJoineryPreset: config.drawerJoineryPreset ?? "butt",
     });
     if (!drawerMath.ok) return [];
 
@@ -80,16 +85,18 @@ export class PartGenerationService {
       status: p.status,
     }));
 
-    const drawerParts: Omit<Part, "id">[] = drawerMath.cells.map((cell) => ({
-      name: `Drawer box (${cell.label})`,
-      assembly: "Drawers",
-      quantity: 1,
-      finished: { t: 0.5, w: cell.boxWidth, l: cell.boxHeight },
-      rough: { t: 0, w: 0, l: 0, manual: false },
-      material: DRESSER_PRIMARY_HARDWOOD_4_4,
-      grainNote: `Depth (slide run) ${cell.boxDepth.toFixed(3)} in`,
-      status: "needs_milling",
-    }));
+    const drawerNoteBase = (cell: (typeof drawerMath.cells)[number]) =>
+      `Box interior ${cell.boxWidth.toFixed(3)}" × ${cell.boxHeight.toFixed(3)}"; depth (slide run) ${cell.boxDepth.toFixed(3)} in · ${drawerMath.drawerJoineryApplied.provenance}`;
+
+    const drawerPartOpts = {
+      joineryPreset: drawerMath.drawerJoineryApplied.preset,
+      joineryMaterialThickness: drawerMath.drawerJoineryApplied.materialThickness,
+    };
+    const drawerParts: Omit<Part, "id">[] = drawerMath.cells.flatMap((cell) =>
+      buildDresserDrawerBoxParts(cell, config.materialThickness, drawerNoteBase(cell), drawerPartOpts).map(
+        ({ id: _id, ...row }) => row
+      )
+    );
 
     return [...caseParts, ...drawerParts];
   }

@@ -63,7 +63,7 @@
 
 ## Tasks — Phase 6 (Intelligent workshop) — milestone
 
-- [x] **P6-M1 — Offcut / inventory discovery** — PRD-aligned spike doc; no persistence until data model ADR. **Verify:** doc + non-goal check with `PRODUCT_STRATEGY.md`.
+- [x] **P6-M1 — Offcut / inventory discovery** — Direction captured in `PRODUCT_STRATEGY.md` / PRD non-goals; no durable persistence until a data-model ADR and migration tests land.
 
 ## Tasks — Cross-phase hygiene (parallel, low risk)
 

@@ -13,6 +13,16 @@ import {
 } from "./project-utils";
 import type { Project } from "./project-types";
 
+describe("createEmptyProject", () => {
+  it("defaults waste factor to zero", () => {
+    expect(createEmptyProject().wasteFactorPercent).toBe(0);
+  });
+
+  it("includes an empty description string", () => {
+    expect(createEmptyProject().description).toBe("");
+  });
+});
+
 describe("parseProject", () => {
   it("defaults connections to [] when missing (legacy saves)", () => {
     const legacy = JSON.stringify({

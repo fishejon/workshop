@@ -41,5 +41,5 @@ These `.mdc` files live in **this repo** at `.cursor/rules/`. They steer **on-de
 - `@agent-pm` — “What’s in scope for the next milestone vs later?”
 - `@agent-architect` — “Where should joinery vs buy math live?”
 - `@agent-backend` — “Review `lib/nominal-lumber-stocks.ts` and storage migration risk.”
-- `@agent-ux` — “Does Project → Plan → Cut list → Review read as one journey?”
+- `@agent-ux` — “Does Project → Plan → Materials read as one journey?”
 - `@agent-eng-manager` — “What’s the DoD for shipping a dresser change?”

@@ -7,9 +7,7 @@
  * - **Top**: One primary top board, thickness defaults to side thickness but can be overridden with
  *   `topPanelThickness`. Full outer W×D (add overhang manually if needed; `topAssemblyHeight` is
  *   only used for back height / notes, not top stock T).
- * - **Bottom**: Thickness = `bottomPanelThickness`. Sits between sides: width = inner width
- *   (outerW − 2×sideT), depth = inner depth from front inside face to back panel inside face:
- *   outerD − sideT − backThickness (one rear side rabbet / inset back).
+ * - **Bottom**: Thickness = `bottomPanelThickness`. Full overlay outer footprint, same W×D convention as top.
  * - **Back**: Thickness = `backThickness`. Width = inner width. Height = drawer stack zone only
  *   (kick is open at front; back does not extend into plinth): outerH − kick − bottomPanel − topAssembly.
  *   Omit back part if `backThickness` ≤ 0.
@@ -108,11 +106,6 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     };
   }
 
-  const bottomDepth = D - sideT - input.backThickness;
-  if (bottomDepth <= 0) {
-    return { ok: false, message: "Depth is too shallow for bottom panel after side and back thickness." };
-  }
-
   const backH = dz;
   if (input.backThickness > 0 && backH <= 0) {
     return { ok: false, message: "Back panel height computed non-positive—check vertical breakdown." };
@@ -168,12 +161,14 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     }
   );
 
-  const topGlueUp = maybePlanGlueUp(W);
+  // Grain is typically along overall width (front edge). Glue-up concern is across-grain panel width = depth.
+  const topGlueUp = maybePlanGlueUp(D);
   parts.push({
     name: "Case top",
     assembly: "Case",
     quantity: 1,
-    finished: { t: topT, w: W, l: D },
+    // `l` is the board-length / grain axis (used by rough stick packing).
+    finished: { t: topT, w: D, l: W },
     grainNote: [
       `Grain typically along W (front edge); confirm rift/flat preference · Full outer top · ${stackNote} (top assembly height ${input.topAssemblyHeight.toFixed(3)}" is total band above drawers)`,
       formatGlueUpNote(topGlueUp),
@@ -188,8 +183,8 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
     name: "Case bottom",
     assembly: "Case",
     quantity: 1,
-    finished: { t: input.bottomPanelThickness, w: innerW, l: bottomDepth },
-    grainNote: `Grain along W to match top/sides shop practice · Between sides; depth allows inset back (${input.backThickness.toFixed(3)}") and one side thickness at rear · ${stackNote}`,
+    finished: { t: input.bottomPanelThickness, w: D, l: W },
+    grainNote: `Grain along W to match top/sides shop practice · Full overlay bottom panel (same footprint convention as top) · ${stackNote}`,
     status: "solid",
   });
 
@@ -209,7 +204,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       name: "Toe kick front",
       assembly: "Base",
       quantity: 1,
-      finished: { t: sideT, w: innerW, l: input.kickHeight },
+      finished: { t: sideT, w: input.kickHeight, l: innerW },
       grainNote:
         "Grain horizontal along strip length (W) · Front facing strip between sides; confirm recess and side notches on site",
       status: "solid",
@@ -221,7 +216,7 @@ export function buildDresserCarcassParts(input: DresserCarcassInput): DresserCar
       name: "Case back",
       assembly: "Back",
       quantity: 1,
-      finished: { t: input.backThickness, w: innerW, l: backH },
+      finished: { t: input.backThickness, w: backH, l: innerW },
       grainNote: `Panel—grain vertical or horizontal per design · Drawer-stack back only (height = drawer zone ${dz.toFixed(3)}") · ${stackNote}`,
       status: "panel",
     });

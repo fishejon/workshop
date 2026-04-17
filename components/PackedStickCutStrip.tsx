@@ -2,6 +2,7 @@
 
 import type { BoardPlan, CutPiece } from "@/lib/optimize-cuts";
 import { formatShopImperial } from "@/lib/imperial";
+import { parseRoughInstanceId } from "@/lib/rough-instance-id";
 
 const SKINS = {
   rough: {
@@ -167,7 +168,16 @@ export function PackedStickCutBoardList({
           <div className={s.strip}>
             {board.cuts.map((cut, i) => {
               const rid = cut.roughInstanceId;
-              const shopLabel = rid ? shopLabelByRoughInstanceId?.get(rid) : undefined;
+              const shopLabel = (() => {
+                if (!rid) return undefined;
+                const direct = shopLabelByRoughInstanceId?.get(rid);
+                if (direct) return direct;
+                // Lane-suffixed ids (`part:inst#lane`) should display the base shop label.
+                const parsed = parseRoughInstanceId(rid);
+                if (!parsed) return undefined;
+                const base = `${parsed.partId}:${parsed.instanceIndex}`;
+                return shopLabelByRoughInstanceId?.get(base);
+              })();
               const done = Boolean(rid && cutProgressByRoughInstanceId?.[rid] === "cut");
               return (
                 <CutSegment
@@ -187,7 +197,15 @@ export function PackedStickCutBoardList({
           <ol className={s.ol}>
             {board.cuts.map((cut, i) => {
               const rid = cut.roughInstanceId;
-              const shopLabel = rid ? shopLabelByRoughInstanceId?.get(rid) : undefined;
+              const shopLabel = (() => {
+                if (!rid) return undefined;
+                const direct = shopLabelByRoughInstanceId?.get(rid);
+                if (direct) return direct;
+                const parsed = parseRoughInstanceId(rid);
+                if (!parsed) return undefined;
+                const base = `${parsed.partId}:${parsed.instanceIndex}`;
+                return shopLabelByRoughInstanceId?.get(base);
+              })();
               const done = Boolean(rid && cutProgressByRoughInstanceId?.[rid] === "cut");
               return (
                 <li key={`${board.index}-list-${i}-${rid ?? i}`}>

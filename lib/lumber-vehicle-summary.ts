@@ -7,7 +7,9 @@ import type { BoardFootGroup } from "./board-feet";
 import { materialGroupKey } from "./board-feet";
 import type { BoardPlan, CutPiece } from "./optimize-cuts";
 import { packUniformStock, totalWaste } from "./optimize-cuts";
-import { roughCutPiecesForPack } from "./rough-sticks";
+// Note: yard "cut list" uses finished dimensions for lengths and rip-width expansion.
+import { makeRoughInstanceLaneId } from "./rough-instance-id";
+import { widthRipMultiplier } from "./buy-2d/width-fit";
 import {
   projectDefaultPurchasableStockWidthInches,
   purchasableStockWidthInchesForPart,
@@ -54,9 +56,29 @@ export function boardsNeededByVehicleLength(totalLinealInches: number, vehicleIn
 function packGroupToBoardPlans(
   groupParts: Part[],
   stockLength: number,
-  kerf: number
+  kerf: number,
+  stockWidthInches: number,
+  options?: { drawerPackAxis?: "height" | "width" }
 ): { boards: BoardPlan[] | null; error: string | null; waste: number | null } {
-  const pieces: CutPiece[] = roughCutPiecesForPack(groupParts);
+  const pieces: CutPiece[] = [];
+  for (const part of groupParts) {
+    const q = Math.floor(Number(part.quantity));
+    if (!Number.isFinite(q) || q < 1) continue;
+    const drawerByWidth = options?.drawerPackAxis === "width" && part.assembly === "Drawers";
+    const cutLen = drawerByWidth ? part.finished.w : part.finished.l;
+    const cutWidth = drawerByWidth ? part.finished.l : part.finished.w;
+    if (!(cutLen > 0)) continue;
+    const rip = widthRipMultiplier(cutWidth, stockWidthInches);
+    for (let inst = 1; inst <= q; inst += 1) {
+      for (let lane = 1; lane <= rip; lane += 1) {
+        pieces.push({
+          lengthInches: cutLen,
+          label: `${(part.name.trim() || "Part")} ${inst}`,
+          roughInstanceId: makeRoughInstanceLaneId(part.id, inst, lane),
+        });
+      }
+    }
+  }
   if (pieces.length === 0) {
     return { boards: [], error: null, waste: 0 };
   }
@@ -85,7 +107,8 @@ export function buildLumberVehicleRows(
   allParts: Part[],
   vehicleMaxInches: number,
   project: PartAssumptionsProjectInput,
-  kerfInches: number = DEFAULT_PACK_KERF_IN
+  kerfInches: number = DEFAULT_PACK_KERF_IN,
+  options?: { drawerPackAxis?: "height" | "width" }
 ): LumberVehicleRow[] {
   return groups.map((g) => {
     const groupParts = partsInMaterialGroup(allParts, g.key);
@@ -97,7 +120,13 @@ export function buildLumberVehicleRows(
     const yardLumberLabel = formatYardLumberLine(nominal, g.materialLabel, g.thicknessCategory);
     const totalLinealInches = g.adjustedLinearFeet * 12;
     const boardsByVehicleLength = boardsNeededByVehicleLength(totalLinealInches, vehicleMaxInches);
-    const { boards, error, waste } = packGroupToBoardPlans(groupParts, vehicleMaxInches, kerfInches);
+    const { boards, error, waste } = packGroupToBoardPlans(
+      groupParts,
+      vehicleMaxInches,
+      kerfInches,
+      stockWidthUsedInches,
+      options
+    );
     return {
       key: g.key,
       materialLabel: g.materialLabel,

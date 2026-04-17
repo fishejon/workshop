@@ -18,6 +18,7 @@ import {
   parseProject,
 } from "@/lib/project-utils";
 import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
+import { partsForHardwoodYardCutList } from "@/lib/cut-list-yard-parts";
 import { isMainPathJoineryEnabled } from "@/lib/main-path-joinery-flag";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
 import { evaluateAllPurchaseScenarios } from "@/lib/purchase-scenarios";
@@ -48,9 +49,11 @@ export function ShopPrintView() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
+  const yardParts = useMemo(() => (project ? partsForHardwoodYardCutList(project) : []), [project]);
+
   const groups = useMemo(
-    () => (project ? groupPartsByMaterial(project.parts, project.wasteFactorPercent) : []),
-    [project]
+    () => (project ? groupPartsByMaterial(yardParts, project.wasteFactorPercent) : []),
+    [project, yardParts]
   );
 
   const subtotalBf = useMemo(() => totalBoardFeet(groups), [groups]);
@@ -72,7 +75,7 @@ export function ShopPrintView() {
     if (!project) return null;
     return (
       evaluateAllPurchaseScenarios({
-      parts: project.parts,
+      parts: yardParts,
       wasteFactorPercent: project.wasteFactorPercent,
       maxTransportLengthInches: project.maxTransportLengthInches,
       maxPurchasableBoardWidthInches: project.maxPurchasableBoardWidthInches,
@@ -81,7 +84,7 @@ export function ShopPrintView() {
       kerfInches: 0.125,
       }).find((plan) => plan.scenario === "fitTransport") ?? null
     );
-  }, [project]);
+  }, [project, yardParts]);
 
   if (!project) {
     return (

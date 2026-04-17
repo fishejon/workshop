@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProject } from "@/components/ProjectContext";
 import { DresserPreview } from "@/components/DresserPreview";
-import { NominalStockWidthSelect } from "@/components/NominalStockWidthSelect";
 import {
   DRESSER_CARCASS_ASSEMBLIES,
   DRESSER_DEFAULT_ROW_COUNT,
@@ -16,15 +15,19 @@ import {
   buildDresserCaseworkCarcass,
   computeDresserCaseworkEngine,
 } from "@/lib/archetypes/casework";
+import { buildDresserDrawerBoxParts } from "@/lib/dresser-drawer-parts";
 import {
   budgetForRowOpeningHeights,
   outerHeightFromRowOpenings,
   type DresserColumnCount,
 } from "@/lib/dresser-engine";
 import { balanceRowOpeningHeights } from "@/lib/dresser-row-balance";
+import type { DrawerJoineryPresetId } from "@/lib/joinery/drawer-allowances";
+import { DRAWER_JOINERY_PRESET_META } from "@/lib/joinery/drawer-allowances";
 import type { Part } from "@/lib/project-types";
-import { formatImperial, formatImperialInput, parseInches } from "@/lib/imperial";
+import { formatImperial, formatImperialInput, formatShopImperial, parseInches } from "@/lib/imperial";
 import { useSetDresserMaterialsSnapshot } from "@/components/DresserMaterialsSnapshotContext";
+import { useDresserPlanSync } from "@/components/DresserPlanSyncContext";
 import { DresserPlannerField } from "@/components/dresser/DresserPlannerField";
 import { DresserImperialInput } from "@/components/dresser/DresserImperialInput";
 import { DresserRowOpeningBudgetHint } from "@/components/dresser/DresserRowOpeningBudgetHint";
@@ -49,8 +52,17 @@ function fmtInches(inches: number): string {
   return formatImperial(inches, FRACTION_DENOMINATOR);
 }
 
+/** Write to `project.parts` immediately; Materials tab also flushes via `DresserPlanSyncContext`. */
+const DRESSER_PARTS_SYNC_DEBOUNCE_MS = 0;
+
 export function DresserPlanner() {
-  const { project, replacePartsInAssemblies, setMaxPurchasableBoardWidthInches } = useProject();
+  const { project, replacePartsInAssemblies, setOmitDresserCaseBackFromHardwoodCutList } = useProject();
+  const { setDresserPartsFlush } = useDresserPlanSync();
+
+  const carcassTimerRef = useRef<number | null>(null);
+  const drawerTimerRef = useRef<number | null>(null);
+  const carcassSignatureRef = useRef<string | null>(null);
+  const drawerSignatureRef = useRef<string | null>(null);
 
   const [outerW, setOuterW] = useState("48");
   const [outerH, setOuterH] = useState("34");
@@ -76,6 +88,8 @@ export function DresserPlanner() {
   const [slideHClr, setSlideHClr] = useState(String(DRESSER_SLIDE_PRESETS.sideMount.h));
   const [drawerJoineryW, setDrawerJoineryW] = useState("0");
   const [drawerJoineryH, setDrawerJoineryH] = useState("0");
+  /** Drives engine opening→box allowances and cut-list side/back stock thickness. */
+  const [drawerBoxJoineryPreset, setDrawerBoxJoineryPreset] = useState<DrawerJoineryPresetId>("butt");
   /** When true, auto-balance skips this row’s height. */
   const [rowOpeningLocked, setRowOpeningLocked] = useState<boolean[]>(() => []);
 
@@ -316,6 +330,7 @@ export function DresserPlanner() {
       slideHeightClearance: sh,
       drawerJoineryWidthAllowance: jw,
       drawerJoineryHeightAllowance: jh,
+      drawerJoineryPreset: drawerBoxJoineryPreset,
     });
   }, [
     outerW,
@@ -337,6 +352,7 @@ export function DresserPlanner() {
     slideHClr,
     drawerJoineryW,
     drawerJoineryH,
+    drawerBoxJoineryPreset,
   ]);
 
   const previewOpeningHeights = useMemo(() => {
@@ -471,26 +487,24 @@ export function DresserPlanner() {
     }));
   }, [carcassResult]);
 
-  const drawerPartsToAdd = useMemo<Omit<Part, "id">[]>(() => {
+  const drawerPartsToAdd = useMemo<Array<Omit<Part, "id"> & { id: string }>>(() => {
     if (result.ok !== true) return [];
+    const materialThickness = parseInches(sideT) ?? 0.75;
     const sw = parseInches(slideWClr) ?? 0;
     const sh = parseInches(slideHClr) ?? 0;
     const jw = parseInches(drawerJoineryW) ?? 0;
     const jh = parseInches(drawerJoineryH) ?? 0;
     const joineryTrace = result.drawerJoineryApplied.provenance;
-    return result.cells.map((c) => ({
-      name: `Drawer box (${c.label})`,
-      assembly: "Drawers",
-      quantity: 1,
-      finished: { t: 0.5, w: c.boxWidth, l: c.boxHeight },
-      rough: { t: 0, w: 0, l: 0, manual: false },
-      material: DRESSER_PRIMARY_HARDWOOD_4_4,
-      grainNote:
+    return result.cells.flatMap((c) => {
+      const drawerNote =
         `Depth (slide run) ${fmtInches(c.boxDepth)} · opening ${fmtInches(c.openingWidth)} × ${fmtInches(c.openingHeight)} · ` +
-        `box formula: W−${fmtInches(sw)}−${fmtInches(jw)}, H−${fmtInches(sh)}−${fmtInches(jh)} · ${joineryTrace}`,
-      status: "needs_milling",
-    }));
-  }, [result, slideWClr, slideHClr, drawerJoineryW, drawerJoineryH]);
+        `box interior ${fmtInches(c.boxWidth)} × ${fmtInches(c.boxHeight)} · box formula: W−${fmtInches(sw)}−${fmtInches(jw)}, H−${fmtInches(sh)}−${fmtInches(jh)} · ${joineryTrace}`;
+      return buildDresserDrawerBoxParts(c, materialThickness, drawerNote, {
+        joineryPreset: result.drawerJoineryApplied.preset,
+        joineryMaterialThickness: result.drawerJoineryApplied.materialThickness,
+      });
+    });
+  }, [result, slideWClr, slideHClr, drawerJoineryW, drawerJoineryH, sideT]);
 
   /** Carcass sync runs whenever case math is valid — independent of drawer row / opening balance. */
   const carcassAutoSyncSignature = useMemo(() => {
@@ -576,24 +590,106 @@ export function DresserPlanner() {
   }, [replacePartsInAssemblies]);
 
   useEffect(() => {
-    if (carcassAutoSyncSignature === null) return;
-    const handle = window.setTimeout(() => {
-      const c = casePartsForSyncRef.current;
-      if (c.length < 1) return;
-      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
-    }, 450);
-    return () => window.clearTimeout(handle);
+    carcassSignatureRef.current = carcassAutoSyncSignature;
   }, [carcassAutoSyncSignature]);
 
   useEffect(() => {
-    if (drawerAutoSyncSignature === null) return;
-    const handle = window.setTimeout(() => {
+    drawerSignatureRef.current = drawerAutoSyncSignature;
+  }, [drawerAutoSyncSignature]);
+
+  const flushAllDresserParts = useCallback(() => {
+    if (carcassTimerRef.current !== null) {
+      window.clearTimeout(carcassTimerRef.current);
+      carcassTimerRef.current = null;
+    }
+    if (drawerTimerRef.current !== null) {
+      window.clearTimeout(drawerTimerRef.current);
+      drawerTimerRef.current = null;
+    }
+    if (carcassSignatureRef.current !== null) {
+      const c = casePartsForSyncRef.current;
+      if (c.length >= 1) {
+        replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+      }
+    }
+    if (drawerSignatureRef.current !== null) {
+      const d = drawerPartsForSyncRef.current;
+      if (d.length >= 1) {
+        replaceDresserPartsRef.current(["Drawers"], d);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (carcassAutoSyncSignature === null) {
+      if (carcassTimerRef.current !== null) {
+        window.clearTimeout(carcassTimerRef.current);
+        carcassTimerRef.current = null;
+      }
+      return;
+    }
+    if (carcassTimerRef.current !== null) {
+      window.clearTimeout(carcassTimerRef.current);
+      carcassTimerRef.current = null;
+    }
+    if (DRESSER_PARTS_SYNC_DEBOUNCE_MS <= 0) {
+      const c = casePartsForSyncRef.current;
+      if (c.length < 1) return;
+      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+      return;
+    }
+    carcassTimerRef.current = window.setTimeout(() => {
+      carcassTimerRef.current = null;
+      const c = casePartsForSyncRef.current;
+      if (c.length < 1) return;
+      replaceDresserPartsRef.current(DRESSER_CARCASS_ASSEMBLIES, c);
+    }, DRESSER_PARTS_SYNC_DEBOUNCE_MS);
+    return () => {
+      if (carcassTimerRef.current !== null) {
+        window.clearTimeout(carcassTimerRef.current);
+        carcassTimerRef.current = null;
+      }
+    };
+  }, [carcassAutoSyncSignature]);
+
+  useEffect(() => {
+    if (drawerAutoSyncSignature === null) {
+      if (drawerTimerRef.current !== null) {
+        window.clearTimeout(drawerTimerRef.current);
+        drawerTimerRef.current = null;
+      }
+      return;
+    }
+    if (drawerTimerRef.current !== null) {
+      window.clearTimeout(drawerTimerRef.current);
+      drawerTimerRef.current = null;
+    }
+    if (DRESSER_PARTS_SYNC_DEBOUNCE_MS <= 0) {
       const d = drawerPartsForSyncRef.current;
       if (d.length < 1) return;
       replaceDresserPartsRef.current(["Drawers"], d);
-    }, 450);
-    return () => window.clearTimeout(handle);
+      return;
+    }
+    drawerTimerRef.current = window.setTimeout(() => {
+      drawerTimerRef.current = null;
+      const d = drawerPartsForSyncRef.current;
+      if (d.length < 1) return;
+      replaceDresserPartsRef.current(["Drawers"], d);
+    }, DRESSER_PARTS_SYNC_DEBOUNCE_MS);
+    return () => {
+      if (drawerTimerRef.current !== null) {
+        window.clearTimeout(drawerTimerRef.current);
+        drawerTimerRef.current = null;
+      }
+    };
   }, [drawerAutoSyncSignature]);
+
+  useEffect(() => {
+    setDresserPartsFlush(flushAllDresserParts);
+    return () => {
+      setDresserPartsFlush(null);
+    };
+  }, [setDresserPartsFlush, flushAllDresserParts]);
 
   return (
     <div className="space-y-8">
@@ -611,8 +707,9 @@ export function DresserPlanner() {
             <strong className="text-[var(--gl-cream-soft)]">Dresser math</strong> readout lives in{" "}
             <strong className="text-[var(--gl-cream-soft)]">Materials</strong> (same column as the cut list). Valid{" "}
             <strong className="text-[var(--gl-cream-soft)]">case / base / back</strong> rows sync to the shared{" "}
-            <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> as soon as the carcass computes (even if
-            drawer opening heights are not balanced yet). <strong className="text-[var(--gl-cream-soft)]">Drawer</strong>{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Cut list</strong> shortly after the carcass computes (even if
+            drawer opening heights are not balanced yet); opening <strong className="text-[var(--gl-cream-soft)]">Materials</strong>{" "}
+            applies any pending dresser sync immediately. <strong className="text-[var(--gl-cream-soft)]">Drawer</strong>{" "}
             rows sync when slide and opening math is valid. Rough sizes follow Project milling allowance.
           </p>
           <details className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-sm text-[var(--gl-muted)]">
@@ -671,18 +768,6 @@ export function DresserPlanner() {
                 hint="Case top stock thickness for parts output (separate from top assembly height)."
               />
             </DresserPlannerField>
-            <DresserPlannerField
-              label="Max purchasable board (nominal stock)"
-              source="manual"
-              hint="Pick the widest dressed board you actually buy (same setting as Project setup). Used for glue-up strip planning and buy-list width checks."
-            >
-              <NominalStockWidthSelect
-                valueInches={project.maxPurchasableBoardWidthInches}
-                onChangeInches={(n) => setMaxPurchasableBoardWidthInches(Math.max(0.0001, n))}
-                selectId="dresser-max-board-nominal"
-                customInputId="dresser-max-board-custom-in"
-              />
-            </DresserPlannerField>
             <DresserPlannerField label="Columns (vertical stacks)" source="manual">
               <select
                 className="input-wood"
@@ -710,6 +795,12 @@ export function DresserPlanner() {
               />
             </DresserPlannerField>
           </div>
+          <p className="mt-2 text-xs text-[var(--gl-muted)]">
+            Widest board for glue-up and width checks uses your{" "}
+            <strong className="text-[var(--gl-cream-soft)]">Project</strong> nominal rack setting (
+            {formatShopImperial(project.maxPurchasableBoardWidthInches)} dressed face). Change it on the Project tab;
+            it is not edited again here.
+          </p>
 
           <p className="mt-6 text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
             Your inputs — layout, back &amp; slides
@@ -750,6 +841,20 @@ export function DresserPlanner() {
             >
               <DresserImperialInput value={backT} onChange={setBackT} />
             </DresserPlannerField>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="flex cursor-pointer items-start gap-2 text-xs text-[var(--gl-muted)]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={Boolean(project.omitDresserCaseBackFromHardwoodCutList)}
+                  onChange={(e) => setOmitDresserCaseBackFromHardwoodCutList(e.target.checked)}
+                />
+                <span>
+                  Omit <strong className="text-[var(--gl-cream-soft)]">Case back</strong> from the hardwood yard cut
+                  list (buy plywood or sheet goods separately; the part still appears in your component list).
+                </span>
+              </label>
+            </div>
             <DresserPlannerField
               label="Rear clearance (behind drawer box)"
               source="manual"
@@ -815,17 +920,24 @@ export function DresserPlanner() {
                 hint="Extra total height removed from opening beyond slide clearance."
               />
             </DresserPlannerField>
+            <DresserPlannerField
+              label="Drawer box joinery (cut list stock)"
+              source="manual"
+              hint="Matches opening→box width math and sets side/back board thickness on the Materials cut list (dovetail = primary thickness; butt/rabbet = ½″ secondary)."
+            >
+              <select
+                className="input-wood"
+                value={drawerBoxJoineryPreset}
+                onChange={(e) => setDrawerBoxJoineryPreset(e.target.value as DrawerJoineryPresetId)}
+              >
+                {(Object.keys(DRAWER_JOINERY_PRESET_META) as DrawerJoineryPresetId[]).map((id) => (
+                  <option key={id} value={id}>
+                    {DRAWER_JOINERY_PRESET_META[id].label}
+                  </option>
+                ))}
+              </select>
+            </DresserPlannerField>
           </div>
-          <p className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-            Formula used: <strong className="text-[var(--gl-cream)]">box width = opening width − slide width clearance − joinery width allowance</strong> and{" "}
-            <strong className="text-[var(--gl-cream)]">box height = opening height − slide height clearance − joinery height allowance</strong>.
-          </p>
-          {result.ok ? (
-            <p className="mt-2 rounded-lg border border-[var(--gl-copper)]/25 bg-[var(--gl-copper)]/8 px-3 py-2 text-xs text-[var(--gl-cream-soft)]">
-              Joinery provenance: {result.drawerJoineryApplied.provenance}
-            </p>
-          ) : null}
-
           {carcassResult.ok === false ? <p className="mt-4 text-sm text-[var(--gl-danger)]">{carcassResult.message}</p> : null}
 
           <div className="mt-6">

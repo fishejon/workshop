@@ -1,7 +1,6 @@
+import { dresserDrawerCellLabelFromPartName } from "@/lib/dresser-drawer-parts";
 import type { Part } from "@/lib/project-types";
 import type { CaseOutlineV0 } from "@/lib/geometry/types";
-
-const DRAWER_BOX_RE = /^Drawer box \(Col (\d+) · Row (\d+)\)$/;
 
 const STACK_ROW_RE = /(\d+)\s+drawer row/;
 const STACK_RAIL_RE = /at\s+([\d.]+)"/;
@@ -58,7 +57,9 @@ function drawerColumnRowMax(parts: Part[]): { maxCol: number; maxRow: number } |
   let maxRow = 0;
   for (const p of parts) {
     if (p.assembly !== "Drawers") continue;
-    const m = p.name.match(DRAWER_BOX_RE);
+    const label = dresserDrawerCellLabelFromPartName(p.name);
+    if (!label) continue;
+    const m = label.match(/^Col (\d+) · Row (\d+)$/);
     if (!m) continue;
     const col = Number.parseInt(m[1], 10);
     const row = Number.parseInt(m[2], 10);
@@ -84,8 +85,10 @@ export function inferDresserCaseOutlineFromParts(parts: Part[]): CaseOutlineV0 |
   const side = findCaseSide(parts);
   if (!top || !side || !isCaseSideName(side.name)) return null;
 
-  const outerW = top.finished.w;
-  const outerD = top.finished.l;
+  // Convention: `finished.l` is the board-length / grain axis.
+  // For the dresser top that means outer width runs along `l`, and outer depth is `w`.
+  const outerW = top.finished.l;
+  const outerD = top.finished.w;
   const outerH = side.finished.l;
   const materialT = side.finished.t;
 
@@ -95,12 +98,13 @@ export function inferDresserCaseOutlineFromParts(parts: Part[]): CaseOutlineV0 |
 
   const back = findCaseBack(parts);
   if (!back) return null;
-  const drawerZone = back.finished.l;
+  // Back is a panel with `l` along outer width; its height (drawer zone) is `w`.
+  const drawerZone = back.finished.w;
   if (!Number.isFinite(drawerZone) || drawerZone <= 0) return null;
 
   const bottom = findCaseBottom(parts);
   const kickPart = findToeKick(parts);
-  const kickH = kickPart ? kickPart.finished.l : 0;
+  const kickH = kickPart ? kickPart.finished.w : 0;
   const bottomBand = bottom ? bottom.finished.t : 0;
 
   const divs = dividerCount(parts);

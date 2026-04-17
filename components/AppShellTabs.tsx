@@ -26,6 +26,8 @@ export function AppShellTabs({
   cutListPartsTable,
   blockingValidationIssues,
   decisionStrip,
+  setupFooter,
+  buildFooter,
   disableShopTab = false,
 }: {
   active: AppShellTabId;
@@ -35,6 +37,10 @@ export function AppShellTabs({
   cutListPartsTable: ReactNode;
   blockingValidationIssues: ValidationIssue[];
   decisionStrip: ReactNode;
+  /** Shown below the Project tab panel (e.g. next-step control). */
+  setupFooter?: ReactNode;
+  /** Shown below the Plan tab panel (e.g. next-step control). */
+  buildFooter?: ReactNode;
   disableShopTab?: boolean;
 }) {
   const handleTabListKeyDown = useCallback(
@@ -109,11 +115,14 @@ export function AppShellTabs({
 
       <div role="tabpanel" id="panel-main" aria-labelledby={`tab-${active}`} className="min-w-0">
         {active === "setup" ? (
-          <div className="mx-auto max-w-4xl">{setupPanel}</div>
+          <div className="mx-auto w-full min-w-0 max-w-4xl space-y-6">
+            {setupPanel}
+            {setupFooter}
+          </div>
         ) : active === "build" ? (
           <div className="space-y-6">
-            {decisionStrip}
             <div className="min-w-0 space-y-6">{planPanel}</div>
+            {buildFooter}
           </div>
         ) : (
           <div className="space-y-6">

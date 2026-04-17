@@ -139,10 +139,11 @@ export function createEmptyProject(): Project {
     id: newProjectId(),
     version: 1,
     name: "Untitled project",
+    description: "",
     millingAllowanceInches: 0.5,
     maxTransportLengthInches: 96,
     maxPurchasableBoardWidthInches: 20,
-    wasteFactorPercent: 15,
+    wasteFactorPercent: 0,
     costRatesByGroup: {},
     parts: [],
     joints: [],
@@ -199,6 +200,7 @@ export function serializeTemplate(project: Project, templateName: string): Proje
     ...(project.stockWidthByMaterialGroup && Object.keys(project.stockWidthByMaterialGroup).length > 0
       ? { stockWidthByMaterialGroup: { ...project.stockWidthByMaterialGroup } }
       : {}),
+    ...(project.omitDresserCaseBackFromHardwoodCutList ? { omitDresserCaseBackFromHardwoodCutList: true } : {}),
   };
 }
 
@@ -443,9 +445,11 @@ export function parseProject(json: string): Project | null {
     const stockWidthByMaterialGroup = parseStockWidthByMaterialGroup(o.stockWidthByMaterialGroup);
     const cutProgressByRoughInstanceId = parseCutProgress(o.cutProgressByRoughInstanceId);
     const geometry = isCaseOutlineV0(o.geometry) ? o.geometry : undefined;
+    const description = typeof o.description === "string" ? o.description : "";
     return {
       ...(o as Project),
       id,
+      description,
       joints,
       connections,
       costRatesByGroup,

@@ -6,21 +6,34 @@ import {
   ASSEMBLY_IDS,
   type AssemblyId,
   type Part,
-  type PartStatus,
   type ProjectJoint,
 } from "@/lib/project-types";
 import { cutListExportCheckpointsReady, jointsEffectiveForCutList } from "@/lib/cut-list-scope";
+import { buildRoughInstanceLabelMap } from "@/lib/shop-labels";
+import { makeRoughInstanceId } from "@/lib/rough-instance-id";
 import { derivePartAssumptionsDetailed } from "@/lib/part-assumptions";
-import { deriveRough } from "@/lib/project-utils";
 import { partsToCsv } from "@/lib/parts-csv";
 import { formatShopImperial } from "@/lib/imperial";
 import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
 import { canExportOrPrintProject } from "@/lib/validation";
 
-const STATUS_OPTIONS: PartStatus[] = ["solid", "panel", "needs_milling"];
-
 function formatDim3(d: { t: number; w: number; l: number }): string {
   return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
+}
+
+function labelSummaryForPart(part: Part, labelMap: Map<string, string>): string {
+  const q = Math.floor(Number(part.quantity));
+  if (!Number.isFinite(q) || q < 1) return "—";
+  const labels: string[] = [];
+  for (let i = 1; i <= q; i += 1) {
+    const key = makeRoughInstanceId(part.id, i);
+    const lbl = labelMap.get(key);
+    if (lbl) labels.push(lbl);
+  }
+  if (labels.length === 0) return "—";
+  const first = labels[0]!;
+  const prefix = first.split("-")[0]?.trim();
+  return prefix || "—";
 }
 
 export function PartsTable({ explainAllowanceText }: { explainAllowanceText: string }) {
@@ -29,22 +42,41 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
     validationIssues,
     blockingValidationIssues,
     warningValidationIssues,
-    addPart,
     updatePart,
     removePart,
-    clearParts,
-    duplicateAssemblyGroup,
   } = useProject();
-  const [selectedAssemblyToDuplicate, setSelectedAssemblyToDuplicate] = useState<AssemblyId>(ASSEMBLY_IDS[0]);
+  const [assemblyFilter, setAssemblyFilter] = useState<AssemblyId | "All">("All");
   const [editingPartId, setEditingPartId] = useState<string | null>(null);
   const checkpointsReady = cutListExportCheckpointsReady(project);
   const jointsForCutList = jointsEffectiveForCutList(project);
   const canExport = canExportOrPrintProject(checkpointsReady, validationIssues);
 
+  const shopLabelByInstanceId = useMemo(() => buildRoughInstanceLabelMap(project.parts), [project.parts]);
+
   const liveEditPart = useMemo(
     () => (editingPartId ? project.parts.find((p) => p.id === editingPartId) ?? null : null),
     [editingPartId, project.parts]
   );
+
+  const visibleParts = useMemo(() => {
+    if (assemblyFilter === "All") return project.parts;
+    return project.parts.filter((p) => p.assembly === assemblyFilter);
+  }, [assemblyFilter, project.parts]);
+
+  const visibleRows = useMemo(() => {
+    return visibleParts
+      .map((part) => ({
+        part,
+        label: labelSummaryForPart(part, shopLabelByInstanceId),
+      }))
+      .sort((a, b) => {
+        const la = a.label === "—" ? "~" : a.label;
+        const lb = b.label === "—" ? "~" : b.label;
+        const cmp = la.localeCompare(lb, undefined, { sensitivity: "base", numeric: true });
+        if (cmp !== 0) return cmp;
+        return a.part.name.localeCompare(b.part.name, undefined, { sensitivity: "base" });
+      });
+  }, [visibleParts, shopLabelByInstanceId]);
 
   function downloadCsv() {
     const blob = new Blob([partsToCsv(project.parts, jointsForCutList, project)], { type: "text/csv;charset=utf-8" });
@@ -65,64 +97,28 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p id="parts-table-title" className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-            Cut list
+            Component list
           </p>
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
-            Read-only summary (nearest 1/16″). Use <strong className="text-[var(--gl-cream-soft)]">Edit</strong> to
-            change a row—numbers stay calculated until you save in the editor.
+            Finished dimensions (nearest 1/16″). Filter by assembly, export CSV, or Edit a row.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="flex items-center gap-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-2 py-1">
+            <span className="text-xs text-[var(--gl-muted)]">Show</span>
             <select
               className="input-wood py-1.5 text-xs"
-              value={selectedAssemblyToDuplicate}
-              onChange={(e) => setSelectedAssemblyToDuplicate(e.target.value as AssemblyId)}
+              value={assemblyFilter}
+              onChange={(e) => setAssemblyFilter(e.target.value as AssemblyId | "All")}
             >
+              <option value="All">All assemblies</option>
               {ASSEMBLY_IDS.map((assembly) => (
                 <option key={assembly} value={assembly}>
                   {assembly}
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              className="rounded-lg border border-[var(--gl-border-strong)] px-2 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)] disabled:opacity-40"
-              disabled={!project.parts.some((part) => part.assembly === selectedAssemblyToDuplicate)}
-              onClick={() => duplicateAssemblyGroup(selectedAssemblyToDuplicate)}
-            >
-              Duplicate assembly group
-            </button>
           </div>
-          <button
-            type="button"
-            className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
-            onClick={() =>
-              addPart({
-                name: "New part",
-                assembly: "Other",
-                quantity: 1,
-                finished: { t: 0.75, w: 3, l: 24 },
-                rough: { ...deriveRough({ t: 0.75, w: 3, l: 24 }, project.millingAllowanceInches), manual: false },
-                material: { label: "Hardwood", thicknessCategory: "4/4" },
-                grainNote: "",
-                status: "solid",
-              })
-            }
-          >
-            Add row
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
-            onClick={() => {
-              if (confirm("Clear all parts? (Saved joinery in /labs is cleared too.)")) {
-                clearParts();
-              }
-            }}
-          >
-            Clear all
-          </button>
           <button
             type="button"
             className="rounded-lg border border-[var(--gl-copper)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/25"
@@ -165,29 +161,28 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
       ) : null}
 
       {project.parts.length === 0 ? (
-        <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Plan presets or Add row, then Edit.</p>
+        <p className="mt-6 text-sm text-[var(--gl-muted)]">No parts yet — add from Plan presets, then review here.</p>
       ) : (
         <div className="mt-4 max-h-[min(70vh,720px)] overflow-auto rounded-xl border border-[var(--gl-border)]">
           <table className="gl-numeric w-full min-w-[520px] text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[var(--gl-ink)]/98 text-xs tracking-wide text-[var(--gl-muted)] uppercase">
               <tr>
+                <th className="px-3 py-2.5 font-medium">Label</th>
                 <th className="px-3 py-2.5 font-medium">Component</th>
                 <th className="px-3 py-2.5 font-medium">Asm</th>
                 <th className="px-3 py-2.5 font-medium">Qty</th>
                 <th className="px-3 py-2.5 font-medium">Finished T×W×L</th>
-                <th className="px-3 py-2.5 font-medium">Rough T×W×L</th>
-                <th className="px-3 py-2.5 font-medium">Lumber</th>
-                <th className="px-3 py-2.5 font-medium">Status</th>
                 <th className="px-3 py-2.5 font-medium"> </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--gl-border)] text-[var(--gl-cream)]">
-              {project.parts.map((p) => (
+              {visibleRows.map(({ part, label }) => (
                 <CutListReadRow
-                  key={p.id}
-                  part={p}
-                  onEdit={() => setEditingPartId(p.id)}
-                  onRemove={() => removePart(p.id)}
+                  key={part.id}
+                  part={part}
+                  shopLabelSummary={label}
+                  onEdit={() => setEditingPartId(part.id)}
+                  onRemove={() => removePart(part.id)}
                 />
               ))}
             </tbody>
@@ -220,32 +215,24 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
 
 function CutListReadRow({
   part,
+  shopLabelSummary,
   onEdit,
   onRemove,
 }: {
   part: Part;
+  shopLabelSummary: string;
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const roughManual = part.rough.manual;
   return (
     <tr className="align-middle hover:bg-[var(--gl-surface-muted)]/40">
+      <td className="px-3 py-2.5 font-mono text-xs font-semibold tabular-nums text-[var(--gl-copper)]">
+        {shopLabelSummary}
+      </td>
       <td className="px-3 py-2.5 font-medium text-[var(--gl-cream-soft)]">{part.name || "—"}</td>
       <td className="px-3 py-2.5 text-[var(--gl-muted)]">{part.assembly}</td>
       <td className="px-3 py-2.5 tabular-nums">{part.quantity}</td>
       <td className="px-3 py-2.5 font-mono text-[var(--gl-cream)]">{formatDim3(part.finished)}</td>
-      <td className="px-3 py-2.5 font-mono text-[var(--gl-cream)]">
-        {formatDim3(part.rough)}
-        {roughManual ? (
-          <span className="ml-1 rounded border border-[var(--gl-border)] px-1 text-xs uppercase text-[var(--gl-muted)]">
-            manual rough
-          </span>
-        ) : null}
-      </td>
-      <td className="max-w-[10rem] truncate px-3 py-2.5 text-[var(--gl-muted)]" title={`${part.material.label} · ${part.material.thicknessCategory}`}>
-        {part.material.label} · {part.material.thicknessCategory}
-      </td>
-      <td className="px-3 py-2.5 text-[var(--gl-muted)]">{part.status}</td>
       <td className="px-3 py-2.5">
         <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
           <button
