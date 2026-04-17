@@ -50,6 +50,7 @@ type ProjectContextValue = {
   warningValidationIssues: ValidationIssue[];
   hasBlockingValidationIssues: boolean;
   setProjectName: (name: string) => void;
+  setProjectDescription: (description: string) => void;
   setMillingAllowanceInches: (n: number) => void;
   setMaxTransportLengthInches: (n: number) => void;
   setMaxPurchasableBoardWidthInches: (n: number) => void;
@@ -79,6 +80,8 @@ type ProjectContextValue = {
   projectLibrary: StoredProjectRecord[];
   backupCurrentProject: (name?: string) => BackupResult;
   restoreFromLibrary: (id: string) => RestoreResult;
+  /** Load an editable copy of a library row into the workspace (new project id; does not change the library row). */
+  forkProjectFromLibrary: (id: string, name: string) => { ok: true } | { ok: false; reason: string };
   setLibraryArchived: (id: string, archived: boolean) => void;
   addJointRecord: (joint: Omit<ProjectJoint, "id"> & { id?: string }) => void;
   addConnectionRecord: (c: Omit<ProjectJoinConnection, "id"> & { id?: string }) => void;
@@ -243,6 +246,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const setProjectName = useCallback((name: string) => {
     setProject((p) => ({ ...p, name }));
+  }, [setProject]);
+
+  const setProjectDescription = useCallback((description: string) => {
+    setProject((p) => ({ ...p, description }));
   }, [setProject]);
 
   const setMillingAllowanceInches = useCallback((n: number) => {
@@ -503,6 +510,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     [project, projectLibrary, setProject]
   );
 
+  const forkProjectFromLibrary = useCallback(
+    (id: string, name: string) => {
+      const record = projectLibrary.find((row) => row.id === id);
+      if (!record) return { ok: false as const, reason: "Project could not be found." };
+      const nextName = name.trim() || `${record.name} copy`;
+      setProject(cloneProject(record.project, nextName));
+      return { ok: true as const };
+    },
+    [projectLibrary, setProject]
+  );
+
   const setLibraryArchived = useCallback((id: string, archived: boolean) => {
     setProjectLibrary((prev) => prev.map((row) => (row.id === id ? { ...row, archived } : row)));
   }, []);
@@ -573,6 +591,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     warningValidationIssues,
     hasBlockingValidationIssues: blockingValidationIssues.length > 0,
     setProjectName,
+    setProjectDescription,
     setMillingAllowanceInches,
     setMaxTransportLengthInches,
     setMaxPurchasableBoardWidthInches,
@@ -598,6 +617,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     projectLibrary,
     backupCurrentProject,
     restoreFromLibrary,
+    forkProjectFromLibrary,
     setLibraryArchived,
     addJointRecord,
     addConnectionRecord,

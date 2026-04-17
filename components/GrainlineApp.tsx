@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { DecisionStrip } from "@/components/DecisionStrip";
 import { AppShellTabs, type AppShellTabId } from "@/components/AppShellTabs";
-import { CutPlanner } from "@/components/CutPlanner";
+import { AppNavDrawer } from "@/components/AppNavDrawer";
 import { DresserPlanner } from "@/components/DresserPlanner";
 import { CutListYardSummary } from "@/components/CutListYardSummary";
 import { PartsTable } from "@/components/PartsTable";
 import { ProjectSetupBar } from "@/components/ProjectSetupBar";
-import { ProjectToolbar } from "@/components/ProjectToolbar";
+import { ProjectsHomeView } from "@/components/ProjectsHomeView";
+import { ProjectWorkspaceBar } from "@/components/ProjectWorkspaceBar";
 import { TvConsoleStub } from "@/components/TvConsoleStub";
 import { CaseworkPlanner } from "@/components/casework/CaseworkPlanner";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
@@ -22,20 +23,12 @@ import {
 import { templateStorageService } from "@/lib/services/TemplateStorageService";
 import type { FurnitureConfig } from "@/lib/types/furniture-config";
 import { caseworkGenerationService } from "@/lib/services/CaseworkGenerationService";
-import type { StoredProjectRecord } from "@/lib/project-utils";
-
 const PRESETS = [
   {
     id: "dresser" as const,
     title: "Dresser",
     tag: "Case + drawers",
     blurb: "Columns, row mix, slide clearances, and a live front schematic with box sizes per cell.",
-  },
-  {
-    id: "board" as const,
-    title: "Board cut list",
-    tag: "1D pack",
-    blurb: "Hardwood stick layout with kerf and the length you actually haul home.",
   },
   {
     id: "console-template" as const,
@@ -67,12 +60,55 @@ const PRESETS = [
 
 type PresetId = (typeof PRESETS)[number]["id"];
 
+const PRESET_ICONS: Record<PresetId, ReactNode> = {
+  dresser: (
+    <svg className="h-9 w-9 shrink-0 text-[var(--gl-copper-bright)]" viewBox="0 0 40 40" fill="none" aria-hidden>
+      <rect x="6" y="8" width="28" height="26" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 16h28M6 24h28" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="20" cy="12" r="1.2" fill="currentColor" />
+    </svg>
+  ),
+  "console-template": (
+    <svg className="h-9 w-9 shrink-0 text-[var(--gl-copper-bright)]" viewBox="0 0 40 40" fill="none" aria-hidden>
+      <path
+        d="M8 28V14c0-1.1.9-2 2-2h20c1.1 0 2 .9 2 2v14"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path d="M6 28h28" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M14 18h12" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  ),
+  "bookshelf-template": (
+    <svg className="h-9 w-9 shrink-0 text-[var(--gl-copper-bright)]" viewBox="0 0 40 40" fill="none" aria-hidden>
+      <rect x="10" y="6" width="20" height="28" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 14h20M10 22h20M10 30h20" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  ),
+  "tv-console": (
+    <svg className="h-9 w-9 shrink-0 text-[var(--gl-copper-bright)]" viewBox="0 0 40 40" fill="none" aria-hidden>
+      <rect x="8" y="10" width="24" height="16" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M14 30h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+  "soon-cab": (
+    <svg className="h-9 w-9 shrink-0 text-[var(--gl-muted)]" viewBox="0 0 40 40" fill="none" aria-hidden>
+      <rect x="10" y="8" width="20" height="26" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M16 20h8M20 16v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+};
+
+type ShellMode = "projects" | "workspace";
+
 export function GrainlineApp() {
+  const [shellMode, setShellMode] = useState<ShellMode>("projects");
   const [preset, setPreset] = useState<PresetId>("dresser");
   const [appTab, setAppTab] = useState<AppShellTabId>("setup");
-  const [showExperimentalPresets, setShowExperimentalPresets] = useState(false);
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
   const [activeFurnitureConfig, setActiveFurnitureConfig] = useState<FurnitureConfig | null>(null);
+  const [layoutSaveNotice, setLayoutSaveNotice] = useState("");
   const [loadedConsoleConfig, setLoadedConsoleConfig] = useState<FurnitureConfig | undefined>();
   const [loadedBookshelfConfig, setLoadedBookshelfConfig] = useState<FurnitureConfig | undefined>();
   const {
@@ -80,26 +116,26 @@ export function GrainlineApp() {
     blockingValidationIssues,
     warningValidationIssues,
     replacePartsInAssemblies,
-    projectLibrary,
-    backupCurrentProject,
-    restoreFromLibrary,
-    setLibraryArchived,
+    resetProject,
+    setProjectDescription,
   } = useProject();
   const { flushDresserPartsNow } = useDresserPlanSync();
   const active = PRESETS.find((p) => p.id === preset);
-  const visiblePresets = PRESETS.filter((p) => !p.experimental || showExperimentalPresets);
+  const visiblePresets = PRESETS.filter((p) => !p.experimental);
   const hasBlockingIssues = blockingValidationIssues.length > 0;
   const hasWarnings = warningValidationIssues.length > 0;
-  const hasParts = project.parts.length > 0;
+  useEffect(() => {
+    if (!layoutSaveNotice) return;
+    const t = window.setTimeout(() => setLayoutSaveNotice(""), 4000);
+    return () => window.clearTimeout(t);
+  }, [layoutSaveNotice]);
 
-  const recommendedNextTab: AppShellTabId = hasBlockingIssues || !hasParts ? "build" : "shop";
-  const recommendedNextLabel = recommendedNextTab === "build" ? "Continue: Plan" : "Continue: Materials";
-
-  const recentProjects = useMemo(() => {
-    const active = projectLibrary.filter((r) => !r.archived);
-    active.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    return active.slice(0, 6);
-  }, [projectLibrary]);
+  const layoutCaseworkPreset = preset === "console-template" || preset === "bookshelf-template";
+  const saveLayoutMode: "save" | "go-plan" | "disabled" = activeFurnitureConfig
+    ? "save"
+    : layoutCaseworkPreset
+      ? "go-plan"
+      : "disabled";
 
   const decisionStrip = (() => {
     const health = hasBlockingIssues
@@ -108,47 +144,18 @@ export function GrainlineApp() {
         ? "Warnings — verify Plan and Materials"
         : "Ready for materials";
 
-    let recommendation: string;
-    if (hasBlockingIssues) {
-      recommendation =
-        "Fix blocking issues in Plan first. Materials stays locked until blockers clear.";
-    } else if (appTab === "setup") {
-      recommendation =
-        "You are on Project: choose preset and defaults. Next, use Plan to set dimensions.";
-    } else if (appTab === "build") {
-      recommendation =
-        "You are on Plan: update intent and geometry. Materials updates from your configuration automatically.";
-    } else {
-      recommendation = hasWarnings
+    const recommendation = hasBlockingIssues
+      ? "Fix blocking issues in Plan first. Materials stays locked until blockers clear."
+      : hasWarnings
         ? "You are on Materials: check warnings and cut layout."
         : "You are on Materials: cut list is ready.";
-    }
-
-    const ctaLabel =
-      appTab === "setup"
-        ? "Next: Plan"
-        : appTab === "build"
-          ? "Next: Materials"
-          : "Back to Plan";
-
-    function handleDecisionCta() {
-      if (appTab === "setup") {
-        setAppTab("build");
-        return;
-      }
-      if (appTab === "build") {
-        setAppTab("shop");
-        return;
-      }
-      setAppTab("build");
-    }
 
     return (
       <DecisionStrip
         health={health}
         recommendation={recommendation}
-        ctaLabel={ctaLabel}
-        onCta={handleDecisionCta}
+        ctaLabel="Back to Plan"
+        onCta={() => setAppTab("build")}
         tone={hasBlockingIssues ? "blocked" : hasWarnings ? "warning" : "ready"}
       />
     );
@@ -168,74 +175,28 @@ export function GrainlineApp() {
   const setupPanel = (
     <div className="space-y-5">
       <section className="gl-panel p-5">
-        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Home</p>
-        <h2 className="mt-2 text-2xl font-semibold text-[var(--gl-cream)]">Start a project, then move to Plan.</h2>
+        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Project</p>
+        <h2 className="mt-2 text-2xl font-semibold text-[var(--gl-cream)]">Choose what you are building, then move to Plan.</h2>
         <p className="mt-2 max-w-3xl text-sm text-[var(--gl-muted)]">
-          This page is your launchpad: choose what you are building, continue where you left off, or reopen a recent
-          project. Then go to Plan for dimensions and Materials for component and cut lists.
+          Use the menu (top left) for <strong className="text-[var(--gl-cream-soft)]">Projects</strong>. Save from the
+          workspace bar or from the buttons at the bottom of Project and Plan.
         </p>
-        <div className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2.5 text-xs leading-relaxed text-[var(--gl-muted)]">
-          <p className="font-medium text-[var(--gl-cream-soft)]">Where saves go</p>
-          <ul className="mt-1 list-inside list-disc space-y-1">
-            <li>
-              <strong className="text-[var(--gl-cream)]">Recent projects</strong> — dated copies stored only in this
-              browser. Use <strong className="text-[var(--gl-cream)]">Save snapshot to Recent</strong> to add the
-              current project to that list, then <strong className="text-[var(--gl-cream)]">Open</strong> to continue a
-              past version.
-            </li>
-            <li>
-              <strong className="text-[var(--gl-cream)]">Layout presets</strong> (header buttons below) — dresser or
-              console <em>Plan dimensions</em> only, via the template library. Good for reusing a past layout on a new
-              project.
-            </li>
-            <li>
-              <strong className="text-[var(--gl-cream)]">Full project templates</strong> — in Project defaults: saves
-              the entire project (parts, materials, name) so you can spawn a new file from an older build you had
-              exported to a template.
-            </li>
-          </ul>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="rounded-md border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface)]"
-            onClick={() => setAppTab(recommendedNextTab)}
-          >
-            {recommendedNextLabel}
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
-            onClick={() => backupCurrentProject()}
-          >
-            Save snapshot to Recent
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--gl-border)] px-3 py-2 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
-            onClick={() => setAppTab("build")}
-          >
-            Go to Plan
-          </button>
-          <span className="text-xs text-[var(--gl-muted)]">
-            Current project: <strong className="text-[var(--gl-cream-soft)]">{project.name || "Untitled project"}</strong>
-          </span>
-        </div>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-4">
-          <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">1. Project</p>
-          <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">Choose preset + defaults</p>
-        </div>
-        <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-4">
-          <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">2. Plan</p>
-          <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">Set dimensions and layout</p>
-        </div>
-        <div className="rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface)] p-4">
-          <p className="text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase">3. Materials</p>
-          <p className="mt-1 text-sm text-[var(--gl-cream-soft)]">Review components and cut list</p>
-        </div>
+        <label className="mt-4 block max-w-2xl text-sm">
+          <span className="text-[var(--gl-cream-soft)]">Project description</span>
+          <span className="mt-0.5 block text-xs text-[var(--gl-muted)]">Optional notes for your shop or future you.</span>
+          <textarea
+            className="input-wood mt-1 min-h-[5rem] w-full resize-y text-sm"
+            value={project.description ?? ""}
+            onChange={(e) => setProjectDescription(e.target.value)}
+            placeholder="e.g. Client: Erin. White oak, soft-close drawers, shop-built base…"
+            rows={4}
+          />
+        </label>
+        <p className="mt-4 text-xs text-[var(--gl-muted)]">
+          Name and milling defaults live in <strong className="text-[var(--gl-cream-soft)]">Project defaults</strong>{" "}
+          below. Current project:{" "}
+          <strong className="text-[var(--gl-cream-soft)]">{project.name || "Untitled project"}</strong>
+        </p>
       </section>
 
       <section className="gl-panel p-5">
@@ -250,116 +211,86 @@ export function GrainlineApp() {
               type="button"
               disabled={Boolean(p.disabled)}
               onClick={() => !p.disabled && setPreset(p.id)}
-              className={`rounded-xl border p-3 text-left transition ${
+              className={`flex gap-3 rounded-xl border p-3 text-left transition ${
                 preset === p.id
                   ? "border-[var(--gl-accent)] bg-[color-mix(in_srgb,var(--gl-accent)_12%,var(--gl-surface))] text-[var(--gl-text)]"
                   : "border-[var(--gl-border)] bg-[var(--gl-surface)] text-[var(--gl-muted)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-text-soft)]"
               } ${p.disabled ? "cursor-not-allowed opacity-40" : ""}`}
             >
-              <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
-              <span className="block text-xs text-[var(--gl-muted)]">{p.tag}</span>
-              <span className="mt-1 block text-xs text-[var(--gl-muted)]">{p.blurb}</span>
+              <span className="mt-0.5 shrink-0">{PRESET_ICONS[p.id]}</span>
+              <span className="min-w-0">
+                <span className="block font-medium text-[var(--gl-cream)]">{p.title}</span>
+                <span className="block text-xs text-[var(--gl-muted)]">{p.tag}</span>
+                <span className="mt-1 block text-xs text-[var(--gl-muted)]">{p.blurb}</span>
+              </span>
             </button>
           ))}
         </div>
       </section>
-
-      {recentProjects.length > 0 ? (
-        <section className="gl-panel p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Recent projects</p>
-            <p className="text-xs text-[var(--gl-muted)]">Local to this browser</p>
-          </div>
-          <p className="mt-2 text-xs text-[var(--gl-muted)]">
-            Each entry is a dated snapshot from <strong className="text-[var(--gl-cream-soft)]">Save snapshot to Recent</strong>{" "}
-            above. <strong className="text-[var(--gl-cream-soft)]">Open</strong> replaces your current workspace with that copy;
-            archive rows you no longer need.
-          </p>
-          <ul className="mt-3 divide-y divide-[var(--gl-border)]">
-            {recentProjects.map((r: StoredProjectRecord) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--gl-cream)]">{r.name || "Untitled project"}</p>
-                  <p className="text-xs text-[var(--gl-muted)]">
-                    Updated {new Date(r.updatedAt).toLocaleString()} · parts {r.project.parts.length}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-md border border-[var(--gl-border-strong)] px-3 py-1.5 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
-                    onClick={() => restoreFromLibrary(r.id)}
-                  >
-                    Open
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-muted)] hover:text-[var(--gl-cream)]"
-                    onClick={() => setLibraryArchived(r.id, true)}
-                  >
-                    Archive
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       <details open className="gl-panel w-full min-w-0 p-5">
         <summary className="cursor-pointer list-none text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase [&::-webkit-details-marker]:hidden">
           Project defaults &amp; library
         </summary>
         <p className="mt-2 text-xs text-[var(--gl-muted)]">
-          Optional for browsing presets, but this is where name, milling defaults, board width, waste, backups, and
-          templates live—nothing here blocks the Plan or Materials tabs.
+          Name, milling defaults, board width, waste, export, and full project templates (whole-file snapshots) live
+          here. Open saved files from the menu → <strong className="text-[var(--gl-cream-soft)]">Projects</strong>.
         </p>
         <div className="mt-4 w-full min-w-0 space-y-4">
-          <div className="flex w-full flex-wrap items-center justify-between gap-2">
-            <div className="flex max-w-xl items-start gap-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-              <input
-                id="show-experimental-presets"
-                type="checkbox"
-                className="mt-0.5"
-                checked={showExperimentalPresets}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setShowExperimentalPresets(checked);
-                  if (!checked && preset === "tv-console") {
-                    setPreset("dresser");
+          <div className="flex w-full flex-wrap items-center justify-between gap-3">
+            <p className="max-w-xl text-xs text-[var(--gl-muted)]">
+              Plan-only layouts (dresser / console / bookshelf). Stored in this browser; separate from full project
+              templates in this section.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
+                onClick={() => setShowTemplateLibrary(true)}
+              >
+                Load layout preset…
+              </button>
+              <button
+                type="button"
+                disabled={saveLayoutMode === "disabled"}
+                title={
+                  saveLayoutMode === "save"
+                    ? "Save current console or bookshelf Plan layout to this browser"
+                    : saveLayoutMode === "go-plan"
+                      ? "Open Plan so the template can sync, then return here to save"
+                      : "Layout save applies to console or bookshelf after Plan syncs; dresser uses the template library"
+                }
+                aria-label={
+                  saveLayoutMode === "save"
+                    ? "Save layout preset"
+                    : saveLayoutMode === "go-plan"
+                      ? "Open Plan to enable layout save"
+                      : "Save layout preset (unavailable for this preset until Plan syncs)"
+                }
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--gl-border)] text-[var(--gl-cream-soft)] hover:border-[var(--gl-border-strong)] hover:text-[var(--gl-cream)] disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => {
+                  if (saveLayoutMode === "save" && activeFurnitureConfig) {
+                    templateStorageService.saveTemplate(activeFurnitureConfig);
+                    setLayoutSaveNotice("Saved layout preset in this browser.");
+                    return;
+                  }
+                  if (saveLayoutMode === "go-plan") {
+                    setAppTab("build");
                   }
                 }}
-              />
-              <label htmlFor="show-experimental-presets" className="cursor-pointer leading-relaxed">
-                Show experimental presets (early access, not production-ready).
-              </label>
-            </div>
-            <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-              <p className="max-w-sm text-right text-[10px] text-[var(--gl-muted)] sm:text-left">
-                Plan-only layouts (dresser / console). Stored in this browser; not the full project templates below.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
-                  onClick={() => setShowTemplateLibrary(true)}
-                >
-                  Load layout preset…
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)]"
-                  onClick={() => {
-                    if (!activeFurnitureConfig) return;
-                    templateStorageService.saveTemplate(activeFurnitureConfig);
-                  }}
-                  disabled={!activeFurnitureConfig}
-                >
-                  Save layout preset…
-                </button>
-              </div>
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" strokeLinejoin="round" />
+                  <path d="M17 21v-8H7v8M7 3v5h8" strokeLinejoin="round" />
+                </svg>
+              </button>
             </div>
           </div>
+          {layoutSaveNotice ? (
+            <p className="text-xs text-[var(--gl-cream-soft)]" role="status">
+              {layoutSaveNotice}
+            </p>
+          ) : null}
           <ProjectSetupBar />
         </div>
       </details>
@@ -367,15 +298,8 @@ export function GrainlineApp() {
   );
   const planPanel = (
     <>
-      <div className="gl-panel-muted p-4 text-sm text-[var(--gl-muted)]">
-        Pick a preset and enter sizes; dresser and console archetypes keep the shared cut list in sync with the planner
-        math (short debounce; Materials tab applies pending dresser changes immediately). Board cut list stays in its own
-        1D tool until you add rows under Source parts.
-      </div>
-      {active ? <p className="text-sm text-[var(--gl-muted)]">{active.blurb}</p> : null}
       <div id="build-planner-section">
         {preset === "dresser" ? <DresserPlanner /> : null}
-        {preset === "board" ? <CutPlanner /> : null}
         {preset === "console-template" ? (
           <CaseworkPlanner
             key={`console-template-${loadedConsoleConfig?.id ?? "default"}`}
@@ -395,7 +319,7 @@ export function GrainlineApp() {
         {preset === "tv-console" ? <TvConsoleStub /> : null}
       </div>
       {preset === "soon-cab" ? (
-        <p className="text-[var(--gl-muted)]">This preset is queued. Use Dresser or Board cuts for now.</p>
+        <p className="text-[var(--gl-muted)]">This preset is queued. Use Dresser or another casework preset for now.</p>
       ) : null}
     </>
   );
@@ -413,12 +337,61 @@ export function GrainlineApp() {
     setAppTab(next);
   }
 
+  function handleGoProjectsHome() {
+    setShellMode("projects");
+  }
+
+  const setupTabFooter = (
+    <div className="flex justify-center border-t border-[var(--gl-border)] pt-6">
+      <button
+        type="button"
+        className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-5 py-2.5 text-sm font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface)]"
+        onClick={() => setAppTab("build")}
+      >
+        Next: Plan
+      </button>
+    </div>
+  );
+
+  const buildTabFooter = (
+    <div className="flex justify-center border-t border-[var(--gl-border)] pt-6">
+      <button
+        type="button"
+        disabled={hasBlockingIssues}
+        title={
+          hasBlockingIssues
+            ? "Clear blocking validation issues in Plan before opening Materials."
+            : "Open Materials (cut list)"
+        }
+        className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-5 py-2.5 text-sm font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface)] disabled:cursor-not-allowed disabled:opacity-45"
+        onClick={() => {
+          if (hasBlockingIssues) return;
+          if (preset === "dresser") flushDresserPartsNow();
+          setAppTab("shop");
+        }}
+      >
+        Next: Materials
+      </button>
+    </div>
+  );
+
+  function handleNewProject() {
+    resetProject();
+    setPreset("dresser");
+    setLoadedConsoleConfig(undefined);
+    setLoadedBookshelfConfig(undefined);
+    setActiveFurnitureConfig(null);
+    setAppTab("setup");
+    setShellMode("workspace");
+  }
+
   return (
     <div className="relative min-h-full overflow-hidden">
       <div className="relative mx-auto max-w-[1600px] px-4 py-10 sm:px-6 lg:px-8">
-        <header className="mb-8 space-y-6 border-b border-[var(--gl-border)] pb-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
+        <header className="mb-8 border-b border-[var(--gl-border)] pb-10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+            <AppNavDrawer onGoToProjects={handleGoProjectsHome} onNewProject={handleNewProject} />
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold tracking-[0.2em] text-[var(--gl-copper-bright)] uppercase">
                 Grainline
               </p>
@@ -429,25 +402,34 @@ export function GrainlineApp() {
                 Plan the piece and review the materials cut list.
               </p>
             </div>
-            <ProjectToolbar />
           </div>
+          {shellMode === "workspace" ? <ProjectWorkspaceBar /> : null}
         </header>
 
-        <AppShellTabs
-          active={activeTab}
-          onChange={handleAppTabChange}
-          setupPanel={setupPanel}
-          planPanel={planPanel}
-          cutListPartsTable={
-            <div className="space-y-4">
-              <CutListYardSummary />
-              <PartsTable explainAllowanceText={explainAllowance} />
-            </div>
-          }
-          blockingValidationIssues={blockingValidationIssues}
-          decisionStrip={decisionStrip}
-          disableShopTab={hasBlockingIssues}
-        />
+        {shellMode === "projects" ? (
+          <ProjectsHomeView
+            onOpenWorkspace={() => setShellMode("workspace")}
+            onNewProject={handleNewProject}
+          />
+        ) : (
+          <AppShellTabs
+            active={activeTab}
+            onChange={handleAppTabChange}
+            setupPanel={setupPanel}
+            planPanel={planPanel}
+            cutListPartsTable={
+              <div className="space-y-4">
+                <CutListYardSummary />
+                <PartsTable explainAllowanceText={explainAllowance} />
+              </div>
+            }
+            blockingValidationIssues={blockingValidationIssues}
+            decisionStrip={decisionStrip}
+            setupFooter={setupTabFooter}
+            buildFooter={buildTabFooter}
+            disableShopTab={hasBlockingIssues}
+          />
+        )}
       </div>
       {showTemplateLibrary ? (
         <TemplateLibrary
@@ -462,6 +444,7 @@ export function GrainlineApp() {
               setPreset("bookshelf-template");
             }
             if (config.type === "dresser") setPreset("dresser");
+            setShellMode("workspace");
           }}
         />
       ) : null}

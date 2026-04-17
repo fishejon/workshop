@@ -938,16 +938,6 @@ export function DresserPlanner() {
               </select>
             </DresserPlannerField>
           </div>
-          <p className="mt-3 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs text-[var(--gl-muted)]">
-            Formula used: <strong className="text-[var(--gl-cream)]">box width = opening width − slide width clearance − joinery width allowance</strong> and{" "}
-            <strong className="text-[var(--gl-cream)]">box height = opening height − slide height clearance − joinery height allowance</strong>.
-          </p>
-          {result.ok ? (
-            <p className="mt-2 rounded-lg border border-[var(--gl-copper)]/25 bg-[var(--gl-copper)]/8 px-3 py-2 text-xs text-[var(--gl-cream-soft)]">
-              Joinery provenance: {result.drawerJoineryApplied.provenance}
-            </p>
-          ) : null}
-
           {carcassResult.ok === false ? <p className="mt-4 text-sm text-[var(--gl-danger)]">{carcassResult.message}</p> : null}
 
           <div className="mt-6">

@@ -124,6 +124,8 @@ export type Project = {
   id: string;
   version: 1;
   name: string;
+  /** Optional free-text notes for the shop or future you (local only). */
+  description?: string;
   /** Added to each finished T, W, L to suggest rough size (simple shop default). */
   millingAllowanceInches: number;
   /** Max stick length for buy-list hints (transport). */

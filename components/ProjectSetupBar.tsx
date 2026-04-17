@@ -4,8 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useProject } from "@/components/ProjectContext";
 import { formatShopImperial } from "@/lib/imperial";
-import { LUMBER_PROFILE_IDS, type LumberProfileId, type OffcutModeId, type ProjectTemplate } from "@/lib/project-types";
-import { MAX_PROJECT_LIBRARY_RECORDS, PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
+import {
+  LUMBER_PROFILE_IDS,
+  type LumberProfileId,
+  type OffcutModeId,
+  type ProjectTemplate,
+} from "@/lib/project-types";
+import { PROJECT_TEMPLATES_STORAGE_KEY, parseTemplates } from "@/lib/project-utils";
 import { cutListExportCheckpointsReady } from "@/lib/cut-list-scope";
 import { canExportOrPrintProject } from "@/lib/validation";
 import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
@@ -30,20 +35,17 @@ export function ProjectSetupBar() {
     setWasteFactorPercent,
     setWorkshopLumberProfile,
     setWorkshopOffcutMode,
-    duplicateProject,
-    createTemplate,
-    applyTemplate,
     exportProjectJson,
     importProjectJson,
-    projectLibrary,
     backupCurrentProject,
-    restoreFromLibrary,
-    setLibraryArchived,
     resetProject,
+    createTemplate,
+    applyTemplate,
   } = useProject();
   const checkpointsReady = cutListExportCheckpointsReady(project);
   const canPrint = canExportOrPrintProject(checkpointsReady, validationIssues);
-  const [duplicateName, setDuplicateName] = useState("");
+  const [transferStatus, setTransferStatus] = useState("");
+  const [transferMeta, setTransferMeta] = useState<string[]>([]);
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<ProjectTemplate[]>(() => {
     if (typeof window === "undefined") return [];
@@ -57,18 +59,19 @@ export function ProjectSetupBar() {
     return parsed[0]?.id ?? "";
   });
   const [projectNameFromTemplate, setProjectNameFromTemplate] = useState("");
-  const [transferStatus, setTransferStatus] = useState("");
-  const [transferMeta, setTransferMeta] = useState<string[]>([]);
-  const [showAllBackups, setShowAllBackups] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const activeBackups = useMemo(() => projectLibrary.filter((row) => !row.archived), [projectLibrary]);
 
   const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
+    () => templates.find((t) => t.id === selectedTemplateId) ?? null,
     [templates, selectedTemplateId]
   );
-  const duplicateNameValue = duplicateName || `${project.name} copy`;
   const projectNameFromTemplateValue = projectNameFromTemplate || `${project.name} from template`;
+
+  function persistTemplates(next: ProjectTemplate[]) {
+    setTemplates(next);
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(PROJECT_TEMPLATES_STORAGE_KEY, JSON.stringify(next));
+  }
 
   useEffect(() => {
     if (!transferStatus) return;
@@ -77,12 +80,6 @@ export function ProjectSetupBar() {
     const t = window.setTimeout(() => setTransferStatus(""), 5000);
     return () => window.clearTimeout(t);
   }, [transferStatus]);
-
-  function persistTemplates(next: ProjectTemplate[]) {
-    setTemplates(next);
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(PROJECT_TEMPLATES_STORAGE_KEY, JSON.stringify(next));
-  }
 
   function handleExportProject() {
     const blob = new Blob([exportProjectJson()], { type: "application/json" });
@@ -377,6 +374,71 @@ export function ProjectSetupBar() {
           ))}
         </div>
       ) : null}
+      <div className="mt-4 space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
+        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Full project templates</p>
+        <p className="text-xs text-[var(--gl-muted)]">
+          Whole-project snapshots (name, parts, materials, checkpoints)—not Plan-only layout presets.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            className="input-wood min-w-[8rem] flex-1 text-sm"
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            placeholder="Template name"
+          />
+          <button
+            type="button"
+            className="rounded-lg border border-[var(--gl-border-strong)] px-3 py-2 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface)]"
+            onClick={() => {
+              const nextName = templateName.trim();
+              if (!nextName) return;
+              const template = createTemplate(nextName);
+              const next = [template, ...templates];
+              persistTemplates(next);
+              setSelectedTemplateId(template.id);
+              setTemplateName("");
+              setTransferStatus(`Saved template: ${nextName}`);
+              setTransferMeta([]);
+            }}
+          >
+            Save template
+          </button>
+        </div>
+        <select
+          className="input-wood w-full text-sm"
+          value={selectedTemplateId}
+          onChange={(e) => setSelectedTemplateId(e.target.value)}
+        >
+          {templates.length === 0 ? <option value="">No templates yet</option> : null}
+          {templates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.name} ({template.sourceProjectName})
+            </option>
+          ))}
+        </select>
+        <div className="flex flex-wrap gap-2">
+          <input
+            className="input-wood min-w-[8rem] flex-1 text-sm"
+            value={projectNameFromTemplateValue}
+            onChange={(e) => setProjectNameFromTemplate(e.target.value)}
+            placeholder="New project name"
+          />
+          <button
+            type="button"
+            disabled={!selectedTemplate}
+            className="rounded-lg border border-[var(--gl-copper)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/25 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              if (!selectedTemplate) return;
+              const nextName = projectNameFromTemplate.trim();
+              applyTemplate(selectedTemplate, nextName || `${project.name} from template`);
+              setTransferStatus("Applied template to current project.");
+              setTransferMeta([]);
+            }}
+          >
+            New from template
+          </button>
+        </div>
+      </div>
       {blockingValidationIssues.length > 0 ? (
         <div className="mt-3 rounded-lg border border-[color-mix(in_srgb,var(--gl-danger)_30%,var(--gl-border))] bg-[var(--gl-danger-bg)] p-3">
           <p className="text-xs font-medium text-[var(--gl-danger)]">Print/Export blocking issues</p>
@@ -393,161 +455,6 @@ export function ProjectSetupBar() {
           </ul>
         </div>
       ) : null}
-      <div className="mt-4 grid gap-3 border-t border-[var(--gl-border)] pt-4 lg:grid-cols-2">
-        <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Copy this project</p>
-          <p className="text-xs text-[var(--gl-muted)]">
-            Fork what you have open into a new project name—same parts and settings, new workspace entry.
-          </p>
-          <input
-            className="input-wood w-full text-sm"
-            value={duplicateNameValue}
-            onChange={(e) => setDuplicateName(e.target.value)}
-            placeholder="New project name"
-          />
-          <button
-            type="button"
-            className="rounded-lg border border-[var(--gl-border-strong)] bg-[var(--gl-surface-muted)] px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
-            onClick={() => {
-              const nextName = duplicateName.trim();
-              duplicateProject(nextName || `${project.name} copy`);
-            }}
-          >
-            Copy to new project
-          </button>
-        </div>
-        <div className="space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
-          <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Full project templates</p>
-          <p className="text-xs text-[var(--gl-muted)]">
-            Saves the whole project (name, parts, materials, checkpoints) for later. Use when you want to reopen a past
-            build you have already saved as a template—not the small Plan-only presets in the header.
-          </p>
-          <div className="flex gap-2">
-            <input
-              className="input-wood flex-1 text-sm"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="Template name"
-            />
-            <button
-              type="button"
-              className="rounded-lg border border-[var(--gl-border-strong)] px-3 py-2 text-xs text-[var(--gl-cream)] hover:bg-[var(--gl-surface-muted)]"
-              onClick={() => {
-                const nextName = templateName.trim();
-                if (!nextName) return;
-                const template = createTemplate(nextName);
-                const next = [template, ...templates];
-                persistTemplates(next);
-                setSelectedTemplateId(template.id);
-                setTemplateName("");
-              }}
-            >
-              Save project template
-            </button>
-          </div>
-          <select
-            className="input-wood w-full text-sm"
-            value={selectedTemplateId}
-            onChange={(e) => setSelectedTemplateId(e.target.value)}
-          >
-            {templates.length === 0 ? <option value="">No templates yet</option> : null}
-            {templates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name} ({template.sourceProjectName})
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <input
-              className="input-wood flex-1 text-sm"
-              value={projectNameFromTemplateValue}
-              onChange={(e) => setProjectNameFromTemplate(e.target.value)}
-              placeholder="New project name"
-            />
-            <button
-              type="button"
-              disabled={!selectedTemplate}
-              className="rounded-lg border border-[var(--gl-copper)]/40 bg-[var(--gl-copper)]/15 px-3 py-2 text-xs font-medium text-[var(--gl-cream)] hover:bg-[var(--gl-copper)]/25 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => {
-                if (!selectedTemplate) return;
-                const nextName = projectNameFromTemplate.trim();
-                applyTemplate(selectedTemplate, nextName || `${project.name} from template`);
-              }}
-            >
-              New project from template
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 space-y-2 rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] p-3">
-        <p className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">
-          Local backups ({activeBackups.length} active / {projectLibrary.length - activeBackups.length} archived)
-        </p>
-        <p className="text-xs text-[var(--gl-muted)]">
-          Retention policy: latest {MAX_PROJECT_LIBRARY_RECORDS} backups are kept locally; older backups are automatically removed.
-        </p>
-        {projectLibrary.length === 0 ? (
-          <p className="text-xs text-[var(--gl-muted)]">No backups yet. Use &quot;Backup current&quot; to create restore points.</p>
-        ) : (
-          <>
-            <ul className="space-y-1 text-xs">
-              {(showAllBackups ? projectLibrary : projectLibrary.slice(0, 8)).map((entry) => (
-                <li key={entry.id} className="flex flex-wrap items-center gap-2 text-[var(--gl-muted)]">
-                  <span className="min-w-0 flex-1 truncate">
-                    {entry.name} · {new Date(entry.updatedAt).toLocaleString()}
-                    {entry.archived ? (
-                      <span className="ml-1 text-xs uppercase tracking-wide text-[var(--gl-muted)]">archived</span>
-                    ) : null}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded border border-[var(--gl-border)] px-2 py-1 hover:text-[var(--gl-cream)]"
-                    onClick={() => {
-                      const restored = restoreFromLibrary(entry.id);
-                      if (!restored.ok) {
-                        setTransferStatus(restored.reason);
-                        setTransferMeta([]);
-                        return;
-                      }
-                      const summaryBits = [
-                        restored.summary.nameChanged ? "name changed" : "name unchanged",
-                        `parts ${restored.summary.partsDelta >= 0 ? "+" : ""}${restored.summary.partsDelta}`,
-                        `joints ${restored.summary.jointsDelta >= 0 ? "+" : ""}${restored.summary.jointsDelta}`,
-                        `connections ${restored.summary.connectionsDelta >= 0 ? "+" : ""}${restored.summary.connectionsDelta}`,
-                      ];
-                      setTransferStatus(`Restored backup: ${restored.backupName}.`);
-                      setTransferMeta([
-                        `Source: local backup library`,
-                        `Backup timestamp: ${new Date(restored.backupUpdatedAtIso).toLocaleString()}`,
-                        `Restored: ${new Date(restored.restoredAtIso).toLocaleString()}`,
-                        `Changed: ${summaryBits.join(", ")}`,
-                      ]);
-                    }}
-                  >
-                    Restore
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-[var(--gl-border)] px-2 py-1 hover:text-[var(--gl-cream)]"
-                    onClick={() => setLibraryArchived(entry.id, !entry.archived)}
-                  >
-                    {entry.archived ? "Unarchive" : "Archive"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {projectLibrary.length > 8 ? (
-              <button
-                type="button"
-                className="mt-2 text-xs font-medium tracking-wide text-[var(--gl-muted)] uppercase hover:text-[var(--gl-cream-soft)]"
-                onClick={() => setShowAllBackups((v) => !v)}
-              >
-                {showAllBackups ? "Show fewer" : `Show all ${projectLibrary.length} backups`}
-              </button>
-            ) : null}
-          </>
-        )}
-      </div>
     </section>
   );
 }
