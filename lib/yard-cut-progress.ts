@@ -7,6 +7,7 @@ import {
   type PartAssumptionsProjectInput,
 } from "@/lib/part-assumptions";
 import { makeRoughInstanceLaneId } from "@/lib/rough-instance-id";
+import { indexToGroupPrefix, shopLabelGroupKeyForPart } from "@/lib/shop-labels";
 
 /**
  * Rough-instance ids the yard stick packer assigns for one part (lanes = width rips on the stock face).
@@ -64,6 +65,38 @@ export function yardHardwoodCutProgressSummaries(project: Project): Array<{
   for (const assembly of ASSEMBLY_IDS) {
     const s = yardCutProgressStatsForAssembly(project, assembly);
     if (s) out.push({ assembly, ...s });
+  }
+  return out;
+}
+
+/** Lane-aware shop labels for yard cut pieces (`A-1`, `A-2`...) without duplicate base labels. */
+export function buildYardRoughInstanceLabelMap(project: Project): Map<string, string> {
+  const axis = project.drawerYardPackAxis ?? "width";
+  const sorted = [...partsForHardwoodYardCutList(project)].sort((a, b) => {
+    const gk = shopLabelGroupKeyForPart(a).localeCompare(shopLabelGroupKeyForPart(b));
+    if (gk !== 0) return gk;
+    return a.id.localeCompare(b.id);
+  });
+  const groups: string[] = [];
+  const seen = new Set<string>();
+  for (const part of sorted) {
+    const gk = shopLabelGroupKeyForPart(part);
+    if (seen.has(gk)) continue;
+    seen.add(gk);
+    groups.push(gk);
+  }
+  const prefixByGroup = new Map(groups.map((g, i) => [g, indexToGroupPrefix(i)]));
+  const nextByGroup = new Map<string, number>();
+  const out = new Map<string, string>();
+  for (const part of sorted) {
+    const gk = shopLabelGroupKeyForPart(part);
+    const prefix = prefixByGroup.get(gk);
+    if (!prefix) continue;
+    for (const key of expectedRoughInstanceLaneIdsForYardStickPart(part, project, axis)) {
+      const next = (nextByGroup.get(gk) ?? 0) + 1;
+      nextByGroup.set(gk, next);
+      out.set(key, `${prefix}-${next}`);
+    }
   }
   return out;
 }

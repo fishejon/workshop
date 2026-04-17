@@ -69,6 +69,17 @@ export function DresserPreview({
       <ViewShell title="Top">
         <TopView outerW={outerW} outerD={outerD} materialT={materialT} columnCount={columnCount} />
       </ViewShell>
+      <ViewShell title="Drawer dims">
+        <DrawerDimsView
+          rowCount={rowCount}
+          columnCount={columnCount}
+          rowOpeningHeightsInches={rowOpeningHeightsInches}
+          columnOpeningWidthInches={columnOpeningWidthInches}
+          outerW={outerW}
+          outerD={outerD}
+          materialT={materialT}
+        />
+      </ViewShell>
     </div>
   );
 }
@@ -349,5 +360,45 @@ function TopView({
         D {formatShopImperial(outerD)}
       </text>
     </svg>
+  );
+}
+
+function DrawerDimsView({
+  rowCount,
+  columnCount,
+  rowOpeningHeightsInches,
+  columnOpeningWidthInches,
+  outerW,
+  outerD,
+  materialT,
+}: {
+  rowCount: number;
+  columnCount: DresserColumnCount;
+  rowOpeningHeightsInches: number[];
+  columnOpeningWidthInches?: number | null;
+  outerW: number;
+  outerD: number;
+  materialT: number;
+}) {
+  const openingW =
+    columnOpeningWidthInches !== undefined &&
+    columnOpeningWidthInches !== null &&
+    Number.isFinite(columnOpeningWidthInches) &&
+    columnOpeningWidthInches > 0
+      ? columnOpeningWidthInches
+      : estimateDresserColumnOpeningWidthInches(outerW, columnCount, materialT);
+  const usableDepth = Math.max(0, outerD - materialT * 2);
+  return (
+    <div className="w-full space-y-1 text-[10px] text-[var(--gl-muted)]">
+      {Array.from({ length: rowCount }, (_, r) => {
+        const h = rowOpeningHeightsInches[r] ?? 0;
+        return (
+          <p key={`drawer-row-${r}`}>
+            Row {r + 1}: {columnCount}x drawers · {formatShopImperial(openingW)} W × {formatShopImperial(h)} H ×{" "}
+            {formatShopImperial(usableDepth)} D
+          </p>
+        );
+      })}
+    </div>
   );
 }

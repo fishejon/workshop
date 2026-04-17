@@ -158,6 +158,7 @@ export function createEmptyProject(): Project {
     },
     cutProgressByRoughInstanceId: {},
     drawerYardPackAxis: "width",
+    photos: [],
   };
 }
 
@@ -448,6 +449,9 @@ export function parseProject(json: string): Project | null {
     const cutProgressByRoughInstanceId = parseCutProgress(o.cutProgressByRoughInstanceId);
     const geometry = isCaseOutlineV0(o.geometry) ? o.geometry : undefined;
     const description = typeof o.description === "string" ? o.description : "";
+    const photos = Array.isArray(o.photos)
+      ? o.photos.filter((row): row is string => typeof row === "string" && row.startsWith("data:image/"))
+      : [];
     const drawerYardPackAxis =
       o.drawerYardPackAxis === "height" || o.drawerYardPackAxis === "width" ? o.drawerYardPackAxis : undefined;
     const activeLibraryRecordId =
@@ -469,6 +473,7 @@ export function parseProject(json: string): Project | null {
       geometry,
       drawerYardPackAxis,
       activeLibraryRecordId,
+      photos,
     };
   } catch {
     return null;

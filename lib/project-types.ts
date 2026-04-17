@@ -181,6 +181,8 @@ export type Project = {
    * Cleared on fork/duplicate/import/new template.
    */
   activeLibraryRecordId?: string;
+  /** Optional local photo snapshots (data URLs) for progress tracking. */
+  photos?: string[];
 };
 
 export type ProjectTemplate = {

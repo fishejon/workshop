@@ -7,7 +7,7 @@ import { groupPartsByMaterial } from "@/lib/board-feet";
 import { formatLinearFeetShop, formatShopImperial } from "@/lib/imperial";
 import { partsForHardwoodYardCutList } from "@/lib/cut-list-yard-parts";
 import { buildLumberVehicleRows, type LumberVehicleRow } from "@/lib/lumber-vehicle-summary";
-import { buildRoughInstanceLabelMap } from "@/lib/shop-labels";
+import { buildYardRoughInstanceLabelMap } from "@/lib/yard-cut-progress";
 
 function boardsToBuyForRow(row: LumberVehicleRow): { display: string; title?: string } {
   if (row.totalLinealInches <= 0) {
@@ -33,8 +33,8 @@ export function CutListYardSummary() {
   const yardParts = useMemo(() => partsForHardwoodYardCutList(project), [project]);
 
   const shopLabelByRoughInstanceId = useMemo(
-    () => buildRoughInstanceLabelMap(project.parts),
-    [project.parts]
+    () => buildYardRoughInstanceLabelMap(project),
+    [project]
   );
 
   const groups = useMemo(
@@ -107,8 +107,9 @@ export function CutListYardSummary() {
       </div>
       {isExpanded ? (
         <div id="cut-list-collapsible-content">
-      <table className="gl-numeric w-full bg-white text-left text-sm text-neutral-900">
-        <thead className="bg-white text-xs text-neutral-600 uppercase tracking-wide">
+      <div className="mx-4 mt-4 overflow-hidden rounded-xl border border-[var(--gl-border)] bg-[var(--gl-surface-muted)]">
+      <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
+        <thead className="bg-[var(--gl-surface-inset)] text-xs text-[var(--gl-muted)] uppercase tracking-wide">
           <tr>
             <th className="px-4 py-2.5 font-medium">Lumber type</th>
             <th className="px-4 py-2.5 text-right font-medium">Total lineal</th>
@@ -116,22 +117,22 @@ export function CutListYardSummary() {
             <th className="px-4 py-2.5 text-right font-medium">Each board length</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--gl-border)] bg-white">
+        <tbody className="divide-y divide-[var(--gl-border)]">
           {rows.map((row) => {
             const { display, title } = boardsToBuyForRow(row);
             return (
               <tr key={row.key}>
-                <td className="px-4 py-3 font-medium text-neutral-900">{row.yardLumberLabel}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-neutral-800">
+                <td className="px-4 py-3 font-medium text-[var(--gl-cream-soft)]">{row.yardLumberLabel}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream)]">
                   {formatLinearFeetShop(row.adjustedLinearFeet)}
                 </td>
                 <td
-                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-neutral-900"
+                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-[var(--gl-cream)]"
                   title={title}
                 >
                   {display}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
+                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream-soft)]">
                   {formatShopImperial(vehicleMaxInches)}
                 </td>
               </tr>
@@ -139,6 +140,7 @@ export function CutListYardSummary() {
           })}
         </tbody>
       </table>
+      </div>
 
       <div className="border-t border-[var(--gl-border)] px-4 py-3">
         <h3 className="text-xs font-medium tracking-widest text-[var(--gl-muted)] uppercase">Cut layout</h3>

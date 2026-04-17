@@ -15,10 +15,12 @@ function RowMenu({
   entry,
   onDuplicate,
   onToggleArchive,
+  onDeletePermanently,
 }: {
   entry: StoredProjectRecord;
   onDuplicate: () => void;
   onToggleArchive: () => void;
+  onDeletePermanently?: () => void;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   function closeMenu() {
@@ -55,17 +57,36 @@ function RowMenu({
         >
           {entry.archived ? "Unarchive" : "Archive"}
         </button>
+        {entry.archived && onDeletePermanently ? (
+          <button
+            type="button"
+            className="block w-full bg-transparent px-3 py-2 text-left text-[var(--gl-warning)] hover:bg-[var(--gl-surface-muted)]"
+            onClick={() => {
+              closeMenu();
+              onDeletePermanently();
+            }}
+          >
+            Delete permanently…
+          </button>
+        ) : null}
       </div>
     </details>
   );
 }
 
 export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHomeViewProps) {
-  const { projectLibrary, restoreFromLibrary, forkProjectFromLibrary, setLibraryArchived, backupCurrentProject } =
+  const {
+    projectLibrary,
+    restoreFromLibrary,
+    forkProjectFromLibrary,
+    setLibraryArchived,
+    deleteLibraryRecord,
+    backupCurrentProject,
+  } =
     useProject();
 
   const [statusLine, setStatusLine] = useState("");
-  const [viewMode, setViewMode] = useState<LibraryViewMode>("table");
+  const [viewMode, setViewMode] = useState<LibraryViewMode>("cards");
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllArchived, setShowAllArchived] = useState(false);
   const [showArchivedSection, setShowArchivedSection] = useState(false);
@@ -109,11 +130,28 @@ export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHome
     onOpenWorkspace();
   }
 
+  function deleteArchivedEntryPermanently(entry: StoredProjectRecord) {
+    if (!entry.archived) return;
+    const label = entry.name?.trim() || "Untitled project";
+    if (typeof window !== "undefined" && !window.confirm(`Permanently delete “${label}” from this browser? This cannot be undone.`)) {
+      return;
+    }
+    deleteLibraryRecord(entry.id);
+    setStatusLine(`Deleted archived project “${label}”.`);
+  }
+
   function renderTableRows(rows: StoredProjectRecord[]) {
     return (
       <ul className="divide-y divide-[var(--gl-border)] overflow-hidden rounded-lg border border-[var(--gl-border)] bg-white">
         {rows.map((entry) => (
           <li key={entry.id} className="flex flex-wrap items-center gap-2 bg-white px-3 py-2.5">
+            {entry.project.photos?.[0] ? (
+              <img
+                src={entry.project.photos[0]}
+                alt={`${entry.name || "Project"} thumbnail`}
+                className="h-10 w-10 rounded-md border border-neutral-200 object-cover"
+              />
+            ) : null}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-neutral-900">{entry.name || "Untitled project"}</p>
               {entry.project.description?.trim() ? (
@@ -133,10 +171,34 @@ export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHome
             >
               Open
             </button>
+            <button
+              type="button"
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 hover:bg-neutral-50"
+              onClick={() => duplicateEntry(entry)}
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+              onClick={() => setLibraryArchived(entry.id, !entry.archived)}
+            >
+              {entry.archived ? "Unarchive" : "Archive"}
+            </button>
+            {entry.archived ? (
+              <button
+                type="button"
+                className="rounded-md border border-red-200/80 bg-white px-2 py-1 text-xs text-red-800 hover:bg-red-50"
+                onClick={() => deleteArchivedEntryPermanently(entry)}
+              >
+                Delete permanently
+              </button>
+            ) : null}
             <RowMenu
               entry={entry}
               onDuplicate={() => duplicateEntry(entry)}
               onToggleArchive={() => setLibraryArchived(entry.id, !entry.archived)}
+              onDeletePermanently={entry.archived ? () => deleteArchivedEntryPermanently(entry) : undefined}
             />
           </li>
         ))}
@@ -149,6 +211,13 @@ export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHome
       <ul className="grid gap-3 sm:grid-cols-2">
         {rows.map((entry) => (
           <li key={entry.id} className="flex flex-col rounded-xl border border-[var(--gl-border)] bg-white p-4 shadow-sm">
+            {entry.project.photos?.[0] ? (
+              <img
+                src={entry.project.photos[0]}
+                alt={`${entry.name || "Project"} thumbnail`}
+                className="mb-2 h-28 w-full rounded-lg border border-neutral-200 object-cover"
+              />
+            ) : null}
             <p className="truncate text-sm font-medium text-neutral-900">{entry.name || "Untitled project"}</p>
             {entry.project.description?.trim() ? (
               <p className="mt-1 line-clamp-3 text-xs text-neutral-600">{entry.project.description.trim()}</p>
@@ -169,10 +238,34 @@ export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHome
               >
                 Open
               </button>
+              <button
+                type="button"
+                className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 hover:bg-neutral-50"
+                onClick={() => duplicateEntry(entry)}
+              >
+                Duplicate
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                onClick={() => setLibraryArchived(entry.id, !entry.archived)}
+              >
+                {entry.archived ? "Unarchive" : "Archive"}
+              </button>
+              {entry.archived ? (
+                <button
+                  type="button"
+                  className="rounded-md border border-red-200/80 bg-white px-2 py-1 text-xs text-red-800 hover:bg-red-50"
+                  onClick={() => deleteArchivedEntryPermanently(entry)}
+                >
+                  Delete permanently
+                </button>
+              ) : null}
               <RowMenu
                 entry={entry}
                 onDuplicate={() => duplicateEntry(entry)}
                 onToggleArchive={() => setLibraryArchived(entry.id, !entry.archived)}
+                onDeletePermanently={entry.archived ? () => deleteArchivedEntryPermanently(entry) : undefined}
               />
             </div>
           </li>
@@ -292,7 +385,7 @@ export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHome
             {showArchivedSection ? (
               <div className="mt-4">
                 <p className="mb-3 text-xs text-[var(--gl-muted)]">
-                  Archived rows stay in this browser until you unarchive or hit the library size cap.
+                  Archived rows stay in this browser until you unarchive, delete them individually, or hit the library size cap.
                 </p>
                 {viewMode === "table" ? renderTableRows(visibleArchived) : renderCardRows(visibleArchived)}
                 {archivedRows.length > 12 ? (

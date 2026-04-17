@@ -118,6 +118,7 @@ export function GrainlineApp() {
     replacePartsInAssemblies,
     resetProject,
     setProjectDescription,
+    setProjectPhotos,
   } = useProject();
   const { flushDresserPartsNow } = useDresserPlanSync();
   const active = PRESETS.find((p) => p.id === preset);
@@ -192,6 +193,46 @@ export function GrainlineApp() {
             rows={4}
           />
         </label>
+        <div className="mt-4">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-[var(--gl-border)] px-3 py-1.5 text-xs text-[var(--gl-cream-soft)] hover:text-[var(--gl-cream)]">
+            Add progress photos
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []);
+                if (files.length === 0) return;
+                const encoded = await Promise.all(
+                  files.map(
+                    (f) =>
+                      new Promise<string>((resolve) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(typeof r.result === "string" ? r.result : "");
+                        r.readAsDataURL(f);
+                      })
+                  )
+                );
+                const clean = encoded.filter((row) => row.startsWith("data:image/"));
+                if (clean.length > 0) setProjectPhotos([...(project.photos ?? []), ...clean].slice(0, 12));
+                e.currentTarget.value = "";
+              }}
+            />
+          </label>
+          {(project.photos ?? []).length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(project.photos ?? []).map((src, i) => (
+                <img
+                  key={`${src.slice(0, 24)}-${i}`}
+                  src={src}
+                  alt={`Project progress ${i + 1}`}
+                  className="h-14 w-14 rounded-md border border-[var(--gl-border)] object-cover"
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
         <p className="mt-4 text-xs text-[var(--gl-muted)]">
           Name and milling defaults live in <strong className="text-[var(--gl-cream-soft)]">Project defaults</strong>{" "}
           below. Current project:{" "}

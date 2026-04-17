@@ -51,6 +51,7 @@ type ProjectContextValue = {
   hasBlockingValidationIssues: boolean;
   setProjectName: (name: string) => void;
   setProjectDescription: (description: string) => void;
+  setProjectPhotos: (photos: string[]) => void;
   setMillingAllowanceInches: (n: number) => void;
   setMaxTransportLengthInches: (n: number) => void;
   setMaxPurchasableBoardWidthInches: (n: number) => void;
@@ -79,11 +80,12 @@ type ProjectContextValue = {
   exportProjectJson: () => string;
   importProjectJson: (json: string) => ImportResult;
   projectLibrary: StoredProjectRecord[];
-  backupCurrentProject: (name?: string) => BackupResult;
+  backupCurrentProject: (name?: string, options?: { forceNew?: boolean }) => BackupResult;
   restoreFromLibrary: (id: string) => RestoreResult;
   /** Load an editable copy of a library row into the workspace (new project id; does not change the library row). */
   forkProjectFromLibrary: (id: string, name: string) => { ok: true } | { ok: false; reason: string };
   setLibraryArchived: (id: string, archived: boolean) => void;
+  deleteLibraryRecord: (id: string) => void;
   addJointRecord: (joint: Omit<ProjectJoint, "id"> & { id?: string }) => void;
   addConnectionRecord: (c: Omit<ProjectJoinConnection, "id"> & { id?: string }) => void;
   setCheckpointReviewed: (
@@ -253,6 +255,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const setProjectDescription = useCallback((description: string) => {
     setProject((p) => ({ ...p, description }));
+  }, [setProject]);
+
+  const setProjectPhotos = useCallback((photos: string[]) => {
+    setProject((p) => ({ ...p, photos }));
   }, [setProject]);
 
   const setMillingAllowanceInches = useCallback((n: number) => {
@@ -467,7 +473,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [project, setProject]);
 
   const backupCurrentProject = useCallback(
-    (name?: string) => {
+    (name?: string, options?: { forceNew?: boolean }) => {
       const nowIso = new Date().toISOString();
       const trimmedName = (name?.trim() || project.name || "Untitled project").trim() || "Untitled project";
       let freshCreateId: string | null = null;
@@ -477,7 +483,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       let droppedOldest = false;
 
       setProjectLibrary((prev) => {
-        const binding = project.activeLibraryRecordId;
+        const binding = options?.forceNew ? undefined : project.activeLibraryRecordId;
         const cap = MAX_PROJECT_LIBRARY_RECORDS;
         const trim = (rows: StoredProjectRecord[]) => {
           if (rows.length > cap) {
@@ -572,6 +578,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setProjectLibrary((prev) => prev.map((row) => (row.id === id ? { ...row, archived } : row)));
   }, []);
 
+  const deleteLibraryRecord = useCallback((id: string) => {
+    setProjectLibrary((prev) => prev.filter((row) => row.id !== id));
+    setProject((p) => (p.activeLibraryRecordId === id ? { ...p, activeLibraryRecordId: undefined } : p));
+  }, [setProject]);
+
   const addJointRecord = useCallback((joint: Omit<ProjectJoint, "id"> & { id?: string }) => {
     setProject((p) =>
       resetJoineryCheckpoint({
@@ -639,6 +650,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     hasBlockingValidationIssues: blockingValidationIssues.length > 0,
     setProjectName,
     setProjectDescription,
+    setProjectPhotos,
     setMillingAllowanceInches,
     setMaxTransportLengthInches,
     setMaxPurchasableBoardWidthInches,
@@ -667,6 +679,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     restoreFromLibrary,
     forkProjectFromLibrary,
     setLibraryArchived,
+    deleteLibraryRecord,
     addJointRecord,
     addConnectionRecord,
     setCheckpointReviewed,
