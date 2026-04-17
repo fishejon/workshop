@@ -222,8 +222,12 @@ export function ProjectsHomeView({ onOpenWorkspace, onNewProject }: ProjectsHome
               type="button"
               className="rounded-md border border-transparent bg-transparent px-2 py-1 text-xs text-[var(--gl-muted)] hover:bg-[var(--gl-surface-muted)] hover:text-[var(--gl-cream)]"
               onClick={() => {
-                backupCurrentProject();
-                setStatusLine("Saved current work to your project list.");
+                const r = backupCurrentProject();
+                setStatusLine(
+                  r.updatedExisting
+                    ? "Saved progress to your project list (updated the same row)."
+                    : "Saved to your project list — next save updates that row."
+                );
               }}
             >
               Save current

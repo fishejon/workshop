@@ -1,0 +1,69 @@
+import type { AssemblyId, Part, Project } from "@/lib/project-types";
+import { ASSEMBLY_IDS } from "@/lib/project-types";
+import { widthRipMultiplier } from "@/lib/buy-2d/width-fit";
+import { partsForHardwoodYardCutList } from "@/lib/cut-list-yard-parts";
+import {
+  purchasableStockWidthInchesForPart,
+  type PartAssumptionsProjectInput,
+} from "@/lib/part-assumptions";
+import { makeRoughInstanceLaneId } from "@/lib/rough-instance-id";
+
+/**
+ * Rough-instance ids the yard stick packer assigns for one part (lanes = width rips on the stock face).
+ * Must stay aligned with `packGroupToBoardPlans` in `lib/lumber-vehicle-summary.ts`.
+ */
+export function expectedRoughInstanceLaneIdsForYardStickPart(
+  part: Part,
+  project: PartAssumptionsProjectInput,
+  drawerPackAxis: "height" | "width"
+): string[] {
+  const q = Math.floor(Number(part.quantity));
+  if (!Number.isFinite(q) || q < 1) return [];
+  const drawerByWidth = drawerPackAxis === "width" && part.assembly === "Drawers";
+  const cutLen = drawerByWidth ? part.finished.w : part.finished.l;
+  const cutWidth = drawerByWidth ? part.finished.l : part.finished.w;
+  if (!(cutLen > 0)) return [];
+  const stockWidth = purchasableStockWidthInchesForPart(part, project).value;
+  const rip = widthRipMultiplier(cutWidth, stockWidth);
+  const keys: string[] = [];
+  for (let inst = 1; inst <= q; inst += 1) {
+    for (let lane = 1; lane <= rip; lane += 1) {
+      keys.push(makeRoughInstanceLaneId(part.id, inst, lane));
+    }
+  }
+  return keys;
+}
+
+export function yardCutProgressStatsForAssembly(
+  project: Project,
+  assembly: AssemblyId
+): { requiredCuts: number; cutCuts: number } | null {
+  const axis = project.drawerYardPackAxis ?? "width";
+  const yardParts = partsForHardwoodYardCutList(project).filter((p) => p.assembly === assembly);
+  if (yardParts.length === 0) return null;
+  const progress = project.cutProgressByRoughInstanceId ?? {};
+  let requiredCuts = 0;
+  let cutCuts = 0;
+  for (const part of yardParts) {
+    const keys = expectedRoughInstanceLaneIdsForYardStickPart(part, project, axis);
+    for (const k of keys) {
+      requiredCuts += 1;
+      if (progress[k] === "cut") cutCuts += 1;
+    }
+  }
+  if (requiredCuts === 0) return null;
+  return { requiredCuts, cutCuts };
+}
+
+export function yardHardwoodCutProgressSummaries(project: Project): Array<{
+  assembly: AssemblyId;
+  requiredCuts: number;
+  cutCuts: number;
+}> {
+  const out: Array<{ assembly: AssemblyId; requiredCuts: number; cutCuts: number }> = [];
+  for (const assembly of ASSEMBLY_IDS) {
+    const s = yardCutProgressStatsForAssembly(project, assembly);
+    if (s) out.push({ assembly, ...s });
+  }
+  return out;
+}

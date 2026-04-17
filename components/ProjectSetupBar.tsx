@@ -293,9 +293,9 @@ export function ProjectSetupBar() {
               const retention = backup.droppedOldest
                 ? "Oldest backup was pruned to maintain retention cap."
                 : "Retention cap not reached.";
-              setTransferStatus("Created local backup.");
+              setTransferStatus(backup.updatedExisting ? "Updated local backup (same row)." : "Created local backup.");
               setTransferMeta([
-                `Created: ${new Date(backup.createdAtIso).toLocaleString()}`,
+                `${backup.updatedExisting ? "Updated" : "Created"}: ${new Date(backup.createdAtIso).toLocaleString()}`,
                 `Retention: ${backup.retainedCount}/${backup.retentionCap}`,
                 retention,
               ]);

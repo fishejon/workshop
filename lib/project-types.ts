@@ -171,6 +171,16 @@ export type Project = {
    * BF/LF groups that drive stick purchase math (plywood / sheet goods bought separately).
    */
   omitDresserCaseBackFromHardwoodCutList?: boolean;
+  /**
+   * Which finished axis is treated as “length” for drawer parts in the yard stick packer.
+   * `"width"` keeps grain horizontal on the rack call (typical drawer fronts).
+   */
+  drawerYardPackAxis?: "height" | "width";
+  /**
+   * When set, **Save** updates this project-library row in place (local browser) instead of appending a duplicate.
+   * Cleared on fork/duplicate/import/new template.
+   */
+  activeLibraryRecordId?: string;
 };
 
 export type ProjectTemplate = {

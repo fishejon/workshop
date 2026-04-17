@@ -61,6 +61,7 @@ type ProjectContextValue = {
   setWorkshopLumberProfile: (profile: Project["workshop"]["lumberProfile"]) => void;
   setWorkshopOffcutMode: (mode: Project["workshop"]["offcutMode"]) => void;
   setOmitDresserCaseBackFromHardwoodCutList: (omit: boolean) => void;
+  setDrawerYardPackAxis: (axis: "height" | "width") => void;
   addPart: (part: Omit<Part, "id"> & { id?: string }) => void;
   addParts: (parts: Array<Omit<Part, "id"> & { id?: string }>) => void;
   replacePartsInAssemblies: (
@@ -131,6 +132,8 @@ type RestoreResult =
 
 type BackupResult = {
   createdRecordId: string;
+  /** True when an existing library row (see `project.activeLibraryRecordId`) was overwritten. */
+  updatedExisting: boolean;
   retainedCount: number;
   retentionCap: number;
   droppedOldest: boolean;
@@ -324,6 +327,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setProject((p) => ({ ...p, omitDresserCaseBackFromHardwoodCutList: omit }));
   }, [setProject]);
 
+  const setDrawerYardPackAxis = useCallback((axis: "height" | "width") => {
+    setProject((p) => ({ ...p, drawerYardPackAxis: axis }));
+  }, [setProject]);
+
   const addPart = useCallback((part: Omit<Part, "id"> & { id?: string }) => {
     setProject((p) => {
       const id = part.id ?? newPartId();
@@ -448,7 +455,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const parsed = importProjectFromJson(json);
     if (!parsed.ok) return { ok: false as const, reason: parsed.reason, details: parsed.details };
     const summary = summarizeProjectDiff(project, parsed.project);
-    setProject(parsed.project);
+    setProject({ ...parsed.project, activeLibraryRecordId: undefined });
     return {
       ok: true as const,
       source: parsed.source,
@@ -462,34 +469,74 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const backupCurrentProject = useCallback(
     (name?: string) => {
       const nowIso = new Date().toISOString();
-      const record: StoredProjectRecord = {
-        id: newPartId(),
-        name: name?.trim() || project.name || "Untitled project",
-        updatedAt: nowIso,
-        archived: false,
-        project,
-      };
+      const trimmedName = (name?.trim() || project.name || "Untitled project").trim() || "Untitled project";
+      let freshCreateId: string | null = null;
+      let recordId = "";
+      let updatedExisting = false;
+      let retainedCount = 0;
       let droppedOldest = false;
-      let retainedCount = 1;
+
       setProjectLibrary((prev) => {
-        const next = [record, ...prev];
-        if (next.length > MAX_PROJECT_LIBRARY_RECORDS) {
-          droppedOldest = true;
-          retainedCount = MAX_PROJECT_LIBRARY_RECORDS;
-          return next.slice(0, MAX_PROJECT_LIBRARY_RECORDS);
+        const binding = project.activeLibraryRecordId;
+        const cap = MAX_PROJECT_LIBRARY_RECORDS;
+        const trim = (rows: StoredProjectRecord[]) => {
+          if (rows.length > cap) {
+            return { rows: rows.slice(0, cap), droppedOldest: true, retainedCount: cap };
+          }
+          return { rows, droppedOldest: false, retainedCount: rows.length };
+        };
+
+        if (binding) {
+          const idx = prev.findIndex((r) => r.id === binding);
+          if (idx >= 0) {
+            const row = prev[idx]!;
+            const merged: StoredProjectRecord = {
+              ...row,
+              name: trimmedName,
+              updatedAt: nowIso,
+              project: { ...project, activeLibraryRecordId: binding },
+            };
+            const packed = trim([merged, ...prev.filter((_, j) => j !== idx)]);
+            recordId = binding;
+            updatedExisting = true;
+            retainedCount = packed.retainedCount;
+            droppedOldest = packed.droppedOldest;
+            return packed.rows;
+          }
         }
-        retainedCount = next.length;
-        return next;
+
+        if (!freshCreateId) freshCreateId = newPartId();
+        const newId = freshCreateId;
+        const mergedProject = { ...project, activeLibraryRecordId: newId };
+        const record: StoredProjectRecord = {
+          id: newId,
+          name: trimmedName,
+          updatedAt: nowIso,
+          archived: false,
+          project: mergedProject,
+        };
+        const packed = trim([record, ...prev]);
+        recordId = newId;
+        updatedExisting = false;
+        retainedCount = packed.retainedCount;
+        droppedOldest = packed.droppedOldest;
+        return packed.rows;
       });
+
+      if (!updatedExisting) {
+        setProject((p) => (p.activeLibraryRecordId === recordId ? p : { ...p, activeLibraryRecordId: recordId }));
+      }
+
       return {
-        createdRecordId: record.id,
+        createdRecordId: recordId,
+        updatedExisting,
         retainedCount,
         retentionCap: MAX_PROJECT_LIBRARY_RECORDS,
         droppedOldest,
         createdAtIso: nowIso,
       };
     },
-    [project]
+    [project, setProject]
   );
 
   const restoreFromLibrary = useCallback(
@@ -497,7 +544,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const record = projectLibrary.find((row) => row.id === id);
       if (!record) return { ok: false as const, reason: "Backup could not be found." };
       const summary = summarizeProjectDiff(project, record.project);
-      setProject(record.project);
+      setProject({ ...record.project, activeLibraryRecordId: id });
       return {
         ok: true as const,
         source: "library" as const,
@@ -601,6 +648,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setWorkshopLumberProfile,
     setWorkshopOffcutMode,
     setOmitDresserCaseBackFromHardwoodCutList,
+    setDrawerYardPackAxis,
     addPart,
     addParts,
     replacePartsInAssemblies,

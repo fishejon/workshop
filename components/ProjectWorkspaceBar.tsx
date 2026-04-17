@@ -61,8 +61,12 @@ export function ProjectWorkspaceBar() {
             type="button"
             className="rounded-lg border border-[var(--gl-copper-bright)]/40 bg-[var(--gl-copper)]/15 px-3 py-1.5 text-xs font-medium text-[var(--gl-cream-soft)] hover:border-[var(--gl-copper-bright)]/60 hover:text-[var(--gl-cream)]"
             onClick={() => {
-              backupCurrentProject();
-              setNotice("Saved a copy to your project list.");
+              const r = backupCurrentProject();
+              setNotice(
+                r.updatedExisting
+                  ? "Saved progress to your project list (same row)."
+                  : "Saved to your project list — future saves update this row."
+              );
             }}
           >
             Save project

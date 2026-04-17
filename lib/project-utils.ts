@@ -157,6 +157,7 @@ export function createEmptyProject(): Project {
       offcutMode: "none",
     },
     cutProgressByRoughInstanceId: {},
+    drawerYardPackAxis: "width",
   };
 }
 
@@ -178,6 +179,7 @@ export function cloneProject(project: Project, name: string): Project {
       joineryReviewed: false,
     },
     cutProgressByRoughInstanceId,
+    activeLibraryRecordId: undefined,
   };
 }
 
@@ -446,6 +448,12 @@ export function parseProject(json: string): Project | null {
     const cutProgressByRoughInstanceId = parseCutProgress(o.cutProgressByRoughInstanceId);
     const geometry = isCaseOutlineV0(o.geometry) ? o.geometry : undefined;
     const description = typeof o.description === "string" ? o.description : "";
+    const drawerYardPackAxis =
+      o.drawerYardPackAxis === "height" || o.drawerYardPackAxis === "width" ? o.drawerYardPackAxis : undefined;
+    const activeLibraryRecordId =
+      typeof o.activeLibraryRecordId === "string" && o.activeLibraryRecordId.length > 0
+        ? o.activeLibraryRecordId
+        : undefined;
     return {
       ...(o as Project),
       id,
@@ -459,6 +467,8 @@ export function parseProject(json: string): Project | null {
       stockWidthByMaterialGroup,
       cutProgressByRoughInstanceId,
       geometry,
+      drawerYardPackAxis,
+      activeLibraryRecordId,
     };
   } catch {
     return null;

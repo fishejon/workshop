@@ -26,9 +26,9 @@ function boardsToBuyForRow(row: LumberVehicleRow): { display: string; title?: st
  * Yard shopping strip: nominal lumber line, total lineal, board count, stick length, interactive cut layout.
  */
 export function CutListYardSummary() {
-  const { project, toggleCutProgress } = useProject();
+  const { project, toggleCutProgress, setDrawerYardPackAxis } = useProject();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [drawerPackAxis, setDrawerPackAxis] = useState<"height" | "width">("height");
+  const drawerPackAxis = project.drawerYardPackAxis ?? "width";
 
   const yardParts = useMemo(() => partsForHardwoodYardCutList(project), [project]);
 
@@ -85,6 +85,9 @@ export function CutListYardSummary() {
               <strong className="text-[var(--gl-cream-soft)]">{formatShopImperial(vehicleMaxInches)}</strong> with{" "}
               <strong className="text-[var(--gl-cream-soft)]">⅛″ kerf</strong> between cuts on the same stick.
             </p>
+            <p className="mt-1 text-xs text-[var(--gl-muted)]">
+              Drawer bottoms (ply / hardboard) are excluded from hardwood stick and board-foot math here.
+            </p>
             {project.omitDresserCaseBackFromHardwoodCutList ? (
               <p className="mt-1 text-xs text-[var(--gl-copper-bright)]">
                 Case back is excluded from this hardwood stick list (toggle under Plan → dresser back panel).
@@ -104,8 +107,8 @@ export function CutListYardSummary() {
       </div>
       {isExpanded ? (
         <div id="cut-list-collapsible-content">
-      <table className="gl-numeric w-full text-left text-sm text-[var(--gl-cream)]">
-        <thead className="bg-[var(--gl-surface-inset)] text-xs text-[var(--gl-muted)] uppercase tracking-wide">
+      <table className="gl-numeric w-full bg-white text-left text-sm text-neutral-900">
+        <thead className="bg-white text-xs text-neutral-600 uppercase tracking-wide">
           <tr>
             <th className="px-4 py-2.5 font-medium">Lumber type</th>
             <th className="px-4 py-2.5 text-right font-medium">Total lineal</th>
@@ -113,22 +116,22 @@ export function CutListYardSummary() {
             <th className="px-4 py-2.5 text-right font-medium">Each board length</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--gl-border)]">
+        <tbody className="divide-y divide-[var(--gl-border)] bg-white">
           {rows.map((row) => {
             const { display, title } = boardsToBuyForRow(row);
             return (
               <tr key={row.key}>
-                <td className="px-4 py-3 font-medium text-[var(--gl-cream-soft)]">{row.yardLumberLabel}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream)]">
+                <td className="px-4 py-3 font-medium text-neutral-900">{row.yardLumberLabel}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-neutral-800">
                   {formatLinearFeetShop(row.adjustedLinearFeet)}
                 </td>
                 <td
-                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-[var(--gl-cream)]"
+                  className="px-4 py-3 text-right text-lg font-semibold tabular-nums tracking-tight text-neutral-900"
                   title={title}
                 >
                   {display}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums text-[var(--gl-cream-soft)]">
+                <td className="px-4 py-3 text-right tabular-nums text-neutral-700">
                   {formatShopImperial(vehicleMaxInches)}
                 </td>
               </tr>
@@ -147,15 +150,15 @@ export function CutListYardSummary() {
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-[var(--gl-muted)]">
-            Drawer packing: choose whether drawer boxes are counted by <strong className="text-[var(--gl-cream-soft)]">height</strong> (default)
-            or by <strong className="text-[var(--gl-cream-soft)]">width</strong> (keeps grain horizontal and prefers glue-ups to reach height).
+            Drawer packing: default is <strong className="text-[var(--gl-cream-soft)]">width</strong> (grain horizontal on the stick). Switch to{" "}
+            <strong className="text-[var(--gl-cream-soft)]">height</strong> if you prefer counting the tall axis as lineal.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-inset)] px-2 py-1">
             <span className="text-xs text-[var(--gl-muted)]">Drawers by</span>
             <select
               className="input-wood py-1 text-xs"
               value={drawerPackAxis}
-              onChange={(e) => setDrawerPackAxis(e.target.value as "height" | "width")}
+              onChange={(e) => setDrawerYardPackAxis(e.target.value as "height" | "width")}
             >
               <option value="height">Height</option>
               <option value="width">Width</option>

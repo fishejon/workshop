@@ -16,6 +16,7 @@ import { partsToCsv } from "@/lib/parts-csv";
 import { formatShopImperial } from "@/lib/imperial";
 import { validationIssueWhereHint } from "@/lib/validation/issue-action-hint";
 import { canExportOrPrintProject } from "@/lib/validation";
+import { yardHardwoodCutProgressSummaries } from "@/lib/yard-cut-progress";
 
 function formatDim3(d: { t: number; w: number; l: number }): string {
   return `${formatShopImperial(d.t)} × ${formatShopImperial(d.w)} × ${formatShopImperial(d.l)}`;
@@ -63,6 +64,13 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
     return project.parts.filter((p) => p.assembly === assemblyFilter);
   }, [assemblyFilter, project.parts]);
 
+  const yardCutSummaries = useMemo(() => yardHardwoodCutProgressSummaries(project), [project]);
+
+  const yardCutSummariesFiltered = useMemo(() => {
+    if (assemblyFilter === "All") return yardCutSummaries;
+    return yardCutSummaries.filter((row) => row.assembly === assemblyFilter);
+  }, [assemblyFilter, yardCutSummaries]);
+
   const visibleRows = useMemo(() => {
     return visibleParts
       .map((part) => ({
@@ -102,6 +110,27 @@ export function PartsTable({ explainAllowanceText }: { explainAllowanceText: str
           <p className="mt-1 text-sm text-[var(--gl-muted)]">
             Finished dimensions (nearest 1/16″). Filter by assembly, export CSV, or Edit a row.
           </p>
+          {yardCutSummariesFiltered.length > 0 ? (
+            <p className="mt-2 text-xs text-[var(--gl-muted)]">
+              <span className="font-medium text-[var(--gl-cream-soft)]">Yard hardwood cuts</span> (same segments as Cut
+              list / Materials):{" "}
+              {yardCutSummariesFiltered.map((row, i) => {
+                const done = row.cutCuts >= row.requiredCuts;
+                const label = `${row.assembly} ${row.cutCuts}/${row.requiredCuts}${done ? " · complete" : ""}`;
+                return (
+                  <span key={row.assembly}>
+                    {i > 0 ? " · " : null}
+                    <span className={done ? "text-[var(--gl-copper-bright)]" : undefined}>{label}</span>
+                  </span>
+                );
+              })}
+            </p>
+          ) : assemblyFilter !== "All" ? (
+            <p className="mt-2 text-xs text-[var(--gl-muted)]">
+              No hardwood stick cuts from the yard list for this assembly (sheet goods or omitted lines are not
+              counted here).
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="flex items-center gap-2 rounded-lg border border-[var(--gl-border)] bg-[var(--gl-surface-muted)] px-2 py-1">

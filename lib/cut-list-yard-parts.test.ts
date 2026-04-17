@@ -49,4 +49,31 @@ describe("partsForHardwoodYardCutList", () => {
     const p = minimalProject([caseBack, other], true);
     expect(partsForHardwoodYardCutList(p)).toEqual([other]);
   });
+
+  it("always drops dresser drawer bottoms (ply / hardboard)", () => {
+    const drawerBottom: Part = {
+      id: "db-1",
+      name: "Drawer bottom (Col 1 · Row 1)",
+      assembly: "Drawers",
+      quantity: 1,
+      finished: { t: 0.25, w: 10, l: 20 },
+      rough: { t: 0.25, w: 10, l: 20, manual: false },
+      material: { label: "Drawer bottom (ply / hardboard)", thicknessCategory: "1/4 ply" },
+      grainNote: "",
+      status: "panel",
+    };
+    const side: Part = {
+      id: "ds-1",
+      name: "Drawer side (Col 1 · Row 1)",
+      assembly: "Drawers",
+      quantity: 2,
+      finished: { t: 0.75, w: 4, l: 12 },
+      rough: { t: 0.75, w: 4, l: 12, manual: false },
+      material: { label: "White oak", thicknessCategory: "4/4" },
+      grainNote: "",
+      status: "solid",
+    };
+    const p = minimalProject([drawerBottom, side]);
+    expect(partsForHardwoodYardCutList(p)).toEqual([side]);
+  });
 });
